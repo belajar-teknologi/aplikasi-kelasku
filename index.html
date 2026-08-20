@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asisten Guru Pintar (EduTracker) - Aplikasi Manajemen Kelas & Siswa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Header / Navbar -->
+    <header class="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white text-blue-700 rounded-xl flex items-center justify-center font-bold text-xl shadow">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Asisten Guru Pintar</h1>
+                    <p class="text-xs text-blue-100">EduTracker • Kelas 5-A Unggulan</p>
+                </div>
+            </div>
+            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                <a href="#fitur" class="hover:text-blue-200 transition">Fitur Utama</a>
+                <a href="#preview" class="hover:text-blue-200 transition">Pratinjau</a>
+                <a href="#panduan" class="hover:text-blue-200 transition">Panduan Instalasi</a>
+                <a href="#kontak" class="hover:text-blue-200 transition">Bantuan</a>
+            </nav>
+            <div>
+                <a href="#download" class="bg-amber-400 hover:bg-amber-300 text-slate-900 px-4 py-2 rounded-lg font-bold text-sm shadow transition flex items-center gap-2">
+                    <i class="fa-brands fa-android"></i> Pasang Aplikasi
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white pt-12 pb-24 px-4 relative overflow-hidden">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+                <span class="bg-blue-800/60 text-blue-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-block mb-4 border border-blue-400/30">
+                    🚀 Solusi Digital Guru Indonesia
+                </span>
+                <h2 class="text-3xl sm:text-5xl font-extrabold leading-tight mb-6">
+                    Kelola Kelas, Nilai, & Presensi Siswa Lebih Cepat & Praktis.
+                </h2>
+                <p class="text-blue-100 text-base sm:text-lg mb-8 leading-relaxed">
+                    Aplikasi asisten guru berbasis Android untuk pencatatan kehadiran digital, rekap nilai otomatis KKM, kuis interaktif, laporan mingguan PDF, dan notifikasi WhatsApp langsung ke wali murid.
+                </p>
+                <div class="flex flex-wrap gap-4" id="download">
+                    <button onclick="alert('File APK siap di-build via menu export di Google AI Studio atau via Android Studio')" class="bg-white text-blue-700 hover:bg-blue-50 px-6 py-3.5 rounded-xl font-bold shadow-lg transition flex items-center gap-3">
+                        <i class="fa-solid fa-download text-lg"></i> Unduh APK Android
+                    </button>
+                    <a href="#fitur" class="bg-blue-800/80 hover:bg-blue-700/80 border border-blue-400/40 text-white px-6 py-3.5 rounded-xl font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-compass"></i> Jelajahi Fitur
+                    </a>
+                </div>
+            </div>
+
+            <!-- Visual Mockup Card -->
+            <div class="relative flex justify-center">
+                <div class="w-full max-w-sm bg-slate-900 rounded-[2.5rem] p-4 shadow-2xl border-4 border-slate-700">
+                    <div class="bg-white rounded-[2rem] p-5 text-slate-800 space-y-4">
+                        <!-- Top Bar Mockup -->
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <div>
+                                <p class="text-xs text-slate-400 font-semibold">Selamat Mengajar,</p>
+                                <h4 class="text-sm font-bold text-slate-800">Pak Abu Rizzal, S.Pd.</h4>
+                            </div>
+                            <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold">Aktif</span>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                                <p class="text-[11px] text-blue-600 font-semibold">Kehadiran Hari Ini</p>
+                                <p class="text-xl font-extrabold text-blue-900">96.7%</p>
+                                <span class="text-[10px] text-emerald-600 font-medium">✓ 29 Hadir / 1 Izin</span>
+                            </div>
+                            <div class="bg-amber-50 p-3 rounded-xl border border-amber-100">
+                                <p class="text-[11px] text-amber-700 font-semibold">Rata-rata Nilai</p>
+                                <p class="text-xl font-extrabold text-amber-900">84.2</p>
+                                <span class="text-[10px] text-amber-600 font-medium">Target KKM: 75</span>
+                            </div>
+                        </div>
+
+                        <!-- Mini Quick Action -->
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                            <p class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <i class="fa-brands fa-whatsapp text-emerald-600"></i> Kirim Laporan Wali Murid
+                            </p>
+                            <p class="text-[11px] text-slate-500">Notifikasi otomatis nilai & presensi terkirim dalam sekali klik.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Fitur Utama -->
+    <section id="fitur" class="py-20 px-4 max-w-7xl mx-auto">
+        <div class="text-center max-w-3xl mx-auto mb-16">
+            <span class="text-blue-600 font-bold text-sm tracking-wider uppercase">Fitur Lengkap Guru</span>
+            <h3 class="text-3xl font-extrabold text-slate-900 mt-2">Semua Kebutuhan Administrasi Kelas Dalam Satu Aplikasi</h3>
+            <p class="text-slate-600 mt-4">Dirancang khusus untuk mendukung kegiatan mengajar guru secara efisien tanpa repot berkas manual.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Card 1 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-clipboard-user"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Presensi Kehadiran Digital</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Catat status Hadir, Sakit, Izin, dan Alpa dengan tombol cepat. Fitur "Tandai Semua Hadir" dan kirim rekap langsung ke WhatsApp wali murid.
+                </p>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Buku Nilai & Rekap KKM</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Hitung nilai tugas, kuis, UTS, UAS secara otomatis. Dilengkapi indikator ketuntasan KKM dan pengiriman rapor ringkas ke WhatsApp/Email.
+                </p>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-purple-100 text-purple-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Kuis Daring & Link Soal</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Buat kuis pilihan ganda, bagikan link/kode kuis ke siswa, serta lakukan simulasi ujian interaktif dengan timer dan penilaian otomatis.
+                </p>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-rose-100 text-rose-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Export Laporan PDF</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Cetak dan simpan rekapitulasi kehadiran dan kemajuan nilai siswa dalam format dokumen PDF resmi siap setor ke kepala sekolah.
+                </p>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-calendar-days"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Kalender & Tugas Rumah</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Atur jadwal ulangan, tenggat PR, dan agenda rapat dengan integrasi pengingat notifikasi agar tidak ada agenda yang terlewat.
+                </p>
+            </div>
+
+            <!-- Card 6 -->
+            <div class="glass-card p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                <div class="w-12 h-12 bg-cyan-100 text-cyan-700 rounded-xl flex items-center justify-center text-xl mb-4">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h4 class="text-lg font-bold text-slate-800 mb-2">Chat Interaktif Wali Murid</h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Komunikasi langsung per siswa dengan template pesan cepat untuk konsultasi perkembangan belajar siswa.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Panduan untuk GitHub & Android Studio -->
+    <section id="panduan" class="py-16 bg-white border-y border-slate-200">
+        <div class="max-w-5xl mx-auto px-4">
+            <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-4 text-center">
+                Informasi Repositori & Cara Membuka Proyek
+            </h3>
+            <p class="text-slate-600 text-center mb-10 max-w-2xl mx-auto">
+                Repositori ini berisi kode sumber aplikasi **Android Native** (Kotlin + Jetpack Compose).
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Panduan 1 -->
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <h4 class="font-bold text-lg text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fa-brands fa-android text-emerald-600"></i> Buka di Android Studio
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-slate-600">
+                        <li>Clone repository ini ke komputer Anda.</li>
+                        <li>Buka software <strong>Android Studio</strong>.</li>
+                        <li>Pilih <strong>Open Project</strong> dan arahkan ke folder ini.</li>
+                        <li>Tunggu proses Gradle Sync selesai.</li>
+                        <li>Klik tombol <strong>Run (Play Hijau)</strong> untuk menjalankan di HP atau Emulator.</li>
+                    </ol>
+                </div>
+
+                <!-- Panduan 2 -->
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                    <h4 class="font-bold text-lg text-slate-800 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud text-blue-600"></i> Jalankan di Google AI Studio
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-slate-600">
+                        <li>Buka workspace di <strong>Google AI Studio Build</strong>.</li>
+                        <li>Aplikasi langsung aktif di <strong>Streaming Emulator</strong> sebelah kanan.</li>
+                        <li>Gunakan menu <strong>Export / Download APK</strong> untuk memasang di HP.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="kontak" class="bg-slate-900 text-slate-400 py-12 px-4">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-sm">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <span class="text-white font-bold">Asisten Guru Pintar (EduTracker)</span>
+            </div>
+            <p>© 2026 Asisten Guru Pintar. Dikembangkan untuk Guru & Tenaga Pendidik Indonesia.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
