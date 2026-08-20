@@ -1,0 +1,6 @@
+{
+  "name": "Asisten Guru Pintar",
+  "description": "Aplikasi asisten guru lengkap untuk kelola nilai, absensi digital, kuis interaktif, laporan mingguan PDF, jadwal kalender, tugas rumah, chat wali murid, dan notifikasi WhatsApp & Email.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
