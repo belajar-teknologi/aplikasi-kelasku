@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buat Kuis - EduSmart LMS</title>
+<script src="https://cdn.tailwindcss.com" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+body { font-family: 'Plus Jakarta Sans', sans-serif; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.fade-in { animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+.menu-card { transition: all .2s ease; }
+.menu-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,.1); }
+.materi-input { transition: all .15s ease; }
+.materi-input:focus { border-color: #6366f1; background: white; }
+.media-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; }
+.opsi-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; transition: background .15s ease; }
+.opsi-row:hover { background: #f1f5f9; }
+.opsi-row .huruf-box { width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #e0e7ff; color: #4338ca; font-weight: 800; font-size: 14px; border: 2px solid transparent; cursor: pointer; transition: all .15s ease; user-select: none; }
+.opsi-row .huruf-box:hover { border-color: #6366f1; }
+.opsi-row.aktif-kunci .huruf-box { background: #10b981; color: white; border-color: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+.opsi-row .badge-kunci { display: none; background: #10b981; color: white; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-left: 4px; letter-spacing: .5px; }
+.opsi-row.aktif-kunci .badge-kunci { display: inline-block; }
+.opsi-row input[type="text"] { flex: 1; }
+.prev-opsi { display: flex; align-items: baseline; gap: 4px; padding: 2px 4px; border-radius: 4px; }
+.prev-opsi.kunci { background: #d1fae5; color: #065f46; font-weight: 700; }
+.prev-opsi.kunci .tanda { color: #10b981; font-weight: 800; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+<div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 max-w-sm"></div>
+<div id="modal-backdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden" onclick="closeModal()"></div>
+<div id="modal-container" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="modal-content" class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative">
+<button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-lg z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+<div id="modal-body"></div>
+</div>
+</div>
+
+<header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<button onclick="toggleSidebar()" class="lg:hidden text-white hover:bg-indigo-600 p-2 rounded-lg"><i class="fa-solid fa-bars text-lg"></i></button>
+<div class="flex items-center gap-2.5">
+<div class="bg-white text-indigo-700 rounded-full flex items-center justify-center w-12 h-12 shadow-lg overflow-hidden ring-2 ring-white/30">
+<img id="header-brand-logo" src="" class="w-full h-full object-cover hidden" referrerpolicy="no-referrer">
+<i id="header-brand-icon" class="fa-solid fa-pen-to-square text-2xl"></i>
+</div>
+<div>
+<h1 id="header-brand-title" class="font-bold text-lg leading-tight">Buat Kuis</h1>
+<p class="text-xs text-indigo-200">EduSmart LMS · Guru</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 sm:gap-3">
+<div id="sync-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm">
+<span class="w-2 h-2 rounded-full bg-slate-900"></span><span>SIAP</span>
+</div>
+<div id="header-user-info" class="hidden items-center gap-2 border-l border-indigo-500 pl-3">
+<div class="w-9 h-9 rounded-full bg-indigo-500 text-white flex items-center justify-center text-sm font-bold border border-indigo-400 overflow-hidden">
+<img id="header-user-photo" src="" class="w-full h-full object-cover hidden" referrerpolicy="no-referrer">
+<i id="header-user-icon" class="fa-solid fa-user"></i>
+</div>
+<div class="text-right hidden sm:block">
+<div id="header-user-name" class="text-sm font-semibold leading-none">Guru</div>
+<div id="header-user-role" class="text-[10px] text-indigo-200 mt-1">guru</div>
+</div>
+<a href="./index.html" class="bg-red-500 hover:bg-red-600 text-white text-xs p-2 rounded-lg transition" title="Kembali ke Dashboard"><i class="fa-solid fa-arrow-left"></i></a>
+</div>
+</div>
+</div>
+</header>
+
+<div class="flex-1 flex max-w-7xl w-full mx-auto relative">
+<aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-20 w-64 bg-white border-r border-slate-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 flex flex-col shadow-lg lg:shadow-none">
+<div class="p-4 border-b border-slate-100 flex items-center justify-between lg:hidden">
+<span class="font-bold text-slate-700">Menu</span>
+<button onclick="toggleSidebar()" class="text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+</div>
+<div class="p-4 overflow-y-auto custom-scrollbar flex-1"><nav id="sidebar-nav-list" class="space-y-1"></nav></div>
+</aside>
+<main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-full"><div id="main-view-container"></div></main>
+</div>
+
+<script>
+/* =========================================================
+   BAGIAN 1/5 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
+   ========================================================= */
+
+const STORAGE = {
+  USER: "edusmart_user", MENUS: "edusmart_master_menus", DB: "edusmart_db",
+  JSONBIN_KEY: "edusmart_jsonbin_api_key", JSONBIN_TYPE: "edusmart_jsonbin_key_type",
+  APP_CONFIG: "edusmart_app_config", APP_CODE: "edusmart_application_code",
+  CLOUD_NAME: "edusmart_cloudinary_cloud_name", CLOUD_PRESET: "edusmart_cloudinary_preset",
+  SB_URL: "edusmart_supabase_url", SB_KEY: "edusmart_supabase_anon_key",
+  GEMINI_KEY: "edusmart_gemini_api_key",
+  MENU_ACTIVE: "edusmart_buat_kuis_active"
+};
+
+const SUPABASE_BUCKET = "edusmart-profile";
+
+/* ✅ Model valid (sudah terbukti jalan di API key Anda) */
+const GEMINI_MODELS = ["gemini-2.5-flash"];
+
+const JENIS_SOAL = {
+  PG:          { label: "Pilihan Ganda", kode: "PG",          icon: "fa-list-ul" },
+  PGK:         { label: "PG Kompleks",   kode: "PGK",         icon: "fa-list-check" },
+  MENJODOHKAN: { label: "Menjodohkan",   kode: "MENJODOHKAN", icon: "fa-arrows-left-right" },
+  ISIAN:       { label: "Isian Singkat", kode: "ISIAN",       icon: "fa-keyboard" },
+  URAIAN:      { label: "Uraian",        kode: "URAIAN",      icon: "fa-align-left" }
+};
+
+const HURUF_PILIHAN = ["A", "B", "C", "D"];
+
+let appState = { currentUser: null, db: null, activeView: "paket" };
+let currentConfig = null;
+
+/* ==== HELPER DASAR ==== */
+function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
+const getLS = (k, d="") => localStorage.getItem(k) || d;
+const setLS = (k, v) => localStorage.setItem(k, v);
+const delLS = (k) => localStorage.removeItem(k);
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function nextId(arr) {
+  if (!arr || !arr.length) return 1;
+  let max = 0;
+  arr.forEach(r => { const id = Number(r[0]) || 0; if (id > max) max = id; });
+  return max + 1;
+}
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function formatRelative(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return "baru saja";
+  if (diff < 3600) return Math.floor(diff/60) + " mnt";
+  if (diff < 86400) return Math.floor(diff/3600) + " jam";
+  return Math.floor(diff/86400) + " hr";
+}
+function uid(prefix = "id") {
+  return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+/* ==== UI HELPER ==== */
+function showToast(msg, type = "info", durasi = 3500) {
+  const c = document.getElementById("toast-container");
+  if (!c) return;
+  const t = document.createElement("div");
+  const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : type === "warning" ? "bg-amber-500" : "bg-indigo-600";
+  t.className = `${bg} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0 fade-in`;
+  t.innerHTML = `<span>${esc(msg)}</span><button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>`;
+  c.appendChild(t);
+  setTimeout(() => t.classList.remove("translate-y-2","opacity-0"), 10);
+  setTimeout(() => t.remove(), durasi);
+}
+function showLoading(on, text = "Memuat...") {
+  let el = document.getElementById("edusmart-loading");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "edusmart-loading";
+    el.className = "fixed inset-0 z-[90] bg-slate-900/30 backdrop-blur-sm items-center justify-center hidden";
+    el.innerHTML = `<div class="bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span id="edusmart-loading-text" class="text-sm font-semibold text-slate-700">Memuat...</span></div>`;
+    document.body.appendChild(el);
+  }
+  el.classList.toggle("hidden", !on);
+  el.classList.toggle("flex", !!on);
+  const txt = document.getElementById("edusmart-loading-text");
+  if (txt) txt.textContent = text;
+}
+function openModal() {
+  document.getElementById("modal-backdrop").classList.remove("hidden");
+  document.getElementById("modal-container").classList.remove("hidden");
+}
+function closeModal() {
+  document.getElementById("modal-backdrop").classList.add("hidden");
+  document.getElementById("modal-container").classList.add("hidden");
+}
+function toggleSidebar() { document.getElementById("sidebar").classList.toggle("-translate-x-full"); }
+function setSyncBadge(on, text) {
+  const el = document.getElementById("sync-badge");
+  if (!el) return;
+  if (on) {
+    el.className = "px-3 py-1 rounded-full text-xs font-semibold bg-amber-400 text-slate-900 flex items-center gap-1.5 shadow-sm";
+    el.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></span><span>${esc(text || "BELUM DISIMPAN")}</span>`;
+  } else {
+    el.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm";
+    el.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-900"></span><span>${esc(text || "SIAP")}</span>`;
+  }
+}
+function copyToClipboard(text, successMsg = "Tersalin!") {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => showToast(successMsg, "success"));
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showToast(successMsg, "success"); }
+    catch(e) { showToast("Gagal copy", "error"); }
+    document.body.removeChild(ta);
+  }
+}
+
+/* ==== KONFIGURASI ==== */
+function getJsonBinCredential() {
+  const key = String(getLS(STORAGE.JSONBIN_KEY)).trim();
+  const type = String(getLS(STORAGE.JSONBIN_TYPE, "master")).toLowerCase();
+  return key ? { key, type: type === "access" ? "access" : "master" } : null;
+}
+function getAppConfig() { return safeParse(getLS(STORAGE.APP_CONFIG)); }
+function getSupabaseConfig() {
+  const url = String(getLS(STORAGE.SB_URL)).trim();
+  const key = String(getLS(STORAGE.SB_KEY)).trim();
+  return url && key ? { url, key } : null;
+}
+function getGeminiKey() { return String(getLS(STORAGE.GEMINI_KEY)).trim(); }
+function getCloudinaryConfig() {
+  const name = String(getLS(STORAGE.CLOUD_NAME)).trim();
+  const preset = String(getLS(STORAGE.CLOUD_PRESET)).trim();
+  return name && preset ? { name, preset } : null;
+}
+
+/* ==== SUPABASE HELPERS ==== */
+function sbHeaders(extra = {}) {
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  return { "apikey": sb.key, "Authorization": `Bearer ${sb.key}`, "Content-Type": "application/json", ...extra };
+}
+async function sbFetch(table, query = "") {
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const res = await fetch(`${sb.url}/rest/v1/${table}${query}`, { headers: sbHeaders() });
+  if (!res.ok) throw new Error(`Fetch ${table} gagal (${res.status}).`);
+  return res.json();
+}
+async function sbInsert(table, rows) {
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const res = await fetch(`${sb.url}/rest/v1/${table}`, {
+    method: "POST",
+    headers: sbHeaders({ "Prefer": "return=representation" }),
+    body: JSON.stringify(Array.isArray(rows) ? rows : [rows])
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Insert ${table} gagal: ${t.slice(0,200)}`); }
+  return res.json();
+}
+async function sbUpsert(table, rows) {
+  if (!rows.length) return true;
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const res = await fetch(`${sb.url}/rest/v1/${table}`, {
+    method: "POST",
+    headers: sbHeaders({ "Prefer": "resolution=merge-duplicates,return=minimal" }),
+    body: JSON.stringify(rows)
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Upsert ${table} gagal: ${t.slice(0,200)}`); }
+  return true;
+}
+async function sbDelete(table, query = "") {
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const res = await fetch(`${sb.url}/rest/v1/${table}${query}`, {
+    method: "DELETE", headers: sbHeaders()
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Delete ${table} gagal: ${t.slice(0,200)}`); }
+  return true;
+}
+async function sbRpc(namaRpc, params = {}) {
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const res = await fetch(`${sb.url}/rest/v1/rpc/${namaRpc}`, {
+    method: "POST", headers: sbHeaders(), body: JSON.stringify(params)
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch(e) { data = text; }
+  if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+  return data;
+}
+
+/* ==== UPLOAD FILE ==== */
+const IDB_NAME = "edusmart_files";
+const IDB_STORE = "files";
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE, { keyPath: "key" });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSave(key, file) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    const store = tx.objectStore(IDB_STORE);
+    const reader = new FileReader();
+    reader.onload = () => { store.put({ key, dataUrl: reader.result, name: file.name, type: file.type }); resolve(); };
+    reader.readAsDataURL(file);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(IDB_STORE, "readonly").objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function uploadFile(file, folder = "edusmart/soal") {
+  if (file.size > 5 * 1024 * 1024) throw new Error("Ukuran file maksimal 5 MB.");
+  const cloud = getCloudinaryConfig();
+  if (cloud) {
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("upload_preset", cloud.preset);
+      if (folder) form.append("folder", folder);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud.name}/image/upload`, { method: "POST", body: form });
+      const r = await res.json();
+      if (res.ok && r?.secure_url) return { url: r.secure_url, publicId: r.public_id, provider: "cloudinary" };
+      throw new Error(r?.error?.message || `HTTP ${res.status}`);
+    } catch (err) { console.warn("Cloudinary gagal, fallback:", err); }
+  }
+  const sb = getSupabaseConfig();
+  if (sb) {
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const res = await fetch(`${sb.url}/storage/v1/object/${SUPABASE_BUCKET}/${fileName}`, {
+        method: "POST",
+        headers: { "apikey": sb.key, "Authorization": `Bearer ${sb.key}`, "Content-Type": file.type, "x-upsert": "true" },
+        body: file
+      });
+      if (res.ok) return { url: `${sb.url}/storage/v1/object/public/${SUPABASE_BUCKET}/${fileName}`, publicId: fileName, provider: "supabase" };
+    } catch (err) { console.warn("Supabase gagal, fallback:", err); }
+  }
+  const key = `file_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await idbSave(key, file);
+  const rec = await idbGet(key);
+  return { url: rec.dataUrl, publicId: key, provider: "indexeddb" };
+}
+
+/* ==== JSONBIN HELPERS ==== */
+function getJsonBinHeaders(cred, withCT = false) {
+  const h = {};
+  if (withCT) h["Content-Type"] = "application/json";
+  if (cred?.key) h[cred.type === "access" ? "X-Access-Key" : "X-Master-Key"] = cred.key;
+  return h;
+}
+async function loadJsonBinDB(binId, cred) {
+  const c = cred || getJsonBinCredential();
+  if (!c) throw new Error("API Key JSONBin belum diset.");
+  if (!binId) throw new Error("Bin ID JSONBin belum ada.");
+  const h = {};
+  h[c.type === "access" ? "X-Access-Key" : "X-Master-Key"] = c.key;
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${encodeURIComponent(binId)}/latest?meta=false`, { cache: "no-store", headers: h });
+  const text = await res.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch(e) {}
+  if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
+  return data?.record && typeof data.record === "object" ? data.record : data;
+}
+async function updateJsonBinDB(db, binId, cred) {
+  const c = cred || getJsonBinCredential();
+  const cfg = getAppConfig();
+  const bid = binId || cfg?.binId;
+  if (!bid || !c) throw new Error("Bin ID atau API Key belum ada.");
+  const res = await fetch(`https://api.jsonbin.io/v3/b/${encodeURIComponent(bid)}`, {
+    method: "PUT",
+    headers: getJsonBinHeaders(c, true),
+    body: JSON.stringify(db)
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Update JSONBin gagal: ${t.slice(0,200)}`); }
+  setLS("edusmart_last_sync", new Date().toISOString());
+  return true;
+}
+
+/* ==== LINK MATERI ==== */
+function kmGetLinks(paketId) {
+  const km = appState.db?.km || [];
+  const rec = km.find(r => String(r[1]) === String(paketId));
+  return rec ? (Array.isArray(rec[2]) ? rec[2].filter(Boolean) : []) : [];
+}
+function kmSetAllLinks(paketId, links) {
+  if (!appState.db) appState.db = {};
+  appState.db.km = appState.db.km || [];
+  let rec = appState.db.km.find(r => String(r[1]) === String(paketId));
+  if (!rec) {
+    const newId = nextId(appState.db.km);
+    rec = [newId, paketId, []];
+    appState.db.km.push(rec);
+  }
+  rec[2] = (links || []).map(u => u ? String(u).trim() : null).filter(Boolean);
+  return rec[2];
+}
+function kmDeleteRecord(paketId) {
+  if (!appState.db?.km) return;
+  appState.db.km = appState.db.km.filter(r => String(r[1]) !== String(paketId));
+}
+
+/* ==== GEMINI HELPER ==== */
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+function getGeminiErrorMessage(status, body, model) {
+  let detail = "";
+  try {
+    const j = body ? JSON.parse(body) : null;
+    detail = j?.error?.message || j?.error?.status || "";
+  } catch (e) {
+    detail = String(body || "").replace(/\s+/g, " ").slice(0, 220);
+  }
+  if (status === 429) return `Gemini terlalu banyak menerima permintaan (429). Coba lagi beberapa saat lagi.${detail ? " " + detail : ""}`;
+  if ([500, 502, 503, 504].includes(status)) return `Layanan Gemini sedang tidak tersedia sementara (HTTP ${status}) pada model ${model}.${detail ? " " + detail : ""}`;
+  if (status === 400) return `Permintaan ke Gemini tidak valid (400).${detail ? " " + detail : ""}`;
+  if (status === 401) return "API Key Gemini tidak valid (401).";
+  if (status === 403) return `API Key Gemini ditolak (403).${detail ? " " + detail : ""}`;
+  if (status === 404) return `Model ${model} tidak ditemukan atau tidak didukung (404).`;
+  return `Gemini mengembalikan HTTP ${status}.${detail ? " " + detail : ""}`;
+}
+
+async function fetchGeminiWithRetry(prompt, systemPrompt, apiKey, schema = null) {
+  let lastError = null;
+  const maxAttemptsPerModel = 4;
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+      generationConfig: { responseMimeType: "application/json", temperature: 0.7 }
+    };
+    for (let attempt = 1; attempt <= maxAttemptsPerModel; attempt++) {
+      try {
+        console.log(`[EduSmart][Gemini] ${model} percobaan ${attempt}/${maxAttemptsPerModel}`);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const bodyText = await res.text();
+        if (res.ok) {
+          let data;
+          try { data = bodyText ? JSON.parse(bodyText) : null; }
+          catch (e) { throw new Error("Respons Gemini bukan JSON yang valid."); }
+          console.log(`[EduSmart][Gemini] berhasil dengan ${model}`);
+          return data;
+        }
+        const msg = getGeminiErrorMessage(res.status, bodyText, model);
+        lastError = new Error(msg);
+        if ([400, 401, 403, 404].includes(res.status)) {
+          if (res.status === 404) break;
+          throw lastError;
+        }
+        if ([429, 500, 502, 503, 504].includes(res.status) && attempt < maxAttemptsPerModel) {
+          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
+          console.warn(`[EduSmart][Gemini] ${msg} → retry ${delay} ms`);
+          await sleep(delay);
+          continue;
+        }
+        throw lastError;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const text = lastError.message || "";
+        const retryableNetwork = /Failed to fetch|NetworkError|network|timeout|timed out/i.test(text);
+        if (retryableNetwork && attempt < maxAttemptsPerModel) {
+          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
+          console.warn(`[EduSmart][Gemini] ${text} → retry ${delay} ms`);
+          await sleep(delay);
+          continue;
+        }
+        throw lastError;
+      }
+    }
+  }
+  throw lastError || new Error("Gagal menghubungi Gemini.");
+}
+
+function extractGeminiText(result) {
+  const parts = result?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  return parts.map(p => typeof p?.text === "string" ? p.text : "").filter(Boolean).join("\n").trim();
+}
+
+/* ==== AUTH CHECK ==== */
+function checkAuth() {
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user || user.role !== "guru") return { ok: false, msg: "Anda belum login sebagai guru. Silakan login di Dashboard dulu." };
+  appState.currentUser = user;
+  const cfg = getAppConfig();
+  if (!cfg?.binId) return { ok: false, msg: "Bin ID JSONBin belum ada. Set di Pengaturan index.html dulu." };
+  const cred = getJsonBinCredential();
+  if (!cred) return { ok: false, msg: "API Key JSONBin belum diset. Buka Pengaturan di index.html." };
+  const sb = getSupabaseConfig();
+  if (!sb) return { ok: false, msg: "Supabase belum dikonfigurasi. Buka Pengaturan di index.html." };
+  currentConfig = cfg;
+  return { ok: true };
+}
+
+/* ==== ROUTER ==== */
+function renderMainContent() {
+  const c = document.getElementById("main-view-container");
+  if (!c) return;
+  const v = appState.activeView;
+  const router = { paket: renderPaketList, soal: renderBankSoalList };
+  if (router[v]) router[v](c);
+  else renderPaketList(c);
+}
+
+function renderSidebarNav() {
+  const nav = document.getElementById("sidebar-nav-list");
+  if (!nav) return;
+  const menu = [
+    { id: "paket", name: "Paket Soal", icon: "fa-solid fa-layer-group" },
+    { id: "soal", name: "Bank Soal", icon: "fa-solid fa-database" }
+  ];
+  nav.innerHTML = menu.map(m => {
+    const active = appState.activeView === m.id;
+    return `<button onclick="switchView('${m.id}')" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition ${active ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">
+      <i class="${m.icon} text-sm w-5 text-center"></i> <span>${m.name}</span>
+    </button>`;
+  }).join("") + `
+  <div class="pt-3 mt-3 border-t border-slate-100">
+    <a href="./index.html" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition text-slate-600 hover:bg-slate-100">
+      <i class="fa-solid fa-house text-sm w-5 text-center"></i> <span>Dashboard</span>
+    </a>
+    <a href="./kuis.html" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition text-slate-600 hover:bg-slate-100">
+      <i class="fa-solid fa-laptop-code text-sm w-5 text-center"></i> <span>Kuis Siswa</span>
+    </a>
+  </div>`;
+}
+function switchView(id) {
+  appState.activeView = id;
+  setLS(STORAGE.MENU_ACTIVE, id);
+  renderSidebarNav();
+  renderMainContent();
+}
+
+function updateHeaderUI() {
+  const user = appState.currentUser;
+  if (!user) return;
+  const info = document.getElementById("header-user-info");
+  const nameEl = document.getElementById("header-user-name");
+  const photoEl = document.getElementById("header-user-photo");
+  const iconEl = document.getElementById("header-user-icon");
+  if (info) { info.classList.remove("hidden"); info.classList.add("flex"); }
+  if (nameEl) nameEl.textContent = user.name;
+  const fotoGuru = appState.db?.a?.fg || "";
+  if (fotoGuru && photoEl && iconEl) {
+    photoEl.referrerPolicy = "no-referrer";
+    photoEl.classList.remove("hidden");
+    iconEl.classList.add("hidden");
+    photoEl.src = fotoGuru;
+  }
+  const brandTitle = document.getElementById("header-brand-title");
+  if (brandTitle) brandTitle.textContent = "Buat Kuis · " + (appState.db?.a?.ns || "EduSmart LMS");
+  const brandLogo = document.getElementById("header-brand-logo");
+  const brandIcon = document.getElementById("header-brand-icon");
+  const logoSekolah = appState.db?.a?.ls || "";
+  if (logoSekolah && brandLogo && brandIcon) {
+    brandLogo.referrerPolicy = "no-referrer";
+    brandLogo.classList.remove("hidden");
+    brandIcon.classList.add("hidden");
+    brandLogo.src = logoSekolah;
+  }
+}
+
+/* ==== INIT ==== */
+document.addEventListener("DOMContentLoaded", async () => {
+  const auth = checkAuth();
+  if (!auth.ok) {
+    document.getElementById("main-view-container").innerHTML = `
+      <div class="max-w-md mx-auto my-16 bg-white p-8 rounded-2xl shadow-xl border text-center fade-in">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mb-4"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h2 class="text-lg font-bold text-slate-800 mb-2">Perlu Setup</h2>
+        <p class="text-xs text-slate-500 mb-4">${esc(auth.msg)}</p>
+        <a href="./index.html" class="inline-block px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold">Buka Dashboard</a>
+      </div>`;
+    return;
+  }
+  try {
+    showLoading(true, "Menarik data dari JSONBin...");
+    const cred = getJsonBinCredential();
+    const db = await loadJsonBinDB(currentConfig.binId, cred);
+    appState.db = db;
+    if (!appState.db.km) appState.db.km = [];
+    showLoading(false);
+  } catch (err) {
+    showLoading(false);
+    document.getElementById("main-view-container").innerHTML = `
+      <div class="max-w-md mx-auto my-16 bg-white p-8 rounded-2xl shadow-xl border text-center fade-in">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-3xl mb-4"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h2 class="text-lg font-bold text-slate-800 mb-2">Gagal Muat Data</h2>
+        <p class="text-xs text-slate-500 mb-4">${esc(err.message)}</p>
+        <button onclick="location.reload()" class="inline-block px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold">Coba Lagi</button>
+      </div>`;
+    return;
+  }
+  const savedView = getLS(STORAGE.MENU_ACTIVE, "paket");
+  appState.activeView = savedView;
+  updateHeaderUI();
+  renderSidebarNav();
+  renderMainContent();
+});
+/* =========================================================
+   BAGIAN 2/5 — PAKET SOAL (LIST + MODAL 2 TAB)
+   ========================================================= */
+
+let __paketCache = [];
+let __editPaketId = null;
+let __tempLinks = [];
+let __activeTabPaket = "info";
+let __tempSoalAI = [];
+let __tempSoalAIMeta = { mapel: "", kelas: "", topik: "" };
+
+/* ---------- LIST PAKET ---------- */
+async function renderPaketList(c) {
+  c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin"></i> Memuat paket soal...</div>`;
+  try {
+    const pakets = await sbFetch("paket_soal", "?order=created_at.desc&limit=200");
+    __paketCache = pakets;
+
+    c.innerHTML = `
+    <div class="space-y-5 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold">Paket Soal</h2>
+          <p class="text-xs text-slate-500 mt-1">${pakets.length} paket tersimpan. Klik "Generate AI" di dalam paket untuk buat soal otomatis.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="refreshPaket()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <button onclick="showBuatPaketModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Buat Paket Baru</button>
+        </div>
+      </div>
+
+      ${pakets.length ? `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${pakets.map(p => {
+            const links = kmGetLinks(p.id);
+            return `
+            <div class="menu-card bg-white rounded-2xl border-2 border-slate-100 p-4 hover:border-indigo-400 transition">
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <div class="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg"><i class="fa-solid fa-layer-group"></i></div>
+                <span class="text-[10px] font-bold px-2 py-1 rounded-full ${p.aktif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${p.aktif ? 'AKTIF' : 'NONAKTIF'}</span>
+              </div>
+              <h3 class="font-bold text-sm leading-tight text-slate-800">${esc(p.nama || "(tanpa nama)")}</h3>
+              <div class="text-[11px] text-slate-500 mt-2 space-y-1">
+                <div><i class="fa-solid fa-book text-indigo-500"></i> ${esc(p.mapel_kode || "-")}</div>
+                <div><i class="fa-solid fa-users text-indigo-500"></i> Kelas ${esc(p.kelas || "-")}</div>
+                <div><i class="fa-solid fa-clock text-indigo-500"></i> ${p.durasi_menit || 0} menit</div>
+                ${links.length ? `<div><i class="fa-solid fa-link text-emerald-500"></i> ${links.length} link materi</div>` : ""}
+                ${p.acak_soal ? `<div><i class="fa-solid fa-shuffle text-purple-500"></i> Acak soal</div>` : ""}
+                ${p.acak_pilihan ? `<div><i class="fa-solid fa-shuffle text-pink-500"></i> Acak pilihan A-D</div>` : ""}
+                <div><i class="fa-solid fa-calendar text-indigo-500"></i> ${formatRelative(p.created_at)}</div>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-100">
+                <button onclick="previewPaket('${p.id}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1.5 rounded-lg" title="Preview"><i class="fa-solid fa-eye"></i></button>
+                <button onclick="editPaket('${p.id}')" class="text-[10px] bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-2 py-1.5 rounded-lg"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button onclick="kelolaSoalPaket('${p.id}')" class="text-[10px] bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-2 py-1.5 rounded-lg"><i class="fa-solid fa-list-check"></i> Soal</button>
+                <button onclick="toggleAktifPaket('${p.id}', ${!!p.aktif})" class="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-2 py-1.5 rounded-lg" title="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}"><i class="fa-solid fa-power-off"></i></button>
+                <button onclick="duplikatPaket('${p.id}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1.5 rounded-lg" title="Duplikat"><i class="fa-solid fa-copy"></i></button>
+                <button onclick="exportPaketJSON('${p.id}')" class="text-[10px] bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold px-2 py-1.5 rounded-lg" title="Export JSON"><i class="fa-solid fa-download"></i></button>
+                <button onclick="hapusPaket('${p.id}')" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2 py-1.5 rounded-lg" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="bg-white p-12 rounded-2xl border shadow-sm text-center">
+          <i class="fa-solid fa-inbox text-5xl text-slate-300 mb-4"></i>
+          <p class="text-slate-400 text-sm">Belum ada paket soal.</p>
+          <button onclick="showBuatPaketModal()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Buat Paket Pertama</button>
+        </div>
+      `}
+    </div>`;
+  } catch (err) {
+    c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-red-600 text-sm">Gagal memuat paket: ${esc(err.message)}</div>`;
+  }
+}
+function refreshPaket() { renderPaketList(document.getElementById("main-view-container")); }
+
+/* ---------- MODAL PAKET 2 TAB ---------- */
+function showBuatPaketModal(editId = null, defaultTab = "info") {
+  __editPaketId = editId;
+  __activeTabPaket = defaultTab;
+  __tempLinks = editId ? [...kmGetLinks(editId)] : [""];
+  if (!__tempLinks.length) __tempLinks = [""];
+  __tempSoalAI = [];
+  __tempSoalAIMeta = { mapel: "", kelas: "", topik: "" };
+
+  let paket = { nama: "", mapel_kode: "", kelas: "", durasi_menit: 30, aktif: true, acak_soal: false, acak_pilihan: false };
+  if (editId) {
+    const p = __paketCache.find(x => x.id === editId);
+    if (p) paket = p;
+  }
+  window.__paketTemp = paket;
+
+  renderPaketModal();
+  openModal();
+}
+
+function renderPaketModal() {
+  const paket = window.__paketTemp || {};
+  const mapelAll = (appState.db?.mp || []).map(m => ({ kode: m[1], nama: m[2], kkm: m[3] }));
+  const kelasList = [...new Set((appState.db?.sw || []).map(s => s[4]).filter(Boolean))].sort();
+  const tab = __activeTabPaket;
+  const totalAI = __tempSoalAI.length;
+
+  const mb = document.getElementById("modal-body");
+  mb.innerHTML = `
+  <div class="space-y-4 text-xs">
+    <div class="border-b pb-3">
+      <h3 class="font-bold text-base"><i class="fa-solid fa-layer-group text-indigo-600"></i> ${__editPaketId ? 'Edit' : 'Buat'} Paket Soal</h3>
+      <p class="text-slate-500 mt-1">Isi info paket & opsional generate soal AI sekaligus.</p>
+    </div>
+
+    <div class="flex gap-1 border-b">
+      <button onclick="switchTabPaket('info')" class="px-4 py-2 text-xs font-bold rounded-t-lg ${tab === 'info' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+        <i class="fa-solid fa-circle-info"></i> Info Paket
+      </button>
+      <button onclick="switchTabPaket('ai')" class="px-4 py-2 text-xs font-bold rounded-t-lg ${tab === 'ai' ? 'bg-fuchsia-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI
+        ${totalAI > 0 ? `<span class="ml-1 bg-white/30 px-1.5 py-0.5 rounded-full text-[9px]">${totalAI}</span>` : ""}
+      </button>
+    </div>
+
+    <div id="paket-tab-content"></div>
+
+    <div class="flex justify-between items-center gap-2 pt-3 border-t">
+      <div class="text-[10px] text-slate-500" id="paket-status-hint">
+        ${totalAI > 0 ? `<i class="fa-solid fa-info-circle text-fuchsia-600"></i> ${totalAI} soal AI siap disimpan bersama paket.` : ""}
+      </div>
+      <div class="flex gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
+        <button onclick="simpanPaket()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl"><i class="fa-solid fa-save"></i> Simpan Paket${totalAI > 0 ? ` + ${totalAI} Soal` : ""}</button>
+      </div>
+    </div>
+  </div>`;
+
+  if (tab === "info") renderPaketInfoTab(mapelAll, kelasList);
+  else renderPaketAITab(mapelAll, kelasList);
+}
+
+function switchTabPaket(tab) {
+  if (__activeTabPaket === "info") savePaketInfoToTemp();
+  __activeTabPaket = tab;
+  renderPaketModal();
+}
+
+function savePaketInfoToTemp() {
+  const p = window.__paketTemp || {};
+  const el = document.getElementById("pk-nama");
+  if (!el) return;
+  p.nama = el.value.trim();
+  p.mapel_kode = document.getElementById("pk-mapel").value;
+  p.kelas = document.getElementById("pk-kelas").value;
+  p.durasi_menit = Number(document.getElementById("pk-durasi").value) || 30;
+  p.aktif = document.getElementById("pk-aktif").value === "1";
+  p.acak_soal = document.getElementById("pk-acak-soal")?.checked || false;
+  p.acak_pilihan = document.getElementById("pk-acak-pilihan")?.checked || false;
+  window.__paketTemp = p;
+}
+
+/* ---------- TAB 1: INFO PAKET ---------- */
+function renderPaketInfoTab(mapelAll, kelasList) {
+  const paket = window.__paketTemp || {};
+  const el = document.getElementById("paket-tab-content");
+  el.innerHTML = `
+    <div class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Nama Paket *</label>
+          <input id="pk-nama" value="${esc(paket.nama || '')}" placeholder="Contoh: UH 1 Matematika Bab Pecahan" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Mata Pelajaran *</label>
+          <select id="pk-mapel" class="w-full px-3 py-2 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="">-- Pilih --</option>
+            ${mapelAll.map(m => `<option value="${esc(m.kode)}" ${paket.mapel_kode === m.kode ? 'selected' : ''}>${esc(m.nama)} (${esc(m.kode)})</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Kelas *</label>
+          <select id="pk-kelas" class="w-full px-3 py-2 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="">-- Pilih --</option>
+            ${kelasList.map(k => `<option value="${esc(k)}" ${paket.kelas === k ? 'selected' : ''}>Kelas ${esc(k)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Durasi (menit) *</label>
+          <input id="pk-durasi" type="number" min="1" value="${paket.durasi_menit || 30}" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Status</label>
+          <select id="pk-aktif" class="w-full px-3 py-2 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+            <option value="1" ${paket.aktif ? 'selected' : ''}>Aktif</option>
+            <option value="0" ${!paket.aktif ? 'selected' : ''}>Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="p-3 bg-purple-50 border border-purple-100 rounded-xl space-y-2">
+        <div class="font-semibold text-purple-900 flex items-center gap-1.5"><i class="fa-solid fa-shuffle text-purple-600"></i> Opsi Pengacakan</div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input id="pk-acak-soal" type="checkbox" ${paket.acak_soal ? 'checked' : ''} class="w-4 h-4 accent-purple-600">
+          <span class="text-xs">Acak urutan soal saat ditampilkan ke siswa</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input id="pk-acak-pilihan" type="checkbox" ${paket.acak_pilihan ? 'checked' : ''} class="w-4 h-4 accent-purple-600">
+          <span class="text-xs">Acak urutan pilihan A-D (soal PG & PGK)</span>
+        </label>
+      </div>
+
+      <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-2">
+        <div class="font-semibold text-emerald-900 flex items-center gap-1.5"><i class="fa-solid fa-link text-emerald-600"></i> Link Materi (opsional)</div>
+        <p class="text-[10px] text-slate-600">URL YouTube, PDF, Google Drive, dll.</p>
+        <div id="pk-links-list" class="space-y-2"></div>
+        <button type="button" onclick="tambahLinkMateri()" class="text-[10px] bg-white hover:bg-slate-50 border border-emerald-300 text-emerald-700 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus"></i> Tambah Link</button>
+      </div>
+    </div>`;
+  renderLinksList();
+}
+function renderLinksList() {
+  const el = document.getElementById("pk-links-list");
+  if (!el) return;
+  el.innerHTML = __tempLinks.map((link, i) => `
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] text-slate-400 w-6">${i + 1}.</span>
+      <input type="url" value="${esc(link || '')}" onchange="updateLinkMateri(${i}, this.value)" placeholder="https://..." class="materi-input flex-1 px-2 py-1.5 border border-slate-200 bg-slate-50 rounded-lg font-mono text-[11px] outline-none">
+      <button type="button" onclick="hapusLinkMateri(${i})" class="text-red-500 hover:text-red-700 p-1.5" title="Hapus"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  `).join("");
+}
+function tambahLinkMateri() { __tempLinks.push(""); renderLinksList(); }
+function updateLinkMateri(i, v) { __tempLinks[i] = v; }
+function hapusLinkMateri(i) {
+  if (__tempLinks.length <= 1) __tempLinks[0] = "";
+  else __tempLinks.splice(i, 1);
+  renderLinksList();
+}
+
+/* ---------- TAB 2: GENERATE AI ---------- */
+function renderPaketAITab(mapelAll, kelasList) {
+  const el = document.getElementById("paket-tab-content");
+  const hasKey = !!getGeminiKey();
+  const totalAI = __tempSoalAI.length;
+
+  if (!__tempSoalAIMeta.mapel && window.__paketTemp?.mapel_kode) __tempSoalAIMeta.mapel = window.__paketTemp.mapel_kode;
+  if (!__tempSoalAIMeta.kelas && window.__paketTemp?.kelas) __tempSoalAIMeta.kelas = window.__paketTemp.kelas;
+
+  el.innerHTML = `
+    <div class="space-y-4">
+      ${!hasKey ? `
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+          <i class="fa-solid fa-triangle-exclamation"></i> API Key Gemini belum diset.
+          <button onclick="showGeminiModal()" class="underline font-bold">Isi Sekarang</button>
+        </div>
+      ` : `
+        <div class="p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800">
+          <i class="fa-solid fa-circle-check"></i> API Key Gemini terdeteksi.
+          <button onclick="showGeminiModal()" class="underline font-bold ml-1">Ubah</button>
+        </div>
+      `}
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Topik / Materi</label>
+          <input id="ai-topik" value="${esc(__tempSoalAIMeta.topik || '')}" placeholder="Contoh: Pecahan senilai, Ekosistem" class="w-full px-3 py-2 border rounded-xl">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Mata Pelajaran</label>
+          <select id="ai-mapel" class="w-full px-3 py-2 border rounded-xl bg-white">
+            <option value="">-- Pilih --</option>
+            ${mapelAll.map(m => `<option value="${esc(m.kode)}" ${__tempSoalAIMeta.mapel === m.kode ? 'selected' : ''}>${esc(m.nama)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Kelas</label>
+          <select id="ai-kelas" class="w-full px-3 py-2 border rounded-xl bg-white">
+            <option value="">-- Pilih --</option>
+            ${kelasList.map(k => `<option value="${esc(k)}" ${__tempSoalAIMeta.kelas === k ? 'selected' : ''}>Kelas ${esc(k)}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+
+      <div class="p-3 bg-fuchsia-50 border border-fuchsia-100 rounded-xl space-y-2">
+        <div class="font-semibold text-fuchsia-900">Jumlah Soal per Jenis</div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div><label class="block text-[10px] font-semibold mb-1">PG</label><input id="ai-num-pg" type="number" min="0" max="30" value="5" class="w-full px-2 py-1.5 border rounded-lg"></div>
+          <div><label class="block text-[10px] font-semibold mb-1">PGK</label><input id="ai-num-pgk" type="number" min="0" max="30" value="0" class="w-full px-2 py-1.5 border rounded-lg"></div>
+          <div><label class="block text-[10px] font-semibold mb-1">Menjodohkan</label><input id="ai-num-jodoh" type="number" min="0" max="30" value="0" class="w-full px-2 py-1.5 border rounded-lg"></div>
+          <div><label class="block text-[10px] font-semibold mb-1">Isian</label><input id="ai-num-isian" type="number" min="0" max="30" value="0" class="w-full px-2 py-1.5 border rounded-lg"></div>
+          <div><label class="block text-[10px] font-semibold mb-1">Uraian</label><input id="ai-num-uraian" type="number" min="0" max="30" value="0" class="w-full px-2 py-1.5 border rounded-lg"></div>
+        </div>
+      </div>
+
+      <button id="ai-gen-btn" onclick="jalankanGenerateAI()" class="w-full bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold py-2.5 rounded-xl">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Soal
+      </button>
+
+      <div id="ai-loader" class="hidden p-4 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center gap-3"><i class="fa-solid fa-spinner fa-spin text-indigo-600"></i><span id="ai-loader-text">Menghubungi Gemini...</span></div>
+      <div id="ai-out" class="${totalAI > 0 ? '' : 'hidden'} p-4 bg-slate-50 border rounded-xl max-h-72 overflow-y-auto custom-scrollbar"></div>
+    </div>`;
+
+  if (totalAI > 0) renderHasilAIPreview();
+}
+
+function renderHasilAIPreview() {
+  const out = document.getElementById("ai-out");
+  if (!out) return;
+  out.classList.remove("hidden");
+  out.innerHTML = `
+    <div class="font-bold text-emerald-700 mb-3 text-xs">
+      <i class="fa-solid fa-circle-check"></i> ${__tempSoalAI.length} soal siap disimpan bersama paket
+      <button onclick="hapusSemuaSoalAI()" class="ml-2 text-red-500 hover:underline text-[10px] font-normal">Hapus semua</button>
+    </div>
+    <div class="space-y-2">
+      ${__tempSoalAI.map((s, i) => {
+        const j = JENIS_SOAL[s.jenis] || JENIS_SOAL.PG;
+        return `<div class="p-3 bg-white border rounded-lg relative">
+          <button onclick="hapusSoalAIIndex(${i})" class="absolute top-2 right-2 text-red-400 hover:text-red-600" title="Hapus soal ini"><i class="fa-solid fa-xmark"></i></button>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${esc(j.label)}</span>
+            <span class="text-[10px] text-slate-400">Soal ${i+1}</span>
+          </div>
+          <div class="text-xs font-semibold text-slate-800">${esc(s.pertanyaan)}</div>
+          ${renderJawabanPreview(s)}
+          ${s.pembahasan ? `<div class="mt-1.5 text-[10px] text-slate-500 italic"><b>Pembahasan:</b> ${esc(s.pembahasan)}</div>` : ""}
+        </div>`;
+      }).join("")}
+    </div>`;
+}
+function hapusSoalAIIndex(i) {
+  __tempSoalAI.splice(i, 1);
+  renderPaketModal();
+  if (__tempSoalAI.length === 0) {
+    const out = document.getElementById("ai-out");
+    if (out) out.classList.add("hidden");
+  }
+}
+function hapusSemuaSoalAI() {
+  if (!confirm("Hapus semua soal AI yang belum disimpan?")) return;
+  __tempSoalAI = [];
+  renderPaketModal();
+}
+
+/* ---------- SIMPAN PAKET + SOAL AI ---------- */
+async function simpanPaket() {
+  if (__activeTabPaket === "info") savePaketInfoToTemp();
+  else {
+    __tempSoalAIMeta = {
+      mapel: document.getElementById("ai-mapel")?.value || __tempSoalAIMeta.mapel,
+      kelas: document.getElementById("ai-kelas")?.value || __tempSoalAIMeta.kelas,
+      topik: document.getElementById("ai-topik")?.value || __tempSoalAIMeta.topik
+    };
+  }
+  const p = window.__paketTemp || {};
+  if (!p.nama) { showToast("Nama paket wajib (isi di Tab Info Paket).", "error"); return; }
+  if (!p.mapel_kode) { showToast("Mata pelajaran wajib.", "error"); return; }
+  if (!p.kelas) { showToast("Kelas wajib.", "error"); return; }
+
+  showLoading(true, "Menyimpan paket...");
+  try {
+    let paketId = __editPaketId;
+    const payloadPaket = {
+      nama: p.nama,
+      mapel_kode: p.mapel_kode,
+      kelas: p.kelas,
+      durasi_menit: p.durasi_menit || 30,
+      aktif: !!p.aktif,
+      acak_soal: !!p.acak_soal,
+      acak_pilihan: !!p.acak_pilihan,
+      link_materi: []
+    };
+
+    if (paketId) {
+      await sbUpsert("paket_soal", [{ id: paketId, ...payloadPaket }]);
+    } else {
+      const res = await sbInsert("paket_soal", [payloadPaket]);
+      paketId = res?.[0]?.id;
+      if (!paketId) throw new Error("Gagal dapat ID paket baru.");
+    }
+
+    const cred = getJsonBinCredential();
+    const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
+    appState.db = freshDb;
+    if (!appState.db.km) appState.db.km = [];
+    kmSetAllLinks(paketId, __tempLinks.filter(Boolean));
+    await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+
+    let insertedSoal = 0;
+    if (__tempSoalAI.length > 0) {
+      showLoading(true, `Menyimpan ${__tempSoalAI.length} soal AI...`);
+      const finalSoal = __tempSoalAI.map(s => ({
+        ...s,
+        mapel_kode: s.mapel_kode || p.mapel_kode,
+        kelas: s.kelas || p.kelas,
+        topik: s.topik || __tempSoalAIMeta.topik || ""
+      }));
+      const inserted = await sbInsert("bank_soal", finalSoal);
+      insertedSoal = inserted?.length || 0;
+
+      if (inserted?.length) {
+        const startUrutan = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}`).then(r => r.length);
+        const items = inserted.map((soal, idx) => ({
+          paket_id: paketId, soal_id: soal.id, urutan: startUrutan + idx
+        }));
+        await sbInsert("paket_soal_items", items);
+      }
+    }
+
+    showLoading(false);
+    showToast(`✓ Paket "${p.nama}" disimpan${insertedSoal ? ` + ${insertedSoal} soal AI` : ""}.`, "success");
+    setSyncBadge(false);
+    closeModal();
+    refreshPaket();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal simpan: " + err.message, "error");
+  }
+}
+
+/* ---------- AKSI PAKET LAIN ---------- */
+async function editPaket(id) {
+  if (!__paketCache.length) {
+    try { __paketCache = await sbFetch("paket_soal", "?limit=200"); } catch(e) {}
+  }
+  showBuatPaketModal(id, "info");
+}
+
+async function toggleAktifPaket(id, aktifSekarang) {
+  try {
+    showLoading(true, "Update status...");
+    await sbUpsert("paket_soal", [{ id, aktif: !aktifSekarang }]);
+    showLoading(false);
+    showToast(aktifSekarang ? "Paket dinonaktifkan." : "Paket diaktifkan.", "success");
+    refreshPaket();
+  } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
+}
+
+async function duplikatPaket(id) {
+  if (!confirm("Duplikat paket ini?")) return;
+  try {
+    showLoading(true, "Duplikat paket...");
+    const asal = (await sbFetch("paket_soal", `?id=eq.${id}&limit=1`))?.[0];
+    if (!asal) throw new Error("Paket asal tidak ditemukan.");
+    const namaBaru = (asal.nama || "Paket") + " (Copy)";
+    const res = await sbInsert("paket_soal", [{
+      nama: namaBaru, mapel_kode: asal.mapel_kode, kelas: asal.kelas,
+      durasi_menit: asal.durasi_menit, aktif: false,
+      acak_soal: asal.acak_soal, acak_pilihan: asal.acak_pilihan, link_materi: []
+    }]);
+    const newId = res?.[0]?.id;
+    if (!newId) throw new Error("Gagal buat paket baru.");
+
+    const items = await sbFetch("paket_soal_items", `?paket_id=eq.${id}`);
+    if (items.length) {
+      await sbInsert("paket_soal_items", items.map(it => ({
+        paket_id: newId, soal_id: it.soal_id, urutan: it.urutan
+      })));
+    }
+
+    const links = kmGetLinks(id);
+    if (links.length) {
+      const cred = getJsonBinCredential();
+      const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
+      appState.db = freshDb;
+      if (!appState.db.km) appState.db.km = [];
+      kmSetAllLinks(newId, links);
+      await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+    }
+
+    showLoading(false);
+    showToast("✓ Paket diduplikat.", "success");
+    refreshPaket();
+  } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
+}
+
+async function hapusPaket(id) {
+  if (!confirm("Hapus paket ini? Soal di bank soal TIDAK dihapus.")) return;
+  try {
+    showLoading(true, "Menghapus...");
+    await sbDelete("paket_soal", `?id=eq.${id}`);
+    kmDeleteRecord(id);
+    const cred = getJsonBinCredential();
+    await updateJsonDBAfterLoad(cred);
+    showLoading(false);
+    showToast("Paket dihapus.", "success");
+    refreshPaket();
+  } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
+}
+async function updateJsonDBAfterLoad(cred) {
+  try {
+    const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
+    freshDb.km = appState.db.km;
+    appState.db = freshDb;
+    await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+  } catch(e) { console.warn(e); }
+}
+/* =========================================================
+   BAGIAN 3/5 — BANK SOAL (LIST + FORM MANUAL 5 JENIS)
+   ========================================================= */
+
+let __filterBankSoal = { mapel: "", kelas: "", jenis: "" };
+let __editSoalId = null;
+let __tempSoal = null;
+
+/* ---------- LIST BANK SOAL ---------- */
+async function renderBankSoalList(c) {
+  c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin"></i> Memuat bank soal...</div>`;
+  try {
+    const all = await sbFetch("bank_soal", "?order=created_at.desc&limit=500");
+    const mapelList = [...new Set(all.map(s => s.mapel_kode).filter(Boolean))].sort();
+    const kelasList = [...new Set(all.map(s => s.kelas).filter(Boolean))].sort();
+
+    let filtered = all;
+    if (__filterBankSoal.mapel) filtered = filtered.filter(s => s.mapel_kode === __filterBankSoal.mapel);
+    if (__filterBankSoal.kelas) filtered = filtered.filter(s => s.kelas === __filterBankSoal.kelas);
+    if (__filterBankSoal.jenis) filtered = filtered.filter(s => s.jenis === __filterBankSoal.jenis);
+
+    c.innerHTML = `
+    <div class="space-y-5 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold">Bank Soal</h2>
+          <p class="text-xs text-slate-500 mt-1">${all.length} soal tersimpan. Digunakan untuk menyusun paket.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="refreshBankSoal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <button onclick="showBuatSoalModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Buat Soal</button>
+        </div>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm flex flex-wrap gap-2 items-center">
+        <select onchange="__filterBankSoal.mapel=this.value;renderBankSoalList(document.getElementById('main-view-container'))" class="text-xs px-2 py-1.5 border rounded-lg bg-white">
+          <option value="">Semua Mapel</option>
+          ${mapelList.map(m => `<option value="${esc(m)}" ${__filterBankSoal.mapel===m?'selected':''}>${esc(m)}</option>`).join("")}
+        </select>
+        <select onchange="__filterBankSoal.kelas=this.value;renderBankSoalList(document.getElementById('main-view-container'))" class="text-xs px-2 py-1.5 border rounded-lg bg-white">
+          <option value="">Semua Kelas</option>
+          ${kelasList.map(k => `<option value="${esc(k)}" ${__filterBankSoal.kelas===k?'selected':''}>Kelas ${esc(k)}</option>`).join("")}
+        </select>
+        <select onchange="__filterBankSoal.jenis=this.value;renderBankSoalList(document.getElementById('main-view-container'))" class="text-xs px-2 py-1.5 border rounded-lg bg-white">
+          <option value="">Semua Jenis</option>
+          ${Object.values(JENIS_SOAL).map(j => `<option value="${j.kode}" ${__filterBankSoal.jenis===j.kode?'selected':''}>${j.label}</option>`).join("")}
+        </select>
+        <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded-full ml-auto">${filtered.length} / ${all.length}</span>
+      </div>
+
+      ${filtered.length ? `
+        <div class="space-y-2">
+          ${filtered.map(s => renderSoalCard(s)).join("")}
+        </div>
+      ` : `
+        <div class="bg-white p-12 rounded-2xl border shadow-sm text-center">
+          <i class="fa-solid fa-inbox text-5xl text-slate-300 mb-4"></i>
+          <p class="text-slate-400 text-sm">Belum ada soal.</p>
+          <button onclick="showBuatSoalModal()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Buat Soal Pertama</button>
+        </div>
+      `}
+    </div>`;
+  } catch (err) {
+    c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-red-600 text-sm">Gagal memuat bank soal: ${esc(err.message)}</div>`;
+  }
+}
+function refreshBankSoal() { renderBankSoalList(document.getElementById("main-view-container")); }
+
+/* ---------- KARTU SOAL ---------- */
+function renderSoalCard(s) {
+  const j = JENIS_SOAL[s.jenis] || JENIS_SOAL.PG;
+  const media = s.media && s.media.url ? `<img src="${esc(s.media.url)}" referrerpolicy="no-referrer" class="max-h-32 rounded-lg border mt-2" onerror="this.style.display='none'">` : "";
+  return `
+  <div class="bg-white p-4 rounded-xl border hover:border-indigo-300 transition">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center text-sm shrink-0">
+        <i class="fa-solid ${j.icon}"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex flex-wrap gap-1.5 mb-1">
+          <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${esc(j.label)}</span>
+          ${s.mapel_kode ? `<span class="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">${esc(s.mapel_kode)}</span>` : ""}
+          ${s.kelas ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Kelas ${esc(s.kelas)}</span>` : ""}
+          ${s.topik ? `<span class="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${esc(s.topik)}</span>` : ""}
+          ${media ? `<span class="text-[9px] font-bold bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded"><i class="fa-solid fa-image"></i></span>` : ""}
+        </div>
+        <p class="text-xs font-semibold text-slate-800 leading-relaxed">${esc(s.pertanyaan || "")}</p>
+        ${media}
+        <div class="mt-2">${renderJawabanPreview(s)}</div>
+        ${s.pembahasan ? `<div class="mt-2 text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded"><b>Pembahasan:</b> ${esc(s.pembahasan)}</div>` : ""}
+      </div>
+      <div class="flex flex-col gap-1 shrink-0">
+        <button onclick="showBuatSoalModal('${s.id}')" class="text-indigo-500 hover:text-indigo-700 p-1" title="Edit"><i class="fa-solid fa-pen text-xs"></i></button>
+        <button onclick="duplikatSoal('${s.id}')" class="text-slate-500 hover:text-slate-700 p-1" title="Duplikat"><i class="fa-solid fa-copy text-xs"></i></button>
+        <button onclick="hapusSoal('${s.id}')" class="text-red-500 hover:text-red-700 p-1" title="Hapus"><i class="fa-solid fa-trash text-xs"></i></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function hapusSoal(id) {
+  if (!confirm("Hapus soal ini dari bank soal?")) return;
+  try {
+    showLoading(true, "Menghapus...");
+    await sbDelete("bank_soal", `?id=eq.${id}`);
+    showLoading(false);
+    showToast("Soal dihapus.", "success");
+    refreshBankSoal();
+  } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
+}
+
+async function duplikatSoal(id) {
+  try {
+    showLoading(true, "Duplikat soal...");
+    const s = (await sbFetch("bank_soal", `?id=eq.${id}&limit=1`))?.[0];
+    if (!s) throw new Error("Soal asal tidak ditemukan.");
+    delete s.id; delete s.created_at; delete s.updated_at;
+    s.pertanyaan = (s.pertanyaan || "") + " (Copy)";
+    await sbInsert("bank_soal", [s]);
+    showLoading(false);
+    showToast("✓ Soal diduplikat.", "success");
+    refreshBankSoal();
+  } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
+}
+
+/* =========================================================
+   FORM BUAT/EDIT SOAL — 5 JENIS
+   ========================================================= */
+function newTempSoal() {
+  return {
+    jenis: "PG",
+    mapel_kode: "",
+    kelas: "",
+    topik: "",
+    pertanyaan: "",
+    tingkat: "sedang",
+    pembahasan: "",
+    pilihan: { A: "", B: "", C: "", D: "" },
+    jawaban: { kunci: "" },
+    kiri: ["", "", ""],
+    kanan: ["", "", ""],
+    media: null
+  };
+}
+
+async function showBuatSoalModal(editId = null) {
+  __editSoalId = editId;
+  if (editId) {
+    try {
+      showLoading(true, "Memuat soal...");
+      const s = (await sbFetch("bank_soal", `?id=eq.${editId}&limit=1`))?.[0];
+      showLoading(false);
+      if (!s) throw new Error("Soal tidak ditemukan.");
+      __tempSoal = {
+        jenis: s.jenis || "PG",
+        mapel_kode: s.mapel_kode || "",
+        kelas: s.kelas || "",
+        topik: s.topik || "",
+        pertanyaan: s.pertanyaan || "",
+        tingkat: s.tingkat || "sedang",
+        pembahasan: s.pembahasan || "",
+        pilihan: s.pilihan || { A: "", B: "", C: "", D: "" },
+        jawaban: s.jawaban || { kunci: "" },
+        kiri: (s.pilihan?.kiri || ["", "", ""]).slice(),
+        kanan: (s.pilihan?.kanan || ["", "", ""]).slice(),
+        media: s.media || null
+      };
+    } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); return; }
+  } else {
+    __tempSoal = newTempSoal();
+  }
+  renderSoalModal();
+  openModal();
+}
+
+function renderSoalModal() {
+  const mapelAll = (appState.db?.mp || []).map(m => ({ kode: m[1], nama: m[2] }));
+  const kelasList = [...new Set((appState.db?.sw || []).map(s => s[4]).filter(Boolean))].sort();
+  const s = __tempSoal;
+  const j = s.jenis;
+
+  const jenisOptions = Object.values(JENIS_SOAL).map(jj => `
+    <button type="button" onclick="changeJenis('${jj.kode}')" class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold ${jj.kode === j ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+      <i class="fa-solid ${jj.icon} mr-1"></i> ${jj.label}
+    </button>
+  `).join("");
+
+  const mediaHtml = s.media && s.media.url ? `
+    <div class="flex items-center gap-3 p-2 bg-slate-50 rounded-xl border">
+      <img src="${esc(s.media.url)}" class="media-thumb" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+      <div class="flex-1 text-[10px] text-slate-500 truncate">${esc(s.media.url)}</div>
+      <button type="button" onclick="hapusMediaSoal()" class="text-red-500 hover:text-red-700 p-1"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  ` : "";
+
+  const mb = document.getElementById("modal-body");
+  mb.innerHTML = `
+  <div class="space-y-4 text-xs">
+    <div class="border-b pb-3">
+      <h3 class="font-bold text-base"><i class="fa-solid fa-file-pen text-indigo-600"></i> ${__editSoalId ? 'Edit' : 'Buat'} Soal</h3>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Jenis Soal</label>
+      <div class="flex flex-wrap gap-1.5">${jenisOptions}</div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div>
+        <label class="block font-semibold mb-1">Mapel</label>
+        <select id="so-mapel" class="w-full px-2 py-1.5 border rounded-lg bg-white">
+          <option value="">--</option>
+          ${mapelAll.map(m => `<option value="${esc(m.kode)}" ${s.mapel_kode === m.kode ? 'selected' : ''}>${esc(m.nama)}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">Kelas</label>
+        <select id="so-kelas" class="w-full px-2 py-1.5 border rounded-lg bg-white">
+          <option value="">--</option>
+          ${kelasList.map(k => `<option value="${esc(k)}" ${s.kelas === k ? 'selected' : ''}>Kelas ${esc(k)}</option>`).join("")}
+        </select>
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">Topik</label>
+        <input id="so-topik" value="${esc(s.topik)}" placeholder="Pecahan, dll." class="w-full px-2 py-1.5 border rounded-lg">
+      </div>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-1">Pertanyaan *</label>
+      <textarea id="so-pertanyaan" rows="3" class="w-full px-3 py-2 border rounded-lg" placeholder="Tulis pertanyaan...">${esc(s.pertanyaan)}</textarea>
+    </div>
+
+    <div class="p-3 bg-pink-50 border border-pink-100 rounded-xl space-y-2">
+      <div class="font-semibold text-pink-900 flex items-center gap-1.5"><i class="fa-solid fa-image text-pink-600"></i> Gambar Soal (opsional)</div>
+      <p class="text-[10px] text-slate-600">Upload gambar pendukung (maks 5 MB). Tersimpan di Cloudinary.</p>
+      ${mediaHtml}
+      <label class="inline-block bg-white hover:bg-slate-50 border border-pink-300 text-pink-700 text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer">
+        <i class="fa-solid fa-upload"></i> ${s.media ? 'Ganti Gambar' : 'Upload Gambar'}
+        <input type="file" accept="image/*" class="hidden" onchange="uploadMediaSoal(event)">
+      </label>
+    </div>
+
+    <div id="so-jenis-form"></div>
+
+    <div>
+      <label class="block font-semibold mb-1">Pembahasan (opsional)</label>
+      <textarea id="so-pembahasan" rows="2" class="w-full px-3 py-2 border rounded-lg" placeholder="Penjelasan jawaban...">${esc(s.pembahasan)}</textarea>
+    </div>
+
+    <div class="flex justify-end gap-2 pt-3 border-t">
+      <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
+      <button onclick="simpanSoal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl"><i class="fa-solid fa-save"></i> Simpan Soal</button>
+    </div>
+  </div>`;
+
+  renderJenisForm();
+}
+
+function changeJenis(kode) {
+  syncFormKeTemp();
+  __tempSoal.jenis = kode;
+  renderSoalModal();
+}
+
+function syncFormKeTemp() {
+  const get = (id) => document.getElementById(id)?.value;
+  if (!document.getElementById("so-pertanyaan")) return;
+  __tempSoal.pertanyaan = get("so-pertanyaan") ?? __tempSoal.pertanyaan;
+  __tempSoal.topik = get("so-topik") ?? __tempSoal.topik;
+  __tempSoal.pembahasan = get("so-pembahasan") ?? __tempSoal.pembahasan;
+  __tempSoal.mapel_kode = get("so-mapel") ?? __tempSoal.mapel_kode;
+  __tempSoal.kelas = get("so-kelas") ?? __tempSoal.kelas;
+}
+
+/* =========================================================
+   UPLOAD MEDIA SOAL
+   ========================================================= */
+async function uploadMediaSoal(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  showLoading(true, "Mengunggah gambar...");
+  try {
+    const r = await uploadFile(f, "edusmart/soal");
+    __tempSoal.media = { url: r.url, publicId: r.publicId, provider: r.provider };
+    showLoading(false);
+    showToast("✓ Gambar terunggah.", "success");
+    syncFormKeTemp();
+    renderSoalModal();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal upload: " + err.message, "error");
+  }
+}
+function hapusMediaSoal() {
+  if (!confirm("Hapus gambar ini?")) return;
+  __tempSoal.media = null;
+  syncFormKeTemp();
+  renderSoalModal();
+}
+
+/* =========================================================
+   RENDER FORM PER JENIS — KOTAK HURUF A-D YANG JELAS
+   ========================================================= */
+function renderJenisForm() {
+  const el = document.getElementById("so-jenis-form");
+  if (!el) return;
+  const s = __tempSoal;
+  const j = s.jenis;
+
+  /* --- PG (radio 1 kunci) --- */
+  if (j === "PG") {
+    const kunci = s.jawaban.kunci || "";
+    el.innerHTML = `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="font-bold text-slate-700 text-xs">Pilihan Jawaban (A-D)</div>
+          <div class="text-[10px] text-slate-500"><i class="fa-solid fa-hand-pointer"></i> Klik huruf = pilih kunci</div>
+        </div>
+        ${HURUF_PILIHAN.map(k => `
+          <div class="opsi-row ${kunci === k ? 'aktif-kunci' : ''}" onclick="pilihKunciPG('${k}')">
+            <div class="huruf-box">${k}</div>
+            <input type="text" value="${esc(s.pilihan[k] || '')}" onclick="event.stopPropagation()" onchange="__tempSoal.pilihan['${k}']=this.value" placeholder="Teks pilihan ${k}" class="px-2 py-1.5 border rounded-lg bg-white">
+            <span class="badge-kunci">✓ KUNCI</span>
+          </div>
+        `).join("")}
+        <div class="text-[10px] ${kunci ? 'text-emerald-700' : 'text-amber-600'} font-semibold pt-1 border-t">
+          ${kunci ? `<i class="fa-solid fa-circle-check"></i> Kunci: <b>${kunci}</b>` : `<i class="fa-solid fa-triangle-exclamation"></i> Belum pilih kunci — klik salah satu kotak huruf`}
+        </div>
+      </div>`;
+  }
+
+  /* --- PGK (checkbox multi kunci) --- */
+  else if (j === "PGK") {
+    const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [];
+    el.innerHTML = `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="font-bold text-slate-700 text-xs">Pilihan Jawaban (A-D) — PG Kompleks</div>
+          <div class="text-[10px] text-slate-500"><i class="fa-solid fa-hand-pointer"></i> Klik huruf = toggle kunci</div>
+        </div>
+        ${HURUF_PILIHAN.map(k => {
+          const aktif = kunciArr.includes(k);
+          return `
+          <div class="opsi-row ${aktif ? 'aktif-kunci' : ''}" onclick="toggleKunciPGK('${k}')">
+            <div class="huruf-box">${k}</div>
+            <input type="text" value="${esc(s.pilihan[k] || '')}" onclick="event.stopPropagation()" onchange="__tempSoal.pilihan['${k}']=this.value" placeholder="Teks pilihan ${k}" class="px-2 py-1.5 border rounded-lg bg-white">
+            <span class="badge-kunci">✓ KUNCI</span>
+          </div>`;
+        }).join("")}
+        <div class="text-[10px] ${kunciArr.length >= 2 ? 'text-emerald-700' : 'text-amber-600'} font-semibold pt-1 border-t">
+          ${kunciArr.length >= 2
+            ? `<i class="fa-solid fa-circle-check"></i> Kunci terpilih (${kunciArr.length}): <b>${kunciArr.slice().sort().join(", ")}</b>`
+            : `<i class="fa-solid fa-triangle-exclamation"></i> Minimal 2 kunci (${kunciArr.length} terpilih)`}
+        </div>
+      </div>`;
+  }
+
+  /* --- ISIAN --- */
+  else if (j === "ISIAN") {
+    const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [s.jawaban.kunci || ""];
+    el.innerHTML = `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="font-bold text-slate-700 text-xs">Jawaban Benar (bisa banyak alternatif)</div>
+        <div id="isian-list" class="space-y-1.5">
+          ${kunciArr.map((k, i) => `
+            <div class="flex items-center gap-2">
+              <input type="text" value="${esc(k)}" onchange="updateIsian(${i}, this.value)" placeholder="Alternatif jawaban ${i+1}" class="flex-1 px-2 py-1.5 border rounded-lg bg-white">
+              <button type="button" onclick="hapusIsian(${i})" class="text-red-500 p-1 hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          `).join("")}
+        </div>
+        <button type="button" onclick="tambahIsian()" class="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100">+ Tambah Alternatif</button>
+      </div>`;
+  }
+
+  /* --- MENJODOHKAN --- */
+  else if (j === "MENJODOHKAN") {
+    el.innerHTML = `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="font-bold text-slate-700 text-xs">Pasangan Menjodohkan</div>
+          <div class="text-[10px] text-slate-500">Kiri = soal · Kanan = jawaban</div>
+        </div>
+        <div class="grid grid-cols-12 gap-1 text-[10px] font-bold text-slate-500 mb-1">
+          <div class="col-span-1"></div>
+          <div class="col-span-5">Kiri (Soal)</div>
+          <div class="col-span-1 text-center"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="col-span-5">Kanan (Jawaban)</div>
+        </div>
+        <div id="jodoh-list" class="space-y-1.5"></div>
+        <button type="button" onclick="tambahJodoh()" class="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100">+ Tambah Pasangan</button>
+        <div class="text-[10px] text-slate-500 pt-1 border-t"><i class="fa-solid fa-info-circle"></i> Minimal 3 pasangan.</div>
+      </div>`;
+    renderJodohList();
+  }
+
+  /* --- URAIAN --- */
+  else if (j === "URAIAN") {
+    el.innerHTML = `
+      <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+        <div class="font-bold text-slate-700 text-xs">Kunci Jawaban (untuk koreksi manual guru)</div>
+        <textarea rows="3" onchange="__tempSoal.jawaban.kunci=this.value" placeholder="Tulis kunci jawaban lengkap..." class="w-full px-2 py-1.5 border rounded-lg bg-white">${esc(s.jawaban.kunci || "")}</textarea>
+      </div>`;
+  }
+}
+
+function pilihKunciPG(k) {
+  __tempSoal.jawaban.kunci = k;
+  syncFormKeTemp();
+  renderJenisForm();
+}
+function toggleKunciPGK(k) {
+  let arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [];
+  if (arr.includes(k)) arr = arr.filter(x => x !== k);
+  else arr.push(k);
+  __tempSoal.jawaban.kunci = arr.sort();
+  syncFormKeTemp();
+  renderJenisForm();
+}
+
+function updateIsian(i, v) {
+  const arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [__tempSoal.jawaban.kunci || ""];
+  arr[i] = v;
+  __tempSoal.jawaban.kunci = arr;
+}
+function tambahIsian() {
+  const arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [__tempSoal.jawaban.kunci || ""];
+  arr.push("");
+  __tempSoal.jawaban.kunci = arr;
+  syncFormKeTemp();
+  renderJenisForm();
+}
+function hapusIsian(i) {
+  let arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [__tempSoal.jawaban.kunci || ""];
+  if (arr.length <= 1) arr = [""];
+  else arr.splice(i, 1);
+  __tempSoal.jawaban.kunci = arr;
+  syncFormKeTemp();
+  renderJenisForm();
+}
+
+function renderJodohList() {
+  const el = document.getElementById("jodoh-list");
+  if (!el) return;
+  const s = __tempSoal;
+  if (!s.kiri.length) s.kiri = ["", "", ""];
+  if (!s.kanan.length) s.kanan = ["", "", ""];
+  while (s.kanan.length < s.kiri.length) s.kanan.push("");
+  el.innerHTML = s.kiri.map((kiri, i) => `
+    <div class="grid grid-cols-12 gap-1 items-center">
+      <div class="col-span-1 text-[10px] text-slate-400 text-center font-bold">${i+1}.</div>
+      <input type="text" value="${esc(kiri)}" onchange="__tempSoal.kiri[${i}]=this.value" placeholder="Soal ${i+1}" class="col-span-5 px-2 py-1.5 border rounded-lg bg-white">
+      <div class="col-span-1 text-center text-slate-300"><i class="fa-solid fa-arrow-right text-xs"></i></div>
+      <input type="text" value="${esc(s.kanan[i] || '')}" onchange="__tempSoal.kanan[${i}]=this.value" placeholder="Jawaban ${i+1}" class="col-span-4 px-2 py-1.5 border rounded-lg bg-white">
+      <button type="button" onclick="hapusJodoh(${i})" class="col-span-1 text-red-500 p-1 text-center hover:text-red-700"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  `).join("");
+  s.pasangan = s.kiri.map((_, i) => [i, i]);
+}
+function tambahJodoh() {
+  __tempSoal.kiri.push("");
+  __tempSoal.kanan.push("");
+  syncFormKeTemp();
+  renderJodohList();
+}
+function hapusJodoh(i) {
+  __tempSoal.kiri.splice(i, 1);
+  __tempSoal.kanan.splice(i, 1);
+  if (!__tempSoal.kiri.length) { __tempSoal.kiri = ["", "", ""]; __tempSoal.kanan = ["", "", ""]; }
+  syncFormKeTemp();
+  renderJodohList();
+}
+
+/* =========================================================
+   SIMPAN SOAL → bank_soal
+   ========================================================= */
+async function simpanSoal() {
+  const pertanyaan = document.getElementById("so-pertanyaan").value.trim();
+  if (!pertanyaan) { showToast("Pertanyaan wajib.", "error"); return; }
+  __tempSoal.pertanyaan = pertanyaan;
+  __tempSoal.mapel_kode = document.getElementById("so-mapel").value;
+  __tempSoal.kelas = document.getElementById("so-kelas").value;
+  __tempSoal.topik = document.getElementById("so-topik").value.trim();
+  __tempSoal.pembahasan = document.getElementById("so-pembahasan").value.trim();
+
+  const j = __tempSoal.jenis;
+
+  if (j === "PG") {
+    if (!__tempSoal.jawaban.kunci) { showToast("Pilih kunci jawaban — klik huruf A/B/C/D.", "error"); return; }
+    if (!__tempSoal.pilihan.A || !__tempSoal.pilihan.B || !__tempSoal.pilihan.C || !__tempSoal.pilihan.D) {
+      showToast("Isi semua pilihan A-D.", "error"); return;
+    }
+  } else if (j === "PGK") {
+    if (!Array.isArray(__tempSoal.jawaban.kunci) || __tempSoal.jawaban.kunci.length < 2) {
+      showToast("PGK butuh minimal 2 kunci.", "error"); return;
+    }
+    if (!__tempSoal.pilihan.A || !__tempSoal.pilihan.B || !__tempSoal.pilihan.C || !__tempSoal.pilihan.D) {
+      showToast("Isi semua pilihan A-D.", "error"); return;
+    }
+  } else if (j === "ISIAN") {
+    const arr = (Array.isArray(__tempSoal.jawaban.kunci) ? __tempSoal.jawaban.kunci : [__tempSoal.jawaban.kunci]).map(x => String(x||"").trim()).filter(Boolean);
+    if (!arr.length) { showToast("Isi minimal 1 alternatif jawaban.", "error"); return; }
+    __tempSoal.jawaban.kunci = arr;
+  } else if (j === "MENJODOHKAN") {
+    if (__tempSoal.kiri.length < 3) { showToast("Minimal 3 pasangan.", "error"); return; }
+    if (__tempSoal.kiri.some(k => !String(k||"").trim()) || __tempSoal.kanan.some(k => !String(k||"").trim())) {
+      showToast("Lengkapi semua pasangan kiri & kanan.", "error"); return;
+    }
+  } else if (j === "URAIAN") {
+    if (!String(__tempSoal.jawaban.kunci || "").trim()) { showToast("Isi kunci jawaban uraian.", "error"); return; }
+  }
+
+  const payload = {
+    jenis: j,
+    mapel_kode: __tempSoal.mapel_kode,
+    kelas: __tempSoal.kelas,
+    topik: __tempSoal.topik,
+    pertanyaan: __tempSoal.pertanyaan,
+    tingkat: __tempSoal.tingkat,
+    pembahasan: __tempSoal.pembahasan,
+    pilihan: null,
+    jawaban: {},
+    media: __tempSoal.media,
+    skor: 1
+  };
+  if (j === "PG" || j === "PGK") {
+    payload.pilihan = {
+      A: __tempSoal.pilihan.A, B: __tempSoal.pilihan.B,
+      C: __tempSoal.pilihan.C, D: __tempSoal.pilihan.D
+    };
+    payload.jawaban = { kunci: __tempSoal.jawaban.kunci };
+  } else if (j === "ISIAN") {
+    payload.jawaban = { kunci: __tempSoal.jawaban.kunci };
+  } else if (j === "MENJODOHKAN") {
+    payload.pilihan = { kiri: __tempSoal.kiri, kanan: __tempSoal.kanan };
+    payload.jawaban = { pasangan: __tempSoal.pasangan };
+  } else if (j === "URAIAN") {
+    payload.jawaban = { kunci: __tempSoal.jawaban.kunci };
+  }
+
+  showLoading(true, "Menyimpan soal...");
+  try {
+    let newSoalId = null;
+    if (__editSoalId) {
+      await sbUpsert("bank_soal", [{ id: __editSoalId, ...payload, updated_at: new Date().toISOString() }]);
+      newSoalId = __editSoalId;
+    } else {
+      const res = await sbInsert("bank_soal", [payload]);
+      newSoalId = res?.[0]?.id;
+    }
+    showLoading(false);
+    showToast("✓ Soal tersimpan.", "success");
+    closeModal();
+
+    if (window.__paketIdTambahan && newSoalId) {
+      try {
+        await toggleSoalDiPaket(window.__paketIdTambahan, newSoalId, true);
+        showToast("✓ Soal juga ditambahkan ke paket.", "success");
+      } catch(e) { console.warn("Gagal tambah ke paket:", e); }
+      window.__paketIdTambahan = null;
+      if (typeof kelolaSoalPaket === "function" && window.__paketIdSaatIni) {
+        return kelolaSoalPaket(window.__paketIdSaatIni);
+      }
+    }
+    refreshBankSoal();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal simpan soal: " + err.message, "error");
+  }
+}
+/* =========================================================
+   BAGIAN 4/5 — PREVIEW JAWABAN, PREVIEW PAKET, KELOLA SOAL, NORMALISASI AI
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   4A. HELPER PREVIEW JAWABAN — 5 JENIS LENGKAP
+   --------------------------------------------------------- */
+function renderJawabanPreview(s) {
+  const j = s.jenis;
+  const pilihan = s.pilihan || {};
+  const jawaban = s.jawaban || {};
+
+  /* --- PG --- */
+  if (j === "PG") {
+    const kunci = String(jawaban.kunci || "").toUpperCase();
+    return `
+      <div class="grid grid-cols-2 gap-1 text-[10px]">
+        ${HURUF_PILIHAN.map(k => {
+          const isKunci = kunci === k;
+          const teks = pilihan[k] || "";
+          return `<div class="prev-opsi ${isKunci ? 'kunci' : ''}">
+            <span class="font-bold">${k}.</span>
+            <span class="flex-1">${esc(teks)}</span>
+            ${isKunci ? `<span class="tanda">✓</span>` : ""}
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="mt-1 text-[10px] text-emerald-700 font-bold">
+        <i class="fa-solid fa-key"></i> Kunci: ${kunci || "-"}
+      </div>`;
+  }
+
+  /* --- PGK --- */
+  if (j === "PGK") {
+    const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci.map(x => String(x).toUpperCase()) : [];
+    return `
+      <div class="grid grid-cols-2 gap-1 text-[10px]">
+        ${HURUF_PILIHAN.map(k => {
+          const isKunci = kunciArr.includes(k);
+          const teks = pilihan[k] || "";
+          return `<div class="prev-opsi ${isKunci ? 'kunci' : ''}">
+            <span class="font-bold">${k}.</span>
+            <span class="flex-1">${esc(teks)}</span>
+            ${isKunci ? `<span class="tanda">✓</span>` : ""}
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="mt-1 text-[10px] text-emerald-700 font-bold">
+        <i class="fa-solid fa-key"></i> Kunci (${kunciArr.length}): ${kunciArr.slice().sort().join(", ") || "-"}
+      </div>`;
+  }
+
+  /* --- ISIAN --- */
+  if (j === "ISIAN") {
+    const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci : [jawaban.kunci || ""];
+    const bersih = kunciArr.map(x => String(x).trim()).filter(Boolean);
+    return `<div class="text-[10px] text-emerald-700 font-bold">
+      <i class="fa-solid fa-key"></i> Kunci: ${bersih.map(esc).join(" / ") || "-"}
+    </div>`;
+  }
+
+  /* --- MENJODOHKAN --- */
+  if (j === "MENJODOHKAN") {
+    const kiri = Array.isArray(pilihan.kiri) ? pilihan.kiri : [];
+    const kanan = Array.isArray(pilihan.kanan) ? pilihan.kanan : [];
+    if (!kiri.length) return `<div class="text-[10px] text-slate-400 italic">Belum ada pasangan.</div>`;
+    return `
+      <div class="space-y-1 text-[10px]">
+        ${kiri.map((k, i) => `
+          <div class="flex items-center gap-2 p-1 rounded bg-emerald-50">
+            <span class="font-bold text-emerald-800">${i+1}.</span>
+            <span class="flex-1 text-slate-700">${esc(k)}</span>
+            <i class="fa-solid fa-arrow-right text-emerald-500"></i>
+            <span class="flex-1 text-emerald-700 font-semibold">${esc(kanan[i] || "")}</span>
+          </div>
+        `).join("")}
+      </div>`;
+  }
+
+  /* --- URAIAN --- */
+  if (j === "URAIAN") {
+    const kunci = String(jawaban.kunci || "");
+    return `
+      <div class="text-[10px] text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200">
+        <b><i class="fa-solid fa-key"></i> Kunci:</b> ${esc(kunci || "-")}
+      </div>`;
+  }
+
+  return "";
+}
+
+/* ---------------------------------------------------------
+   4B. PREVIEW PAKET
+   --------------------------------------------------------- */
+async function previewPaket(id) {
+  showLoading(true, "Memuat paket...");
+  try {
+    const paket = (await sbFetch("paket_soal", `?id=eq.${id}&limit=1`))?.[0];
+    if (!paket) throw new Error("Paket tidak ditemukan.");
+
+    const items = await sbFetch("paket_soal_items", `?paket_id=eq.${id}&order=urutan.asc`);
+    let soalList = [];
+    if (items.length) {
+      const ids = items.map(it => it.soal_id).filter(Boolean);
+      if (ids.length) {
+        const soals = await sbFetch("bank_soal", `?id=in.(${ids.map(i => `"${i}"`).join(",")})`);
+        soalList = items.map(it => soals.find(s => s.id === it.soal_id)).filter(Boolean);
+      }
+    }
+    const links = kmGetLinks(id);
+    showLoading(false);
+
+    const mb = document.getElementById("modal-body");
+    mb.innerHTML = `
+    <div class="space-y-4 text-xs">
+      <div class="border-b pb-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h3 class="font-bold text-base"><i class="fa-solid fa-eye text-indigo-600"></i> Preview Paket</h3>
+            <p class="text-slate-500 mt-1">${esc(paket.nama || "(tanpa nama)")}</p>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-1 rounded-full ${paket.aktif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${paket.aktif ? 'AKTIF' : 'NONAKTIF'}</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div class="bg-slate-50 border rounded-lg p-2">
+          <div class="text-[10px] text-slate-500">Mapel</div>
+          <div class="font-bold">${esc(paket.mapel_kode || "-")}</div>
+        </div>
+        <div class="bg-slate-50 border rounded-lg p-2">
+          <div class="text-[10px] text-slate-500">Kelas</div>
+          <div class="font-bold">${esc(paket.kelas || "-")}</div>
+        </div>
+        <div class="bg-slate-50 border rounded-lg p-2">
+          <div class="text-[10px] text-slate-500">Durasi</div>
+          <div class="font-bold">${paket.durasi_menit || 0} mnt</div>
+        </div>
+        <div class="bg-slate-50 border rounded-lg p-2">
+          <div class="text-[10px] text-slate-500">Jumlah Soal</div>
+          <div class="font-bold">${soalList.length}</div>
+        </div>
+      </div>
+
+      ${(paket.acak_soal || paket.acak_pilihan) ? `
+        <div class="flex flex-wrap gap-2 text-[10px]">
+          ${paket.acak_soal ? `<span class="bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded-full"><i class="fa-solid fa-shuffle"></i> Acak urutan soal</span>` : ""}
+          ${paket.acak_pilihan ? `<span class="bg-pink-100 text-pink-700 font-bold px-2 py-1 rounded-full"><i class="fa-solid fa-shuffle"></i> Acak pilihan A-D</span>` : ""}
+        </div>
+      ` : ""}
+
+      ${links.length ? `
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+          <div class="font-semibold text-emerald-900 mb-2"><i class="fa-solid fa-link"></i> Link Materi (${links.length})</div>
+          <div class="space-y-1">
+            ${links.map((l, i) => `<div class="text-[11px] text-emerald-800 break-all"><b>${i+1}.</b> <a href="${esc(l)}" target="_blank" class="underline">${esc(l)}</a></div>`).join("")}
+          </div>
+        </div>
+      ` : ""}
+
+      <div>
+        <div class="font-semibold text-slate-700 mb-2">Daftar Soal (${soalList.length})</div>
+        ${soalList.length ? `
+          <div class="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+            ${soalList.map((s, i) => {
+              const j = JENIS_SOAL[s.jenis] || JENIS_SOAL.PG;
+              const media = s.media && s.media.url ? `<img src="${esc(s.media.url)}" class="max-h-32 rounded-lg border mt-1.5" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : "";
+              return `
+              <div class="bg-slate-50 border rounded-lg p-3">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${esc(j.label)}</span>
+                  <span class="text-[10px] text-slate-400">Soal ${i+1}</span>
+                </div>
+                <div class="text-xs font-semibold text-slate-800">${esc(s.pertanyaan || "")}</div>
+                ${media}
+                <div class="mt-2">${renderJawabanPreview(s)}</div>
+                ${s.pembahasan ? `<div class="mt-2 text-[10px] text-slate-500 italic bg-white p-2 rounded border"><b>Pembahasan:</b> ${esc(s.pembahasan)}</div>` : ""}
+              </div>`;
+            }).join("")}
+          </div>
+        ` : `<div class="text-center text-slate-400 py-6 text-xs">Belum ada soal dalam paket ini.</div>`}
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Tutup</button>
+        <button onclick="closeModal();kelolaSoalPaket('${id}')" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl"><i class="fa-solid fa-pen"></i> Kelola Soal</button>
+      </div>
+    </div>`;
+    openModal();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal preview: " + err.message, "error");
+  }
+}
+
+/* ---------------------------------------------------------
+   4C. KELOLA SOAL DALAM PAKET
+   --------------------------------------------------------- */
+async function kelolaSoalPaket(paketId) {
+  if (!paketId) { showToast("Paket tidak valid.", "error"); return; }
+  window.__paketIdSaatIni = paketId;
+  showLoading(true, "Memuat...");
+  try {
+    const paket = (await sbFetch("paket_soal", `?id=eq.${paketId}&limit=1`))?.[0];
+    const items = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}&order=urutan.asc`);
+    const allSoal = await sbFetch("bank_soal", "?order=created_at.desc&limit=500");
+    showLoading(false);
+
+    const soalInPaketIds = items.map(it => it.soal_id);
+
+    const mb = document.getElementById("modal-body");
+    mb.innerHTML = `
+    <div class="space-y-4 text-xs">
+      <div class="border-b pb-3">
+        <h3 class="font-bold text-base"><i class="fa-solid fa-pen-to-square text-indigo-600"></i> Kelola Soal dalam Paket</h3>
+        <p class="text-slate-500 mt-1">${esc(paket?.nama || "(tanpa nama)")} — <b>${items.length}</b> soal terpilih</p>
+      </div>
+
+      <div class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] text-indigo-800">
+        <i class="fa-solid fa-info-circle"></i> Centang soal untuk menambahkan ke paket. Kunci jawaban ditampilkan agar mudah diverifikasi.
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <input id="kp-search" placeholder="Cari soal..." oninput="filterKelolaSoal()" class="flex-1 px-3 py-2 border rounded-xl text-xs">
+        <select id="kp-jenis" onchange="filterKelolaSoal()" class="px-3 py-2 border rounded-xl text-xs bg-white">
+          <option value="">Semua Jenis</option>
+          ${Object.values(JENIS_SOAL).map(j => `<option value="${j.kode}">${j.label}</option>`).join("")}
+        </select>
+        <button onclick="tambahSoalKePaketBaru('${paketId}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl font-bold text-xs whitespace-nowrap"><i class="fa-solid fa-plus"></i> Buat Soal Baru</button>
+      </div>
+
+      <div id="kp-list" class="space-y-1.5 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+        ${allSoal.length ? allSoal.map(s => {
+          const checked = soalInPaketIds.includes(s.id);
+          const j = JENIS_SOAL[s.jenis] || JENIS_SOAL.PG;
+          const previewKunci = (() => {
+            const jaw = s.jawaban || {};
+            if (s.jenis === "PG") return `Kunci: <b class="text-emerald-700">${jaw.kunci || "-"}</b>`;
+            if (s.jenis === "PGK") return `Kunci: <b class="text-emerald-700">${(Array.isArray(jaw.kunci) ? jaw.kunci.slice().sort() : []).join(", ") || "-"}</b>`;
+            if (s.jenis === "ISIAN") return `Kunci: <b class="text-emerald-700">${(Array.isArray(jaw.kunci) ? jaw.kunci : [jaw.kunci || "-"]).slice(0,2).map(esc).join(" / ")}</b>`;
+            if (s.jenis === "MENJODOHKAN") return `<span class="text-slate-500">${(s.pilihan?.kiri || []).length} pasang</span>`;
+            return `<span class="text-slate-500 italic">Koreksi manual</span>`;
+          })();
+          return `
+          <label class="flex items-start gap-2 p-2.5 bg-white border rounded-xl cursor-pointer hover:bg-slate-50 kp-item"
+                 data-search="${esc(((s.pertanyaan||"") + " " + (s.mapel_kode||"") + " " + (s.topik||"")).toLowerCase())}"
+                 data-jenis="${esc(s.jenis || '')}">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleSoalDiPaket('${paketId}', '${s.id}', this.checked)" class="mt-1 accent-indigo-600 w-4 h-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap gap-1 mb-1">
+                <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${esc(j.label)}</span>
+                ${s.mapel_kode ? `<span class="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">${esc(s.mapel_kode)}</span>` : ""}
+                ${s.kelas ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Kls ${esc(s.kelas)}</span>` : ""}
+              </div>
+              <div class="text-[11px] font-semibold text-slate-700 leading-tight">${esc((s.pertanyaan || "").slice(0, 150))}${(s.pertanyaan || "").length > 150 ? "..." : ""}</div>
+              <div class="text-[10px] mt-1">${previewKunci}</div>
+            </div>
+          </label>`;
+        }).join("") : `<div class="text-center text-slate-400 py-6 text-xs">Bank soal masih kosong. Klik "Buat Soal Baru" untuk mulai.</div>`}
+      </div>
+
+      <div class="flex justify-between items-center gap-2 pt-3 border-t">
+        <span class="text-[10px] text-slate-500" id="kp-count">${items.length} soal terpilih</span>
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Tutup</button>
+      </div>
+    </div>`;
+    openModal();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal: " + err.message, "error");
+  }
+}
+
+function filterKelolaSoal() {
+  const q = (document.getElementById("kp-search")?.value || "").toLowerCase().trim();
+  const jenis = document.getElementById("kp-jenis")?.value || "";
+  document.querySelectorAll(".kp-item").forEach(el => {
+    const s = el.dataset.search || "";
+    const j = el.dataset.jenis || "";
+    const matchQ = !q || s.includes(q);
+    const matchJ = !jenis || j === jenis;
+    el.style.display = (matchQ && matchJ) ? "" : "none";
+  });
+}
+
+async function toggleSoalDiPaket(paketId, soalId, checked) {
+  try {
+    if (checked) {
+      const exist = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}&soal_id=eq.${soalId}&limit=1`);
+      if (exist.length) return;
+      const items = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}`);
+      const urutan = items.length;
+      await sbInsert("paket_soal_items", [{ paket_id: paketId, soal_id: soalId, urutan }]);
+      showToast("✓ Soal ditambahkan ke paket.", "success");
+    } else {
+      await sbDelete("paket_soal_items", `?paket_id=eq.${paketId}&soal_id=eq.${soalId}`);
+      showToast("Soal dihapus dari paket.", "info");
+    }
+    const counter = document.getElementById("kp-count");
+    if (counter) {
+      const n = document.querySelectorAll(".kp-item input[type='checkbox']:checked").length;
+      counter.textContent = `${n} soal terpilih`;
+    }
+  } catch (err) {
+    showToast("Gagal update: " + err.message, "error");
+  }
+}
+
+function tambahSoalKePaketBaru(paketId) {
+  window.__paketIdTambahan = paketId;
+  window.__paketIdSaatIni = paketId;
+  closeModal();
+  showBuatSoalModal(null);
+}
+
+/* =========================================================
+   4D. ⭐ NORMALISASI SOAL AI — VERSI TOLERAN
+   ========================================================= */
+function normalisasiSoalAI(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  // --- Normalisasi jenis ---
+  let jenisRaw = String(raw.jenis || raw.type || "").toUpperCase().trim();
+  if (jenisRaw.includes("PILIHAN") && jenisRaw.includes("GANDA") && !jenisRaw.includes("KOMPLEKS")) jenisRaw = "PG";
+  if (jenisRaw === "PG" || jenisRaw === "MULTIPLE CHOICE") jenisRaw = "PG";
+  if (jenisRaw.includes("KOMPLEKS") || jenisRaw === "PGK" || jenisRaw === "MULTIPLE ANSWER") jenisRaw = "PGK";
+  if (jenisRaw.includes("JODOH") || jenisRaw.includes("MATCH") || jenisRaw === "PAIRING") jenisRaw = "MENJODOHKAN";
+  if (jenisRaw.includes("ISIAN") || jenisRaw.includes("SHORT") || jenisRaw === "FILL") jenisRaw = "ISIAN";
+  if (jenisRaw.includes("URAIAN") || jenisRaw.includes("ESSAY") || jenisRaw === "ESAI") jenisRaw = "URAIAN";
+
+  // --- Pertanyaan ---
+  const pertanyaan = String(raw.pertanyaan || raw.question || raw.soal || raw.text || "").trim();
+  if (!pertanyaan) return null;
+
+  const pembahasan = String(raw.pembahasan || raw.explanation || raw.penjelasan || "").trim();
+  const out = {
+    jenis: jenisRaw,
+    pertanyaan,
+    pembahasan,
+    tingkat: "sedang",
+    skor: 1,
+    pilihan: null,
+    jawaban: {},
+    media: null
+  };
+
+  // --- Helper: normalisasi pilihan jadi {A,B,C,D} ---
+  const normPilihan = (src) => {
+    if (!src) return null;
+    if (src.pilihan && typeof src.pilihan === "object" && !Array.isArray(src.pilihan)) src = src.pilihan;
+    if (Array.isArray(src)) {
+      const m = {};
+      src.forEach((t, i) => { if (i < 4) m[HURUF_PILIHAN[i]] = String(t ?? "").trim(); });
+      return Object.keys(m).length ? m : null;
+    }
+    if (typeof src !== "object") return null;
+    const keys = Object.keys(src);
+    const m = {};
+    keys.forEach(k => {
+      const K = String(k).toUpperCase().trim();
+      if (/^[A-D]$/.test(K)) m[K] = String(src[k] ?? "").trim();
+    });
+    if (!Object.keys(m).length) {
+      HURUF_PILIHAN.forEach((h, i) => { if (keys[i] !== undefined) m[h] = String(src[keys[i]] ?? "").trim(); });
+    }
+    return Object.keys(m).length ? m : null;
+  };
+
+  // --- Ambil rawKunci dari berbagai bentuk ---
+  let rawKunci = raw.jawaban ?? raw.answer ?? raw.kunci ?? raw.correct ?? null;
+  if (rawKunci && typeof rawKunci === "object" && !Array.isArray(rawKunci)) {
+    rawKunci = rawKunci.kunci ?? rawKunci.answer ?? rawKunci.jawaban ?? rawKunci.correct ?? null;
+  }
+
+  // --- Helper: cari huruf dari teks pilihan ---
+  const findHurufDariTeks = (teks, pilihan) => {
+    if (!pilihan) return null;
+    const t = String(teks).trim().toUpperCase();
+    for (const h of HURUF_PILIHAN) {
+      if (pilihan[h] && pilihan[h].toUpperCase() === t) return h;
+    }
+    return null;
+  };
+
+  if (jenisRaw === "PG") {
+    out.pilihan = normPilihan(raw.pilihan || raw.options || raw.opsi || raw.choices);
+    if (!out.pilihan || !out.pilihan.A || !out.pilihan.B) return null;
+    let k = String(rawKunci || "").toUpperCase().trim();
+    if (!/^[A-D]$/.test(k)) k = findHurufDariTeks(rawKunci, out.pilihan);
+    if (!k || !out.pilihan[k]) return null;
+    out.jawaban = { kunci: k };
+
+  } else if (jenisRaw === "PGK") {
+    out.pilihan = normPilihan(raw.pilihan || raw.options || raw.opsi || raw.choices);
+    if (!out.pilihan || !out.pilihan.A || !out.pilihan.B) return null;
+    let arr = Array.isArray(rawKunci) ? rawKunci : (rawKunci ? [rawKunci] : []);
+    let clean = arr.map(x => {
+      let s = String(x ?? "").toUpperCase().trim();
+      if (/^[A-D]$/.test(s)) return s;
+      return findHurufDariTeks(x, out.pilihan);
+    }).filter(Boolean);
+    clean = [...new Set(clean)].sort();
+    if (clean.length === 0) return null;
+    out.jawaban = { kunci: clean };
+
+  } else if (jenisRaw === "ISIAN") {
+    const arr = Array.isArray(rawKunci) ? rawKunci : [rawKunci];
+    const clean = arr.map(x => String(x ?? "").trim()).filter(Boolean);
+    if (!clean.length) return null;
+    out.jawaban = { kunci: clean };
+
+  } else if (jenisRaw === "MENJODOHKAN") {
+    let pil = raw.pilihan || raw.pairs || {};
+    if (pil.pilihan && typeof pil.pilihan === "object" && !Array.isArray(pil.pilihan)) pil = pil.pilihan;
+    const kiri = pil.kiri || raw.kiri || raw.left || raw.soal || raw.items || [];
+    const kanan = pil.kanan || raw.kanan || raw.right || raw.jawaban || [];
+    if (!Array.isArray(kiri) || !Array.isArray(kanan)) return null;
+    if (kiri.length < 2 || kiri.length !== kanan.length) return null;
+    const cKiri = kiri.map(x => String(x ?? "").trim());
+    const cKanan = kanan.map(x => String(x ?? "").trim());
+    if (cKiri.some(x => !x) || cKanan.some(x => !x)) return null;
+    out.pilihan = { kiri: cKiri, kanan: cKanan };
+    let pasangan = null;
+    if (Array.isArray(raw.jawaban?.pasangan)) pasangan = raw.jawaban.pasangan;
+    else if (Array.isArray(raw.pasangan)) pasangan = raw.pasangan;
+    if (!pasangan) pasangan = cKiri.map((_, i) => [i, i]);
+    out.jawaban = { pasangan };
+
+  } else if (jenisRaw === "URAIAN") {
+    const k = String(rawKunci || "").trim();
+    if (!k) return null;
+    out.jawaban = { kunci: k };
+
+  } else {
+    return null;
+  }
+
+  return out;
+}
+/* =========================================================
+   BAGIAN 5/5 — GENERATOR AI, EXPORT, SHORTCUT, LOG
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   5A. MODAL API KEY GEMINI
+   --------------------------------------------------------- */
+function showGeminiModal() {
+  const key = getGeminiKey();
+  const mb = document.getElementById("modal-body");
+  mb.innerHTML = `
+  <div class="space-y-4 text-xs">
+    <div class="border-b pb-2">
+      <h3 class="font-bold text-base"><i class="fa-solid fa-key text-teal-600"></i> API Key Gemini</h3>
+      <p class="text-slate-500 mt-1">Kunci ini dipakai untuk Generator Soal AI.</p>
+    </div>
+    <div>
+      <label class="block font-semibold mb-1">API Key</label>
+      <div class="relative">
+        <input id="gemini-key-input" type="password" value="${esc(key)}" placeholder="AIzaSy..." class="w-full pl-3 pr-10 py-2 border rounded-lg font-mono">
+        <button type="button" onclick="toggleGeminiVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+          <i id="gemini-eye" class="fa-solid fa-eye-slash text-sm"></i>
+        </button>
+      </div>
+      <p class="text-[10px] text-slate-500 mt-1">Ambil dari <a href="https://aistudio.google.com" target="_blank" class="text-teal-600 underline font-semibold">aistudio.google.com</a> → Get API Key</p>
+    </div>
+    <div class="flex justify-end gap-2 pt-2 border-t">
+      <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
+      <button onclick="simpanGeminiKey()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl"><i class="fa-solid fa-save"></i> Simpan</button>
+    </div>
+  </div>`;
+  openModal();
+}
+function toggleGeminiVisibility() {
+  const el = document.getElementById("gemini-key-input");
+  const eye = document.getElementById("gemini-eye");
+  if (!el || !eye) return;
+  if (el.type === "password") { el.type = "text"; eye.className = "fa-solid fa-eye text-sm"; }
+  else { el.type = "password"; eye.className = "fa-solid fa-eye-slash text-sm"; }
+}
+function simpanGeminiKey() {
+  const k = document.getElementById("gemini-key-input").value.trim();
+  if (k) setLS(STORAGE.GEMINI_KEY, k);
+  else delLS(STORAGE.GEMINI_KEY);
+  showToast(k ? "API Key disimpan." : "API Key dihapus.", "success");
+  closeModal();
+  if (__activeTabPaket === "ai") renderPaketModal();
+  else if (appState.activeView === "paket") renderPaketList(document.getElementById("main-view-container"));
+}
+
+/* ---------------------------------------------------------
+   5B. GENERATOR AI
+   --------------------------------------------------------- */
+async function jalankanGenerateAI() {
+  const apiKey = getGeminiKey();
+  if (!apiKey) { showToast("API Key Gemini belum diset.", "error"); return; }
+
+  const topik = document.getElementById("ai-topik")?.value.trim() || "";
+  const mapel = document.getElementById("ai-mapel")?.value || "";
+  const kelas = document.getElementById("ai-kelas")?.value || "";
+  const numPG = Number(document.getElementById("ai-num-pg")?.value) || 0;
+  const numPGK = Number(document.getElementById("ai-num-pgk")?.value) || 0;
+  const numJodoh = Number(document.getElementById("ai-num-jodoh")?.value) || 0;
+  const numIsian = Number(document.getElementById("ai-num-isian")?.value) || 0;
+  const numUraian = Number(document.getElementById("ai-num-uraian")?.value) || 0;
+
+  if (!topik) { showToast("Isi topik materi.", "error"); return; }
+  if (!mapel) { showToast("Pilih mapel.", "error"); return; }
+  if (!kelas) { showToast("Pilih kelas.", "error"); return; }
+  const total = numPG + numPGK + numJodoh + numIsian + numUraian;
+  if (total === 0) { showToast("Minimal 1 soal.", "error"); return; }
+  if (total > 40) { showToast("Maksimal 40 soal per generate.", "error"); return; }
+
+  __tempSoalAIMeta = { mapel, kelas, topik };
+
+  const btn = document.getElementById("ai-gen-btn");
+  const loader = document.getElementById("ai-loader");
+  const loaderText = document.getElementById("ai-loader-text");
+  const out = document.getElementById("ai-out");
+  if (btn) btn.disabled = true;
+  if (loader) loader.classList.remove("hidden");
+  if (out) out.classList.add("hidden");
+  if (loaderText) loaderText.textContent = `Menghubungi Gemini... (${total} soal)`;
+
+  const systemPrompt = "Anda asisten pembuatan soal SD Indonesia. WAJIB balas dengan JSON ARRAY saja. Jangan pakai markdown, jangan pakai penjelasan tambahan.";
+
+  const userPrompt = `Buat soal mata pelajaran "${mapel}" kelas "${kelas}" topik "${topik}".
+
+Jumlah soal yang diminta:
+- PG (Pilihan Ganda): ${numPG}
+- PGK (PG Kompleks): ${numPGK}
+- MENJODOHKAN: ${numJodoh}
+- ISIAN: ${numIsian}
+- URAIAN: ${numUraian}
+
+Balas HANYA array JSON. Setiap elemen objek. Contoh PERSIS format:
+
+[
+  {
+    "jenis": "PG",
+    "pertanyaan": "Ibu kota Indonesia adalah?",
+    "pilihan": {"A": "Jakarta", "B": "Bandung", "C": "Surabaya", "D": "Medan"},
+    "jawaban": {"kunci": "A"},
+    "pembahasan": "Jakarta adalah ibu kota Indonesia."
+  },
+  {
+    "jenis": "PGK",
+    "pertanyaan": "Hewan herbivora adalah?",
+    "pilihan": {"A": "Sapi", "B": "Kucing", "C": "Kambing", "D": "Singa"},
+    "jawaban": {"kunci": ["A", "C"]},
+    "pembahasan": "Sapi dan kambing makan tumbuhan."
+  },
+  {
+    "jenis": "MENJODOHKAN",
+    "pertanyaan": "Jodohkan hewan dengan makanannya!",
+    "pilihan": {"kiri": ["Sapi", "Ayam", "Kucing"], "kanan": ["Rumput", "Biji", "Ikan"]},
+    "jawaban": {"pasangan": [[0,0],[1,1],[2,2]]},
+    "pembahasan": "Sapi makan rumput, ayam makan biji, kucing makan ikan."
+  },
+  {
+    "jenis": "ISIAN",
+    "pertanyaan": "Hewan pemakan tumbuhan disebut?",
+    "pilihan": null,
+    "jawaban": {"kunci": ["herbivora"]},
+    "pembahasan": "Herbivora artinya pemakan tumbuhan."
+  },
+  {
+    "jenis": "URAIAN",
+    "pertanyaan": "Jelaskan pengertian ekosistem!",
+    "pilihan": null,
+    "jawaban": {"kunci": "Ekosistem adalah hubungan timbal balik antara makhluk hidup dengan lingkungannya."},
+    "pembahasan": "Ekosistem mencakup komponen biotik dan abiotik."
+  }
+]
+
+ATURAN WAJIB:
+1. Setiap soal WAJIB punya key: "jenis", "pertanyaan", "jawaban" (pembahasan & pilihan opsional sesuai jenis).
+2. PG & PGK: "pilihan" WAJIB object dengan key "A","B","C","D" (huruf besar).
+3. PG: "jawaban.kunci" = 1 huruf saja, contoh: "A"
+4. PGK: "jawaban.kunci" = ARRAY minimal 2 huruf, contoh: ["A","C"]
+5. MENJODOHKAN: "pilihan.kiri" & "pilihan.kanan" WAJIB array string dengan panjang SAMA, minimal 3.
+6. MENJODOHKAN: "jawaban.pasangan" = [[0,0],[1,1],[2,2],...]
+7. ISIAN: "pilihan" = null, "jawaban.kunci" = array string alternatif, contoh: ["jawaban1","jawaban2"]
+8. URAIAN: "pilihan" = null, "jawaban.kunci" = string panjang
+9. Jangan pakai teks di luar JSON. Jangan bungkus dengan markdown.
+
+Jawab HANYA array JSON.`;
+
+  const schema = null;
+
+  try {
+    const result = await fetchGeminiWithRetry(userPrompt, systemPrompt, apiKey, schema);
+    console.log("[EduSmart][Gemini] Response:", result);
+
+    const finishReason = result?.candidates?.[0]?.finishReason || "";
+    const jsonText = extractGeminiText(result);
+    if (!jsonText) {
+      const blockReason = result?.promptFeedback?.blockReason;
+      if (blockReason) throw new Error(`Gemini memblokir permintaan (${blockReason}). Coba ubah topik atau redaksi.`);
+      if (finishReason && finishReason !== "STOP") throw new Error(`Gemini menghentikan generasi (${finishReason}). Coba generate ulang.`);
+      throw new Error("Respons kosong dari Gemini.");
+    }
+
+    let soalArr;
+    const cleanedJson = jsonText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    try { soalArr = JSON.parse(cleanedJson); }
+    catch (e) {
+      const m = cleanedJson.match(/\[[\s\S]*\]/);
+      if (m) {
+        try { soalArr = JSON.parse(m[0]); }
+        catch(e2) { throw new Error("Gemini mengembalikan JSON yang tidak valid."); }
+      }
+      else throw new Error("Gemini tidak mengembalikan array JSON.");
+    }
+    if (!Array.isArray(soalArr) || !soalArr.length) throw new Error("AI tidak mengembalikan array.");
+
+    const normalized = soalArr.map(normalisasiSoalAI).filter(Boolean);
+    const skipped = soalArr.length - normalized.length;
+
+    if (!normalized.length) {
+      throw new Error("Gemini berhasil merespons, tetapi struktur soal tidak cocok dengan format EduSmart. Coba generate ulang; detail respons dapat dilihat di Console.");
+    }
+
+    __tempSoalAI = [...__tempSoalAI, ...normalized];
+
+    if (loader) loader.classList.add("hidden");
+    if (btn) btn.disabled = false;
+
+    if (skipped > 0) showToast(`✓ ${normalized.length} soal valid, ${skipped} dilewati.`, "info");
+    else showToast(`✓ Berhasil generate ${normalized.length} soal.`, "success");
+
+    renderPaketModal();
+
+  } catch (err) {
+    if (loader) loader.classList.add("hidden");
+    if (out) {
+      out.classList.remove("hidden");
+      out.innerHTML = `<div class="text-red-600 text-xs whitespace-pre-wrap"><b>Gagal:</b> ${esc(err.message)}</div>`;
+    }
+    if (btn) btn.disabled = false;
+    showToast("Gagal generate: " + err.message, "error", 6000);
+  }
+}
+
+/* ---------------------------------------------------------
+   5C. EXPORT PAKET JSON
+   --------------------------------------------------------- */
+async function exportPaketJSON(id) {
+  try {
+    showLoading(true, "Menyiapkan export...");
+    const paket = (await sbFetch("paket_soal", `?id=eq.${id}&limit=1`))?.[0];
+    const items = await sbFetch("paket_soal_items", `?paket_id=eq.${id}`);
+    const ids = items.map(it => it.soal_id).filter(Boolean);
+    const soals = ids.length ? await sbFetch("bank_soal", `?id=in.(${ids.map(i => `"${i}"`).join(",")})`) : [];
+    const links = kmGetLinks(id);
+    const data = {
+      paket,
+      soal: soals,
+      links,
+      exportedAt: new Date().toISOString(),
+      exportedBy: appState.currentUser?.name || "guru"
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paket_${(paket?.nama || "quiz").replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showLoading(false);
+    showToast("✓ Paket diekspor.", "success");
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal export: " + err.message, "error");
+  }
+}
+
+/* ---------------------------------------------------------
+   5D. KEYBOARD SHORTCUT
+   --------------------------------------------------------- */
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    const saveBtn = document.querySelector('#modal-body button[onclick*="simpan"], #modal-body button[onclick*="Simpan"]');
+    if (saveBtn) saveBtn.click();
+  }
+  if (e.key === "Escape") {
+    const modal = document.getElementById("modal-container");
+    if (modal && !modal.classList.contains("hidden")) closeModal();
+  }
+  if (e.altKey && (e.key === "1" || e.key === "2")) {
+    const modal = document.getElementById("modal-container");
+    if (modal && !modal.classList.contains("hidden")) {
+      const tabInfo = document.querySelector('#modal-body button[onclick*="switchTabPaket(\'info\')"]');
+      const tabAI = document.querySelector('#modal-body button[onclick*="switchTabPaket(\'ai\')"]');
+      if (e.key === "1" && tabInfo) { e.preventDefault(); tabInfo.click(); }
+      if (e.key === "2" && tabAI) { e.preventDefault(); tabAI.click(); }
+    }
+  }
+});
+
+/* ---------------------------------------------------------
+   5E. BOOT LOG & SAFETY CHECK
+   --------------------------------------------------------- */
+console.log("[EduSmart] buat_kuis.html v4.3 loaded");
+console.log("  • GEMINI_MODELS: gemini-2.5-flash");
+console.log("  • Menu sidebar: Paket Soal, Bank Soal (Generator AI di dalam paket)");
+console.log("  • Form PG/PGK: klik kotak huruf A-D untuk set kunci");
+console.log("  • Tab paket: Info Paket + Generate AI (Alt+1 / Alt+2)");
+console.log("  • normalisasiSoalAI(): toleran — terima PGK 1 kunci, kunci teks → huruf, dll");
+
+setTimeout(() => {
+  const cek = [
+    "renderPaketList", "renderBankSoalList", "showBuatPaketModal",
+    "showBuatSoalModal", "jalankanGenerateAI", "normalisasiSoalAI",
+    "kelolaSoalPaket", "previewPaket", "renderJawabanPreview"
+  ];
+  const missing = cek.filter(fn => typeof window[fn] !== "function");
+  if (missing.length) console.warn("[EduSmart] Fungsi belum terdefinisi:", missing);
+}, 500);
+</script>
+</body>
+</html>
