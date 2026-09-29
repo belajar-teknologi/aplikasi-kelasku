@@ -356,7 +356,7 @@ function renderSidebarNav() {
     <a href="./buat_kuis.html" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition text-slate-600 hover:bg-slate-100">
       <i class="fa-solid fa-pen-to-square text-sm w-5 text-center"></i> <span>Buat Kuis</span>
     </a>
-    <a href="./preview_kuis.html" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition text-slate-600 hover:bg-slate-100">
+    <a href="./preview.html" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition text-slate-600 hover:bg-slate-100">
       <i class="fa-solid fa-eye text-sm w-5 text-center"></i> <span>Preview Kuis</span>
     </a>
   </div>`;
@@ -2229,7 +2229,7 @@ async function renderPaketSoal(c) {
               <div><i class="fa-solid fa-calendar text-slate-400 w-4"></i> Dibuat ${formatTanggal(p.created_at)}</div>
             </div>
             <div class="flex gap-2 mt-3 pt-3 border-t">
-              <a href="./preview_kuis.html?paket=${p.id}" target="_blank" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] py-2 rounded-xl text-center">
+              <a href="./preview.html?paket=${p.id}" target="_blank" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] py-2 rounded-xl text-center">
                 <i class="fa-solid fa-eye"></i> Preview
               </a>
               <button onclick="lihatHasilPaket('${p.id}')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] py-2 rounded-xl">
