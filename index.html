@@ -131,10 +131,10 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 <div id="sync-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm">
 <span class="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></span><span>SIAP</span>
 </div>
-<button onclick="showInfoPengembang()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5" title="Info Pengembang">
+<button id="btn-info-pengembang" onclick="showInfoPengembang()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5" title="Info Pengembang">
 <i class="fa-solid fa-circle-info"></i><span class="hidden sm:inline">Info Pengembang</span>
 </button>
-<button onclick="showSetupModal()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+<button id="btn-pengaturan" onclick="showSetupModal()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
 <i class="fa-solid fa-gear"></i><span class="hidden sm:inline">Pengaturan</span>
 </button>
 <div id="header-user-info" class="hidden items-center gap-2 border-l border-indigo-500 pl-3">
@@ -416,6 +416,9 @@ GRANT ALL ON public.hasil_ujian TO anon, authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';`;
 
+/* =========================================================
+   DEFAULT_MENUS — menu_tambahan (guru) + kelasku (guru & siswa)
+   ========================================================= */
 const DEFAULT_MENUS = [
   { id: "dashboard", name: "Dashboard", icon: "fa-solid fa-gauge-high", roles: ["guru"] },
   { id: "siswa", name: "Data Siswa", icon: "fa-solid fa-users-gear", roles: ["guru"] },
@@ -424,7 +427,8 @@ const DEFAULT_MENUS = [
   { id: "absensi", name: "Absensi", icon: "fa-solid fa-calendar-check", roles: ["guru"] },
   { id: "penilaian", name: "Penilaian", icon: "fa-solid fa-file-pen", roles: ["guru"] },
   { id: "hasil_belajar", name: "Hasil Belajar", icon: "fa-solid fa-chart-column", roles: ["guru"] },
-  { id: "kelasku", name: "Kelasku & Menu Tambahan", icon: "fa-solid fa-chalkboard-user", roles: ["guru"] },
+  { id: "menu_tambahan", name: "Menu Tambahan", icon: "fa-solid fa-th-large", roles: ["guru"] },
+  { id: "kelasku", name: "Kelasku", icon: "fa-solid fa-folder-open", roles: ["guru", "siswa"] },
   { id: "jurnal", name: "Jurnal", icon: "fa-solid fa-book-bookmark", roles: ["guru"] },
   { id: "pengumuman", name: "Pengumuman", icon: "fa-solid fa-bullhorn", roles: ["guru"] },
   { id: "ai_guru", name: "Asisten AI", icon: "fa-solid fa-robot", roles: ["guru"] },
@@ -1025,6 +1029,19 @@ function updateHeaderUI() {
       }
     }
   }
+
+  /* Sembunyikan tombol header untuk siswa */
+  const isSiswa = appState.currentUser?.role === "siswa";
+  const btnInfo = document.getElementById("btn-info-pengembang");
+  const btnSetup = document.getElementById("btn-pengaturan");
+  if (isSiswa) {
+    if (btnInfo) btnInfo.classList.add("hidden");
+    if (btnSetup) btnSetup.classList.add("hidden");
+  } else {
+    if (btnInfo) btnInfo.classList.remove("hidden");
+    if (btnSetup) btnSetup.classList.remove("hidden");
+  }
+
   const info = document.getElementById("header-user-info");
   const nameEl = document.getElementById("header-user-name");
   const roleEl = document.getElementById("header-user-role");
@@ -1171,6 +1188,7 @@ function computeNumpadGeometry(cells) {
 }
 
 function openNumpad(inputEl) {
+  if (!inputEl || inputEl.dataset.numpad !== "nilai") return;
   const np = document.getElementById("numpad-float");
   if (!np) return;
   const all = getAllNilaiInputs();
@@ -1330,7 +1348,8 @@ function renderMainContent() {
     dashboard: renderGuruDashboard, siswa: renderDataSiswa, mapel: renderMapel,
     master_data: renderMasterData,
     absensi: renderAbsensi, penilaian: renderPenilaian, hasil_belajar: renderHasilBelajar,
-    kelasku: renderKelasku, jurnal: renderJurnal, pengumuman: renderPengumuman,
+    menu_tambahan: renderMenuTambahan, kelasku: renderKelasku,
+    jurnal: renderJurnal, pengumuman: renderPengumuman,
     ai_guru: renderAIGuru, supabase_manager: renderSupabaseManager,
     profil_guru: renderProfilGuru, tarik_json: renderTarikData,
     dashboard_siswa: renderSiswaDashboard, profil_siswa: renderProfilSiswa,
@@ -1775,7 +1794,7 @@ function showSetupModal() {
       <div id="sb-test-result" class="hidden text-[10px] p-2 rounded-lg"></div>
     </div>
     <div class="pt-2 border-t flex flex-wrap gap-2 justify-between">
-      <button onclick="showAddMenuForm()" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold px-3 py-2 rounded-xl"><i class="fa-solid fa-plus"></i> Tambah Menu</button>
+      <button onclick="closeModal();appState.activeView='menu_tambahan';renderSidebarNav();renderMainContent()" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold px-3 py-2 rounded-xl"><i class="fa-solid fa-th-large"></i> Kelola Menu Guru</button>
       <button onclick="closeModal()" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold">Tutup</button>
     </div>
   </div>
@@ -2005,21 +2024,33 @@ async function saveToCloud() {
 }
 
 /* =========================================================
-   TAMBAH MENU
+   TAMBAH MENU — DIPISAH GURU / SISWA
    ========================================================= */
 window.__selectedIcon = "fa-solid fa-book";
-async function showAddMenuForm() {
+window.__addMenuRole = "guru";
+
+async function showAddMenuFormGuru() { window.__addMenuRole = "guru"; return showAddMenuFormInternal("guru"); }
+async function showAddMenuFormSiswa() { window.__addMenuRole = "siswa"; return showAddMenuFormInternal("siswa"); }
+
+async function showAddMenuFormInternal(defaultRole) {
   let tables = [];
   const sb = getSupabaseConfig();
   if (sb) { try { tables = await sbRpc("get_public_tables"); } catch(e) {} }
   const options = tables.length ? tables.map(t => `<option value="${t.table_name}">${t.table_name}</option>`).join("") : `<option value="">(Belum ada tabel)</option>`;
   window.__selectedIcon = "fa-solid fa-book";
   const mb = document.getElementById("modal-body");
+  const roleLabel = defaultRole === "guru" ? "Menu Guru (Sidebar Guru)" : "Menu Siswa (Halaman Kelasku)";
+  const roleInfo = defaultRole === "guru"
+    ? `Menu ini akan muncul di <b>sidebar dashboard guru</b>.`
+    : `Menu ini akan muncul di halaman <b>"Kelasku" siswa</b>.`;
   mb.innerHTML = `
   <div class="space-y-3 text-xs">
-    <h3 class="font-bold text-base">Tambah Menu Master</h3>
+    <h3 class="font-bold text-base">Tambah ${roleLabel}</h3>
+    <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] text-indigo-800">
+      <i class="fa-solid fa-info-circle"></i> ${roleInfo}
+    </div>
     <form onsubmit="handleAddMenu(event)" class="space-y-3">
-      <div><label class="block font-semibold mb-1">Nama Menu</label><input id="menu-name" required class="w-full px-3 py-2 border rounded-lg"></div>
+      <div><label class="block font-semibold mb-1">Nama Menu *</label><input id="menu-name" required class="w-full px-3 py-2 border rounded-lg"></div>
       <div>
         <label class="block font-semibold mb-1">Icon</label>
         <div class="flex items-center gap-2 mb-2">
@@ -2039,27 +2070,26 @@ async function showAddMenuForm() {
         </div>
       </div>
       <div>
-        <label class="block font-semibold mb-1">Role</label>
-        <select id="menu-role" class="w-full px-3 py-2 border rounded-lg bg-white">
-          <option value="guru">Guru</option><option value="siswa">Siswa</option><option value="both">Keduanya</option>
-        </select>
+        <label class="block font-semibold mb-1">Target Role</label>
+        <input type="text" value="${defaultRole === 'guru' ? 'Guru' : 'Siswa'}" disabled class="w-full px-3 py-2 border rounded-lg bg-slate-100 font-bold">
+        <input type="hidden" id="menu-role" value="${defaultRole}">
       </div>
       <div>
         <label class="block font-semibold mb-1">Sumber Data</label>
         <select id="menu-source" onchange="toggleMenuSource()" class="w-full px-3 py-2 border rounded-lg bg-white">
-          <option value="static">Statis</option>
           <option value="url">URL / File Eksternal</option>
           <option value="supabase">Supabase Table</option>
+          <option value="static">Statis (Halaman Kosong)</option>
         </select>
       </div>
-      <div id="menu-url-block" class="hidden">
+      <div id="menu-url-block">
         <input id="menu-url" class="w-full px-3 py-2 border rounded-lg" placeholder="kuis.html atau https://...">
       </div>
       <div id="menu-sb-block" class="hidden space-y-2">
         <select id="menu-table" class="w-full px-3 py-2 border rounded-lg bg-white">${options}</select>
       </div>
       <div class="flex justify-end gap-2 pt-2 border-t">
-        <button type="button" onclick="showSetupModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
         <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl">Simpan</button>
       </div>
     </form>
@@ -2097,7 +2127,7 @@ async function handleAddMenu(e) {
   else item.dataSource = "static";
   appState.menus.push(item);
   saveLocal();
-  showToast("Menu ditambahkan & disinkron.", "success");
+  showToast(`✓ Menu "${name}" ditambahkan & disinkron ke JSONBin.`, "success");
   renderApp();
   closeModal();
   try { await updateJsonBinDB(); } catch(e) {}
@@ -3009,7 +3039,6 @@ async function importNilaiExcel(e, mapelKode) {
    ========================================================= */
 window.__hbKelas = "ALL";
 window.__hbSiswa = "ALL";
-
 function renderHasilBelajar(c) {
   const nc = appState.db.nc || [];
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
@@ -3017,12 +3046,9 @@ function renderHasilBelajar(c) {
   const kelasList = [...new Set(siswaAll.map(s => s.kelas).filter(Boolean))].sort();
   const filterKelas = window.__hbKelas || "ALL";
   const filterSiswa = window.__hbSiswa || "ALL";
-
   let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
   if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
-
   const siswaDropdownList = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
-
   c.innerHTML = `
   <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
     <div class="flex flex-col sm:flex-row justify-between gap-3">
@@ -3039,7 +3065,6 @@ function renderHasilBelajar(c) {
         <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-file-pdf"></i> Cetak PDF</button>
       </div>
     </div>
-
     ${filterSiswa !== "ALL" && filtered.length ? `
       <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs flex items-center justify-between gap-2">
         <span class="text-indigo-900">
@@ -3051,7 +3076,6 @@ function renderHasilBelajar(c) {
         </button>
       </div>
     ` : ""}
-
     <div class="overflow-x-auto">
       <table class="w-full text-xs border-collapse">
         <thead><tr class="bg-slate-100 font-bold border-b"><th class="p-2 text-left">No</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Kelas</th><th class="p-2 text-left">Mapel</th>${nc.map(cc => `<th class="p-2 text-center">${cc}</th>`).join("")}<th class="p-2 text-center bg-emerald-50">Rata²</th><th class="p-2 text-center">Status</th></tr></thead>
@@ -3070,7 +3094,6 @@ function renderHasilBelajar(c) {
     </div>
   </div>`;
 }
-
 function cetakRaporPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -3079,17 +3102,14 @@ function cetakRaporPDF() {
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const filterKelas = window.__hbKelas || "ALL";
   const filterSiswa = window.__hbSiswa || "ALL";
-
   let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
   if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
-
   doc.setFontSize(16);
   doc.text("LAPORAN HASIL BELAJAR", 14, 20);
   doc.setFontSize(10);
   doc.text(`Sekolah: ${appState.db.a?.ns || "-"}`, 14, 28);
   doc.text(`Kelas: ${filterKelas === "ALL" ? "Semua" : filterKelas}`, 14, 34);
   if (filterSiswa !== "ALL" && filtered.length) doc.text(`Siswa: ${filtered[0]?.nama || "-"}`, 14, 40);
-
   const rows = [];
   filtered.forEach(s => {
     mapelAll.forEach(m => {
@@ -3107,7 +3127,6 @@ function cetakRaporPDF() {
   doc.save(`Rapor_${Date.now()}.pdf`);
   showToast("PDF diunduh.", "success");
 }
-
 function cetakRaporSiswa(sid) {
   if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
   const { jsPDF } = window.jspdf;
@@ -3116,7 +3135,6 @@ function cetakRaporSiswa(sid) {
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const siswa = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
   if (!siswa) { showToast("Siswa tidak ditemukan.", "error"); return; }
-
   doc.setFontSize(16);
   doc.text("RAPOR HASIL BELAJAR SISWA", 105, 20, { align: "center" });
   doc.setFontSize(10);
@@ -3126,7 +3144,6 @@ function cetakRaporSiswa(sid) {
   doc.text(`Nama      : ${siswa.nama || "-"}`, 14, y); y += 6;
   doc.text(`No. Absen : ${siswa.noAbsen || "-"}`, 14, y); y += 6;
   doc.text(`NIS       : ${siswa.nis || "-"}`, 14, y); y += 8;
-
   const body = [];
   mapelAll.forEach(m => {
     const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
@@ -3480,7 +3497,6 @@ async function fetchRankingData() {
   }
   return { nilaiArr, source };
 }
-
 function hitungRankingSementara(siswaList, nilaiArr, mapelList) {
   const mapelKode = (mapelList || []).map(m => m.kode);
   const hasil = siswaList.map(s => {
@@ -3498,7 +3514,6 @@ function hitungRankingSementara(siswaList, nilaiArr, mapelList) {
   hasil.sort((a, b) => b.rata - a.rata);
   return hasil;
 }
-
 function renderRankingCard(opts = {}) {
   const { title = "Ranking Sementara", kelasFilter = null, highlightSiswaId = null, showKelasDropdown = false, containerId = "ranking-card-content" } = opts;
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
@@ -3518,7 +3533,6 @@ function renderRankingCard(opts = {}) {
     <div id="${containerId}"><div class="text-center text-xs text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i></div></div>
   </div>`;
 }
-
 async function refreshRankingCard(containerId, kelasFilter, highlightSiswaId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -3571,7 +3585,6 @@ async function refreshRankingCard(containerId, kelasFilter, highlightSiswaId) {
    GAME EDUKASI
    ========================================================= */
 window.__gameState = { soal: [], idx: 0, benar: 0, salah: 0, mulai: null, selesai: null, siswaId: null };
-
 function generateSoalHitung() {
   const soalList = [];
   const ops = ["+", "-", "×", "÷"];
@@ -3592,7 +3605,6 @@ function generateSoalHitung() {
   }
   return soalList;
 }
-
 function generateSoalVocab() {
   const soalList = [];
   const shuffled = [...VOCAB_BANK].sort(() => Math.random() - 0.5).slice(0, 5);
@@ -3608,7 +3620,6 @@ function generateSoalVocab() {
   });
   return soalList;
 }
-
 async function generateSoalVocabAI() {
   const apiKey = getGeminiKey();
   if (!apiKey) throw new Error("API Key Gemini belum diset.");
@@ -3631,7 +3642,6 @@ Hanya balas JSON, tanpa penjelasan.`;
   setLS(STORAGE.GAME_AI_CACHE, JSON.stringify({ tanggal: cacheKey, soal: result5 }));
   return result5;
 }
-
 function renderGameSiswa(c) {
   const sid = appState.currentUser.siswaId;
   const myKelas = appState.currentUser.kelas;
@@ -3658,7 +3668,6 @@ function renderGameSiswa(c) {
   </div>`;
   setTimeout(() => refreshLeaderboardGame(myKelas), 50);
 }
-
 async function mulaiGame(pakaiAI) {
   const area = document.getElementById("game-area");
   if (!area) return;
@@ -3679,7 +3688,6 @@ async function mulaiGame(pakaiAI) {
     area.innerHTML = `<div class="text-red-500 text-xs text-center py-4">Error: ${err.message}</div>`;
   }
 }
-
 function renderSoalGame() {
   const area = document.getElementById("game-area");
   const st = window.__gameState;
@@ -3699,7 +3707,6 @@ function renderSoalGame() {
       </div>
     </div>`;
 }
-
 function jawabGame(pilih) {
   const st = window.__gameState;
   const soal = st.soal[st.idx];
@@ -3709,7 +3716,6 @@ function jawabGame(pilih) {
   st.idx++;
   setTimeout(() => renderSoalGame(), 400);
 }
-
 async function selesaiGame() {
   const area = document.getElementById("game-area");
   const st = window.__gameState;
@@ -3749,7 +3755,6 @@ async function selesaiGame() {
     showToast("Skor tidak disimpan (Supabase belum di-setup).", "info");
   }
 }
-
 async function refreshLeaderboardGame(kelas) {
   const el = document.getElementById("leaderboard-game");
   if (!el) return;
@@ -3806,7 +3811,6 @@ function renderSiswaDashboard(c) {
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const swObj = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
   const fotoSiswa = swObj?.fotoUrl || "";
-
   let total = 0, count = 0;
   (appState.db.nl || []).filter(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid)).forEach(arr => {
     const rec = nilaiToObj(arr, nc);
@@ -3816,7 +3820,6 @@ function renderSiswaDashboard(c) {
   const absenArr = (appState.db.ab || []).filter(a => Number(a[FIELD.ABSEN.SISWA_ID]) === Number(sid));
   const hadir = absenArr.filter(a => a[FIELD.ABSEN.STATUS] === "H").length;
   const persen = absenArr.length ? ((hadir/absenArr.length)*100).toFixed(0) : 100;
-
   const menu = [
     { id: "profil_siswa", name: "Profil Saya", icon: "fa-solid fa-user-gear", warna: "bg-indigo-100 text-indigo-700" },
     { id: "nilai_siswa", name: "Nilai Saya", icon: "fa-solid fa-star", warna: "bg-amber-100 text-amber-700" },
@@ -3825,7 +3828,6 @@ function renderSiswaDashboard(c) {
     { id: "kuis_siswa", name: "Kuis Interaktif", icon: "fa-solid fa-laptop-code", warna: "bg-pink-100 text-pink-700", href: "kuis.html" },
     { id: "pengumuman_siswa", name: "Pengumuman", icon: "fa-solid fa-bullhorn", warna: "bg-rose-100 text-rose-700" }
   ];
-
   const statMapel = mapelAll.map(m => {
     const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
     if (!nlArr) return { nama: m.nama, rata: 0, kosong: nc.slice() };
@@ -3836,7 +3838,6 @@ function renderSiswaDashboard(c) {
     return { nama: m.nama, rata: +rata.toFixed(1), kosong };
   });
   const totalKosong = statMapel.reduce((acc, m) => acc + m.kosong.length, 0);
-
   c.innerHTML = `
   <div class="space-y-6 fade-in">
     <div class="bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-6 text-white shadow-lg">
@@ -3909,7 +3910,6 @@ function renderGuruDashboard(c) {
     return { nama: m.nama, avg: count ? +(total/count).toFixed(1) : 0 };
   });
   const aktivitas = getMergedActivity();
-
   c.innerHTML = `
   <div class="space-y-6 fade-in">
     <div class="bg-gradient-to-r from-indigo-700 to-slate-900 rounded-2xl p-6 text-white shadow-xl">
@@ -4039,7 +4039,7 @@ function renderAbsensiSiswa(c) {
 }
 
 /* =========================================================
-   KUIS
+   KUIS SISWA
    ========================================================= */
 function renderKuisSiswa(c) {
   c.innerHTML = `
@@ -4075,33 +4075,81 @@ async function submitKuis() {
 }
 
 /* =========================================================
-   KELASKU
+   MENU TAMBAHAN (GURU)
+   ========================================================= */
+function renderMenuTambahan(c) {
+  const customGuru = appState.menus.filter(m => m.isCustom && m.roles?.includes("guru"));
+  c.innerHTML = `
+  <div class="space-y-5 fade-in">
+    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+      <div class="flex justify-between items-center mb-3">
+        <div>
+          <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-th-large text-indigo-600"></i> Menu Tambahan Guru</h2>
+          <p class="text-xs text-slate-500 mt-1">Menu custom yang muncul di <b>sidebar guru</b>.</p>
+        </div>
+        <button onclick="showAddMenuFormGuru()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Tambah Menu</button>
+      </div>
+      ${customGuru.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${customGuru.map(m => `<div class="relative group"><button onclick="openCustomMenu('${m.id}')" class="menu-card w-full bg-gradient-to-br from-indigo-50 to-white border-2 border-indigo-100 rounded-2xl p-4 text-center"><div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl mb-2"><i class="${m.icon || 'fa-solid fa-link'}"></i></div><div class="font-bold text-xs text-slate-800">${m.name}</div><div class="text-[10px] text-slate-400 mt-1 capitalize">${m.dataSource || "static"}</div></button><button onclick="hapusMenuCustom('${m.id}')" class="absolute top-1 right-1 bg-red-500 text-white w-7 h-7 rounded-full opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash text-[10px]"></i></button></div>`).join("")}</div>` : `<div class="text-center py-8 text-slate-400 text-xs border border-dashed rounded-xl">Belum ada menu tambahan. Klik "Tambah Menu".</div>`}
+    </div>
+    <div class="bg-white p-5 rounded-2xl border shadow-sm">
+      <div class="text-[11px] text-slate-500 flex gap-2 items-start">
+        <i class="fa-solid fa-circle-info text-indigo-500 mt-0.5"></i>
+        <div>Menu tambahan yang dibuat di sini <b>hanya tampil untuk guru</b>. Untuk membuat menu siswa (tampil di halaman "Kelasku"), gunakan halaman <b>Kelasku</b>.</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   KELASKU (GURU = kelola menu siswa + log login, SISWA = read-only grid menu custom)
    ========================================================= */
 function renderKelasku(c) {
+  const role = appState.currentUser?.role;
+  if (role === "siswa") {
+    renderKelaskuSiswa(c);
+    return;
+  }
+  // === GURU ===
+  const customSiswa = appState.menus.filter(m => m.isCustom && m.roles?.includes("siswa"));
   const ll = (appState.db.ll || []).map(loginToObj).reverse().slice(0, 30);
-  const customMenus = appState.menus.filter(m => m.isCustom && m.dataSource);
   c.innerHTML = `
   <div class="space-y-6 fade-in">
     <div class="bg-white p-6 rounded-2xl border shadow-sm">
       <div class="flex justify-between items-center mb-3">
-        <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-th-large text-indigo-600"></i> Menu Tambahan</h2>
-        <button onclick="showAddMenuForm()" class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-bold">Tambah</button>
+        <div>
+          <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-folder-open text-emerald-600"></i> Kelola Menu Siswa</h2>
+          <p class="text-xs text-slate-500 mt-1">Menu ini akan muncul di halaman <b>"Kelasku" siswa</b>.</p>
+        </div>
+        <button onclick="showAddMenuFormSiswa()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Tambah Menu Siswa</button>
       </div>
-      ${customMenus.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${customMenus.map(m => `<div class="relative group"><button onclick="openCustomMenu('${m.id}')" class="menu-card w-full bg-gradient-to-br from-indigo-50 to-white border-2 border-indigo-100 rounded-2xl p-4 text-center"><div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl mb-2"><i class="${m.icon || 'fa-solid fa-link'}"></i></div><div class="font-bold text-xs text-slate-800">${m.name}</div></button><button onclick="hapusMenuCustom('${m.id}')" class="absolute top-1 right-1 bg-red-500 text-white w-7 h-7 rounded-full opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash text-[10px]"></i></button></div>`).join("")}</div>` : `<div class="text-center py-8 text-slate-400 text-xs">Belum ada menu tambahan.</div>`}
+      ${customSiswa.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${customSiswa.map(m => `<div class="relative group"><button onclick="openCustomMenu('${m.id}')" class="menu-card w-full bg-gradient-to-br from-emerald-50 to-white border-2 border-emerald-100 rounded-2xl p-4 text-center"><div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl mb-2"><i class="${m.icon || 'fa-solid fa-link'}"></i></div><div class="font-bold text-xs text-slate-800">${m.name}</div><div class="text-[10px] text-slate-400 mt-1 capitalize">${m.dataSource || "static"}</div></button><button onclick="hapusMenuCustom('${m.id}')" class="absolute top-1 right-1 bg-red-500 text-white w-7 h-7 rounded-full opacity-0 group-hover:opacity-100"><i class="fa-solid fa-trash text-[10px]"></i></button></div>`).join("")}</div>` : `<div class="text-center py-8 text-slate-400 text-xs border border-dashed rounded-xl">Belum ada menu siswa.</div>`}
     </div>
     <div class="bg-white p-6 rounded-2xl border shadow-sm">
-      <h2 class="text-lg font-bold mb-3">Log Login Siswa</h2>
+      <h2 class="text-lg font-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> Log Login Siswa</h2>
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
-          <thead><tr class="bg-slate-100 font-bold"><th class="p-2 text-left">Waktu</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">NIS</th></tr></thead>
+          <thead><tr class="bg-slate-100 font-bold"><th class="p-2 text-left">Waktu</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">NIS</th><th class="p-2 text-left">Kelas</th></tr></thead>
           <tbody class="divide-y">
-            ${ll.map(l => `<tr><td class="p-2 text-slate-500">${new Date(l.waktu).toLocaleString("id-ID")}</td><td class="p-2 font-semibold">${l.nama}</td><td class="p-2 font-mono">${l.nis || "-"}</td></tr>`).join("") || '<tr><td colspan="3" class="text-center py-3 text-slate-400">Belum ada log.</td></tr>'}
+            ${ll.map(l => `<tr><td class="p-2 text-slate-500">${new Date(l.waktu).toLocaleString("id-ID")}</td><td class="p-2 font-semibold">${l.nama}</td><td class="p-2 font-mono">${l.nis || "-"}</td><td class="p-2">${l.kelas || "-"}</td></tr>`).join("") || '<tr><td colspan="4" class="text-center py-3 text-slate-400">Belum ada log.</td></tr>'}
           </tbody>
         </table>
       </div>
     </div>
   </div>`;
 }
+
+function renderKelaskuSiswa(c) {
+  const customSiswa = appState.menus.filter(m => m.isCustom && m.roles?.includes("siswa"));
+  c.innerHTML = `
+  <div class="space-y-5 fade-in">
+    <div class="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg">
+      <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-folder-open"></i> Kelasku</h2>
+      <p class="text-xs text-indigo-100 mt-1">Menu & materi tambahan dari guru untukmu.</p>
+    </div>
+    ${customSiswa.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">${customSiswa.map(m => `<button onclick="openCustomMenu('${m.id}')" class="menu-card bg-white border-2 border-slate-100 rounded-2xl p-5 text-center hover:border-indigo-300"><div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl mb-3"><i class="${m.icon || 'fa-solid fa-link'}"></i></div><div class="font-bold text-xs text-slate-800">${m.name}</div><div class="text-[10px] text-slate-400 mt-1 capitalize">${m.dataSource || "static"}</div></button>`).join("")}</div>` : `<div class="bg-white p-10 rounded-2xl border text-center"><i class="fa-solid fa-folder-open text-5xl text-slate-300 mb-3"></i><div class="text-slate-500 text-sm">Guru belum menambahkan menu untukmu.</div></div>`}
+  </div>`;
+}
+
 async function hapusMenuCustom(id) {
   const m = appState.menus.find(x => x.id === id);
   if (!m) return;
@@ -4112,38 +4160,80 @@ async function hapusMenuCustom(id) {
   renderMainContent();
   try { await updateJsonBinDB(); } catch(e) {}
 }
+
 async function openCustomMenu(id) {
   const m = appState.menus.find(x => x.id === id);
   if (!m) return;
   if (m.dataSource === "url") { window.open(m.url, "_blank"); return; }
+  const c = document.getElementById("main-view-container");
   if (m.dataSource === "supabase") {
-    const c = document.getElementById("main-view-container");
-    c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm">⏳ Memuat...</div>`;
+    c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm"><div class="text-center py-8 text-xs text-slate-500"><i class="fa-solid fa-spinner fa-spin"></i> Memuat ${m.table}...</div></div>`;
     try {
       const rows = await sbFetch(m.table, "?limit=200");
       const cols = rows.length ? Object.keys(rows[0]) : [];
-      c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4"><div class="flex justify-between"><h2 class="text-lg font-bold">${m.name}</h2><button onclick="renderMainContent()" class="text-xs text-slate-500">← Kembali</button></div><div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-100 border-b">${cols.map(cn => `<th class="p-2 text-left">${cn}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr class="border-b">${cols.map(cn => `<td class="p-2">${typeof r[cn]==="object"?JSON.stringify(r[cn]).slice(0,40):r[cn] ?? "-"}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
-    } catch (err) { c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-red-700">Gagal: ${err.message}</div>`; }
+      c.innerHTML = `
+      <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-bold"><i class="${m.icon || 'fa-solid fa-table'} text-indigo-600"></i> ${m.name}</h2>
+          <button onclick="appState.activeView='${appState.currentUser?.role === 'guru' ? 'menu_tambahan' : 'kelasku'}';renderSidebarNav();renderMainContent()" class="text-xs text-slate-500 hover:text-indigo-600"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+        </div>
+        <div class="text-xs bg-slate-50 p-2 rounded-lg">${rows.length} baris · tabel <b class="font-mono">${m.table}</b></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead><tr class="bg-slate-100 border-b">${cols.map(cn => `<th class="p-2 text-left font-bold">${cn}</th>`).join("")}</tr></thead>
+            <tbody class="divide-y">${rows.map(r => `<tr>${cols.map(cn => `<td class="p-2">${typeof r[cn] === "object" && r[cn] !== null ? JSON.stringify(r[cn]).slice(0,40) : (r[cn] ?? "-")}</td>`).join("")}</tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </div>`;
+    } catch (err) {
+      c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm"><div class="text-red-600 text-sm">Gagal memuat: ${err.message}</div></div>`;
+    }
     return;
   }
-  const c = document.getElementById("main-view-container");
-  c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm"><h2 class="text-lg font-bold">${m.name}</h2><div class="p-8 border border-dashed rounded-xl text-center text-slate-400 text-xs mt-3">Halaman siap.</div></div>`;
+  // Static
+  const back = appState.currentUser?.role === "guru" ? "menu_tambahan" : "kelasku";
+  c.innerHTML = `
+  <div class="bg-white p-6 rounded-2xl border shadow-sm fade-in">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h2 class="text-lg font-bold"><i class="${m.icon || 'fa-solid fa-file'} text-indigo-600"></i> ${m.name}</h2>
+      <button onclick="appState.activeView='${back}';renderSidebarNav();renderMainContent()" class="text-xs text-slate-500 hover:text-indigo-600"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+    </div>
+    <div class="py-16 text-center text-slate-400">
+      <i class="fa-solid fa-file-lines text-5xl mb-3"></i>
+      <div class="text-sm font-semibold">${m.name}</div>
+      <div class="text-xs mt-1">Halaman statis siap diisi konten.</div>
+    </div>
+  </div>`;
 }
+
 function renderCustomMenuView(c, viewId) {
   const menu = appState.menus.find(m => m.id === viewId) || { name: viewId };
-  c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm"><h2 class="text-lg font-bold">${menu.name}</h2><div class="p-8 border border-dashed rounded-xl text-center text-xs text-slate-400 mt-3">Halaman ${menu.name}.</div></div>`;
+  const back = appState.currentUser?.role === "guru" ? "dashboard" : "dashboard_siswa";
+  c.innerHTML = `
+  <div class="bg-white p-6 rounded-2xl border shadow-sm fade-in">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h2 class="text-lg font-bold">${menu.name || viewId}</h2>
+      <button onclick="appState.activeView='${back}';renderSidebarNav();renderMainContent()" class="text-xs text-slate-500 hover:text-indigo-600"><i class="fa-solid fa-arrow-left"></i> Kembali</button>
+    </div>
+    <div class="py-16 text-center text-slate-400">
+      <i class="fa-solid fa-circle-question text-5xl mb-3"></i>
+      <div class="text-sm">Halaman <b>${menu.name || viewId}</b> belum memiliki konten.</div>
+    </div>
+  </div>`;
 }
 
 /* =========================================================
    UTILITY
    ========================================================= */
 function formatRelative(iso) {
-  const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "baru saja";
-  if (diff < 3600) return Math.floor(diff/60) + " mnt";
-  if (diff < 86400) return Math.floor(diff/3600) + " jam";
-  return Math.floor(diff/86400) + " hr";
+  try {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "baru saja";
+    if (diff < 3600) return Math.floor(diff/60) + " mnt";
+    if (diff < 86400) return Math.floor(diff/3600) + " jam";
+    return Math.floor(diff/86400) + " hr";
+  } catch(e) { return "-"; }
 }
 </script>
 </body>
