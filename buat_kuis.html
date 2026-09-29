@@ -420,27 +420,118 @@ function kmDeleteRecord(paketId) {
 }
 
 /* ==== GEMINI HELPER ==== */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getGeminiErrorMessage(status, body, model) {
+  let detail = "";
+  try {
+    const j = body ? JSON.parse(body) : null;
+    detail = j?.error?.message || j?.error?.status || "";
+  } catch (e) {
+    detail = String(body || "").replace(/\s+/g, " ").slice(0, 220);
+  }
+
+  if (status === 429) return `Gemini terlalu banyak menerima permintaan (429). Coba lagi beberapa saat lagi.${detail ? " " + detail : ""}`;
+  if ([500, 502, 503, 504].includes(status)) return `Layanan Gemini sedang tidak tersedia sementara (HTTP ${status}) pada model ${model}.${detail ? " " + detail : ""}`;
+  if (status === 400) return `Permintaan ke Gemini tidak valid (400).${detail ? " " + detail : ""}`;
+  if (status === 401) return "API Key Gemini tidak valid (401).";
+  if (status === 403) return `API Key Gemini ditolak (403).${detail ? " " + detail : ""}`;
+  if (status === 404) return `Model ${model} tidak ditemukan atau tidak didukung (404).`;
+  return `Gemini mengembalikan HTTP ${status}.${detail ? " " + detail : ""}`;
+}
+
 async function fetchGeminiWithRetry(prompt, systemPrompt, apiKey, schema = null) {
   let lastError = null;
+  const maxAttemptsPerModel = 4;
+
   for (const model of GEMINI_MODELS) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined
+      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.7
+      }
     };
-    if (schema) {
-      payload.generationConfig = { responseMimeType: "application/json", responseSchema: schema };
+
+    // Jangan kirim responseSchema yang terlalu ketat.
+    // Schema lama memakai type OBJECT untuk field "pilihan", padahal
+    // ISIAN/URAIAN meminta null. Ini bisa membuat request ditolak.
+    // Validasi struktur tetap dilakukan oleh normalisasiSoalAI().
+
+    for (let attempt = 1; attempt <= maxAttemptsPerModel; attempt++) {
+      try {
+        console.log(`[EduSmart][Gemini] ${model} percobaan ${attempt}/${maxAttemptsPerModel}`);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const bodyText = await res.text();
+
+        if (res.ok) {
+          let data;
+          try {
+            data = bodyText ? JSON.parse(bodyText) : null;
+          } catch (e) {
+            throw new Error("Respons Gemini bukan JSON yang valid.");
+          }
+          console.log(`[EduSmart][Gemini] berhasil dengan ${model}`);
+          return data;
+        }
+
+        const msg = getGeminiErrorMessage(res.status, bodyText, model);
+        lastError = new Error(msg);
+
+        // Error permanen: tidak perlu retry.
+        if ([400, 401, 403, 404].includes(res.status)) {
+          if (res.status === 404) break;
+          throw lastError;
+        }
+
+        // 429/5xx: retry dengan backoff.
+        if ([429, 500, 502, 503, 504].includes(res.status) && attempt < maxAttemptsPerModel) {
+          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
+          console.warn(`[EduSmart][Gemini] ${msg} → retry ${delay} ms`);
+          await sleep(delay);
+          continue;
+        }
+
+        throw lastError;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+
+        // Error jaringan juga boleh dicoba ulang.
+        const text = lastError.message || "";
+        const retryableNetwork = /Failed to fetch|NetworkError|network|timeout|timed out/i.test(text);
+        if (retryableNetwork && attempt < maxAttemptsPerModel) {
+          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
+          console.warn(`[EduSmart][Gemini] ${text} → retry ${delay} ms`);
+          await sleep(delay);
+          continue;
+        }
+        throw lastError;
+      }
     }
-    try {
-      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (res.ok) return await res.json();
-      if (res.status === 401) throw new Error("API Key tidak valid (401).");
-      if (res.status === 403) throw new Error("API Key diblokir (403).");
-      if (res.status === 404) { lastError = new Error(`Model ${model} tidak didukung.`); continue; }
-      lastError = new Error(`HTTP ${res.status}`);
-    } catch (err) { lastError = err; }
   }
+
   throw lastError || new Error("Gagal menghubungi Gemini.");
+}
+
+function extractGeminiText(result) {
+  const parts = result?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  return parts
+    .map(p => typeof p?.text === "string" ? p.text : "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }
 
 /* ==== AUTH CHECK ==== */
@@ -2228,36 +2319,35 @@ ATURAN WAJIB:
 
 Jawab HANYA array JSON.`;
 
-  const schema = {
-    type: "ARRAY",
-    items: {
-      type: "OBJECT",
-      properties: {
-        jenis: { type: "STRING" },
-        pertanyaan: { type: "STRING" },
-        pilihan: { type: "OBJECT" },
-        jawaban: { type: "OBJECT" },
-        pembahasan: { type: "STRING" }
-      },
-      required: ["jenis", "pertanyaan", "jawaban"]
-    }
-  };
+  const schema = null; // Schema dinormalisasi di sisi aplikasi agar semua 5 jenis soal tetap fleksibel.
 
   try {
     const result = await fetchGeminiWithRetry(userPrompt, systemPrompt, apiKey, schema);
-    const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!jsonText) throw new Error("Respons kosong dari Gemini.");
+    console.log("[EduSmart][Gemini] Response:", result);
 
-    // Parse JSON (tahan markdown code block)
+    const finishReason = result?.candidates?.[0]?.finishReason || "";
+    const jsonText = extractGeminiText(result);
+    if (!jsonText) {
+      const blockReason = result?.promptFeedback?.blockReason;
+      if (blockReason) throw new Error(`Gemini memblokir permintaan (${blockReason}). Coba ubah topik atau redaksi.`);
+      if (finishReason && finishReason !== "STOP") throw new Error(`Gemini menghentikan generasi (${finishReason}). Coba generate ulang.`);
+      throw new Error("Respons kosong dari Gemini.");
+    }
+
+    // Parse JSON. Tetap toleran jika model menyisipkan code fence.
     let soalArr;
-    try { soalArr = JSON.parse(jsonText); }
+    const cleanedJson = jsonText
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    try { soalArr = JSON.parse(cleanedJson); }
     catch (e) {
-      const m = jsonText.match(/\[[\s\S]*\]/);
+      const m = cleanedJson.match(/\[[\s\S]*\]/);
       if (m) {
         try { soalArr = JSON.parse(m[0]); }
-        catch(e2) { throw new Error("Format JSON tidak valid."); }
+        catch(e2) { throw new Error("Gemini mengembalikan JSON yang tidak valid."); }
       }
-      else throw new Error("Format JSON tidak valid.");
+      else throw new Error("Gemini tidak mengembalikan array JSON.");
     }
     if (!Array.isArray(soalArr) || !soalArr.length) throw new Error("AI tidak mengembalikan array.");
 
@@ -2266,7 +2356,7 @@ Jawab HANYA array JSON.`;
     const skipped = soalArr.length - normalized.length;
 
     if (!normalized.length) {
-      throw new Error("Semua soal formatnya tidak valid. Coba generate ulang atau ubah topik.");
+      throw new Error("Gemini berhasil merespons, tetapi struktur soal tidak cocok dengan format EduSmart. Coba generate ulang; detail respons dapat dilihat di Console.");
     }
 
     __tempSoalAI = [...__tempSoalAI, ...normalized];
