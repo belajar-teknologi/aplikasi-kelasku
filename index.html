@@ -131,6 +131,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 <div id="sync-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm">
 <span class="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></span><span>SIAP</span>
 </div>
+<button onclick="showInfoPengembang()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5" title="Info Pengembang">
+<i class="fa-solid fa-circle-info"></i><span class="hidden sm:inline">Info Pengembang</span>
+</button>
 <button onclick="showSetupModal()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
 <i class="fa-solid fa-gear"></i><span class="hidden sm:inline">Pengaturan</span>
 </button>
@@ -191,23 +194,6 @@ const STORAGE = {
 
 const CORE_TABLES = ["nilai", "absensi", "jurnal", "skor_game"];
 
-/* =========================================================
-   📖 KAMUS STRUKTUR DATABASE (VERSI HEMAT - v4)
-   =========================================================
-   ⚠️ JANGAN UBAH URUTAN FIELD TANPA ALASAN!
-   
-   sw (siswa): [id, noAbsen, nis, nama, kelas, jk, username, password,
-                tempatLahir, tglLahir, alamat, fotoUrl]
-   mp (mapel): [id, kode, nama, kkm, pengampu]
-   nc (nilaiColumns): array nama komponen nilai
-   nl (nilai): [id, siswaId, mapelKode, scores[]]
-   ab (absensi): [id, tanggal, siswaId, status]
-   jr (jurnal): [id, tanggal, kelas, mapel, topik, catatan]
-   pg (pengumuman): [id, judul, tanggal, isi, target]
-   hk (hasilKuis): [id, siswaId, kuisId, judul, nilai, waktu]
-   al (activityLog): [id, tipe, user, role, detail, waktu, sent]
-   ll (loginLog): [id, siswaId, nama, nis, kelas, waktu]
-   ========================================================= */
 const FIELD = {
   SISWA:     { ID: 0, NOABSEN: 1, NIS: 2, NAMA: 3, KELAS: 4, JK: 5, USER: 6, PASS: 7, TTL: 8, TGL: 9, ALAMAT: 10, FOTO: 11 },
   MAPEL:     { ID: 0, KODE: 1, NAMA: 2, KKM: 3, PENGAMPU: 4 },
@@ -457,6 +443,8 @@ const DEFAULT_MENUS = [
 const DEFAULT_DB = {
   v: 4,
   a: { k: "", ns: "", ng: "", kl: "", gc: null, lk: null, ls: null, fg: null },
+  cfg: { sbUrl: "", sbKey: "", cloudName: "", cloudPreset: "", geminiKey: "" },
+  mn: null,
   md: {
     u: { ta: "", sm: "", ks: "", nk: "", kr: "" },
     ks: { ag: [], jk: ["Laki-laki", "Perempuan"], ss: ["Aktif", "Mutasi", "Lulus", "Drop Out"], ek: [] },
@@ -556,6 +544,7 @@ function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) 
 
 function ensureMasterData() {
   if (!appState.db.md) appState.db.md = JSON.parse(JSON.stringify(DEFAULT_DB.md));
+  if (!appState.db.cfg) appState.db.cfg = JSON.parse(JSON.stringify(DEFAULT_DB.cfg));
   const def = DEFAULT_DB.md;
   for (const k of Object.keys(def)) {
     if (!appState.db.md[k]) appState.db.md[k] = JSON.parse(JSON.stringify(def[k]));
@@ -567,9 +556,21 @@ function ensureMasterData() {
 function getMasterData() { ensureMasterData(); return appState.db.md; }
 function getMasterKKM() { return Number(getMasterData().ak?.kd) || 75; }
 
-/* =========================================================
-   KONVERSI ARRAY <-> OBJECT
-   ========================================================= */
+function restoreMenusFromDb(db) {
+  if (Array.isArray(db?.mn) && db.mn.length) {
+    appState.menus = db.mn;
+    setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
+  }
+}
+function restoreCredsFromDb(db) {
+  const cfg = db?.cfg || {};
+  if (cfg.cloudName) setLS(STORAGE.CLOUD_NAME, cfg.cloudName);
+  if (cfg.cloudPreset) setLS(STORAGE.CLOUD_PRESET, cfg.cloudPreset);
+  if (cfg.sbUrl) setLS(STORAGE.SB_URL, cfg.sbUrl);
+  if (cfg.sbKey) setLS(STORAGE.SB_KEY, cfg.sbKey);
+  if (cfg.geminiKey) setLS(STORAGE.GEMINI_KEY, cfg.geminiKey);
+}
+
 function siswaToObj(arr) {
   const F = FIELD.SISWA;
   return {
@@ -702,6 +703,7 @@ function saveGeminiKey(key) {
 }
 function saveLocal() {
   setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
+  appState.db.mn = appState.menus;
   setLS(STORAGE.DB, JSON.stringify(appState.db));
 }
 function setSyncBadge(on, text) {
@@ -782,7 +784,7 @@ async function sbStorageUpload(bucket, path, file) {
 }
 
 /* =========================================================
-   ACTIVITY LOG (tampil 10)
+   ACTIVITY LOG
    ========================================================= */
 function addActivity(tipe, detail, extra = {}) {
   const user = appState.currentUser;
@@ -791,6 +793,7 @@ function addActivity(tipe, detail, extra = {}) {
   appState.db.al = appState.db.al || [];
   appState.db.al.push(logArr(log));
   if (appState.db.al.length > 50) appState.db.al = appState.db.al.slice(-50);
+  setTimeout(() => { updateJsonBinDB().catch(() => {}); }, 300);
 }
 function getMergedActivity() {
   const arr = appState.db.al || [];
@@ -827,6 +830,7 @@ async function updateJsonBinDB() {
   const cred = getJsonBinCredential();
   if (!cfg?.binId || !cred) return false;
   try {
+    appState.db.mn = appState.menus;
     const res = await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`, {
       method: "PUT", headers: getJsonBinHeaders(cred, true), body: JSON.stringify(appState.db)
     });
@@ -914,11 +918,10 @@ async function idbGet(key) {
 }
 
 /* =========================================================
-   UPLOAD FILE (Cloudinary → Supabase → IndexedDB)
+   UPLOAD FILE
    ========================================================= */
 async function uploadFile(file, folder = "edusmart/profile") {
   if (file.size > 5 * 1024 * 1024) throw new Error("Ukuran file maksimal 5 MB.");
-  // 1. Cloudinary (prioritas)
   const cloudName = String(getLS(STORAGE.CLOUD_NAME)).trim();
   const cloudPreset = String(getLS(STORAGE.CLOUD_PRESET)).trim();
   if (cloudName && cloudPreset) {
@@ -932,7 +935,6 @@ async function uploadFile(file, folder = "edusmart/profile") {
       if (res.ok && r?.secure_url) return { url: r.secure_url, publicId: r.public_id, provider: "cloudinary" };
     } catch (err) { console.warn("Cloudinary gagal:", err); }
   }
-  // 2. Supabase
   const sb = getSupabaseConfig();
   if (sb) {
     try {
@@ -946,7 +948,6 @@ async function uploadFile(file, folder = "edusmart/profile") {
       if (res.ok) return { url: `${sb.url}/storage/v1/object/public/${SUPABASE_BUCKET}/${fileName}`, publicId: fileName, provider: "supabase" };
     } catch (err) { console.warn("Supabase gagal:", err); }
   }
-  // 3. IndexedDB (fallback lokal)
   const key = `file_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   await idbSave(key, file);
   const rec = await idbGet(key);
@@ -1107,6 +1108,50 @@ function copyToClipboard(text, successMsg = "Tersalin!") {
     document.body.removeChild(ta);
   }
 }
+
+/* =========================================================
+   INFO PENGEMBANG (MODAL)
+   ========================================================= */
+function showInfoPengembang() {
+  const mb = document.getElementById("modal-body");
+  mb.innerHTML = `
+  <div class="space-y-4 text-xs">
+    <div class="border-b pb-3 flex items-center gap-3">
+      <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl"><i class="fa-solid fa-circle-info"></i></div>
+      <div>
+        <h3 class="font-bold text-lg text-slate-800">Info Pengembang</h3>
+        <p class="text-[10px] text-slate-500">EduSmart LMS v4</p>
+      </div>
+    </div>
+
+    <div class="text-center py-2">
+      <img src="${PENGEMBANG.foto}" alt="Pengembang" class="w-28 h-28 rounded-full object-cover mx-auto border-4 border-indigo-100 shadow-md" onerror="this.style.display='none'">
+      <div class="mt-3 font-bold text-base text-slate-800">${PENGEMBANG.nama}</div>
+      <div class="text-xs text-slate-500 mt-0.5">Pengembang EduSmart LMS v4</div>
+      <div class="text-xs mt-1"><a href="mailto:${PENGEMBANG.email}" class="text-indigo-600 hover:underline font-semibold">${PENGEMBANG.email}</a></div>
+    </div>
+
+    <div class="p-4 bg-gradient-to-br from-amber-50 to-white border border-amber-200 rounded-xl space-y-2">
+      <div class="font-bold text-sm text-amber-900 flex items-center gap-2"><i class="fa-solid fa-heart text-red-500"></i> Dukung Pengembangan</div>
+      <p class="text-xs text-slate-600 leading-relaxed">Terima kasih telah menggunakan <b>EduSmart LMS</b>. Jika aplikasi ini bermanfaat dan Anda ingin ikut mendukung pengembangan, pemeliharaan, serta penambahan fitur ke depannya, dukungan Anda sangat berarti.</p>
+      <div class="mt-2 p-3 bg-white border border-amber-200 rounded-lg">
+        <div class="text-[10px] font-bold text-slate-500 uppercase">Donasi / Dukungan</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">No. Rekening BRI</div>
+        <div class="flex items-center justify-between gap-2 mt-1">
+          <span class="font-mono font-bold text-base text-amber-700 tracking-wider">055101042712503</span>
+          <button onclick="navigator.clipboard.writeText('055101042712503');showToast('Nomor rekening disalin.','success')" class="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg"><i class="fa-solid fa-copy"></i> Salin</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end pt-2 border-t">
+      <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl">Tutup</button>
+    </div>
+  </div>
+  `;
+  openModal();
+}
+
 /* =========================================================
    NUMPAD
    ========================================================= */
@@ -1417,6 +1462,8 @@ async function handleLogin(e) {
       if (!ok) throw new Error("Password guru salah.");
       appState.db = db;
       ensureMasterData();
+      restoreMenusFromDb(db);
+      restoreCredsFromDb(db);
       saveAppConfig(cfg);
       setLS(STORAGE.APP_CODE, code);
       appState.currentUser = {
@@ -1437,6 +1484,8 @@ async function handleLogin(e) {
     const siswa = siswaToObj(sw);
     appState.db = db;
     ensureMasterData();
+    restoreMenusFromDb(db);
+    restoreCredsFromDb(db);
     saveAppConfig(cfg);
     setLS(STORAGE.APP_CODE, code);
     appState.currentUser = {
@@ -1504,9 +1553,10 @@ async function executeLupaPassword() {
         <div><b>Sekolah:</b> ${cfg.namaSekolah || "-"}</div>
         <div><b>Guru:</b> ${cfg.namaGuru || "-"}</div>
         <div><b>Kelas:</b> ${cfg.kelas || "-"}</div>
+        <div><b>Tahun Ajar:</b> ${cfg.tahunAjar || "-"}</div>
       </div>
       <div class="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800">
-        💡 Password tersimpan di browser Anda.
+        💡 Password guru & siswa <b>hanya tersimpan di JSONBin</b> (bukan di config publik). Hubungi pengembang jika perlu reset.
       </div>
       <div class="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-[11px] text-indigo-800">
         📞 <b>Bantuan?</b> ${PENGEMBANG.nama} — ${PENGEMBANG.email}
@@ -1539,7 +1589,7 @@ function showBuatDatabaseForm() {
       <div><label class="block font-semibold mb-1">Nama Sekolah *</label><input id="db-school" class="w-full px-2.5 py-1.5 border rounded-lg"></div>
       <div><label class="block font-semibold mb-1">Nama Guru *</label><input id="db-guru" class="w-full px-2.5 py-1.5 border rounded-lg"></div>
       <div><label class="block font-semibold mb-1">Kelas *</label><input id="db-kelas" class="w-full px-2.5 py-1.5 border rounded-lg" placeholder="5"></div>
-      <div><label class="block font-semibold mb-1">Nama Database</label><input id="db-nama" class="w-full px-2.5 py-1.5 border rounded-lg"></div>
+      <div><label class="block font-semibold mb-1">Tahun Ajar</label><input id="db-nama" placeholder="2025/2026" class="w-full px-2.5 py-1.5 border rounded-lg"></div>
     </div>
     <div class="border-t pt-2">
       <div class="font-bold text-slate-700 mb-2">🔐 Akun Login Guru</div>
@@ -1549,12 +1599,13 @@ function showBuatDatabaseForm() {
         <div><label class="block font-semibold mb-1">Konfirmasi *</label><input id="db-password2" type="password" class="w-full px-2.5 py-1.5 border rounded-lg"></div>
       </div>
       <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-800">
-        ⚠️ Password guru <b>tidak dapat diubah</b> setelah dibuat.
+        ⚠️ Password guru <b>tidak dapat diubah</b> setelah dibuat. Password hanya tersimpan di JSONBin (tidak di config publik).
       </div>
     </div>
     <div class="border-t pt-2">
       <div class="font-bold text-slate-700 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i> API Key Gemini (Opsional)</div>
       <input id="db-gemini" type="password" value="${existingGeminiKey}" placeholder="AIzaSy..." class="w-full px-2.5 py-1.5 border rounded-lg font-mono">
+      <p class="text-[10px] text-slate-500 mt-1">Disimpan di JSONBin (db.cfg.geminiKey) agar ikut tersinkron.</p>
     </div>
     <div class="flex justify-end gap-2 pt-2 border-t">
       <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
@@ -1569,7 +1620,8 @@ async function executeBuatDatabase() {
   const school = document.getElementById("db-school").value.trim();
   const guru = document.getElementById("db-guru").value.trim();
   const kelas = document.getElementById("db-kelas").value.trim();
-  const nama = document.getElementById("db-nama").value.trim() || `EduSmart ${kelas}`;
+  const tahunAjar = document.getElementById("db-nama").value.trim() || "-";
+  const nama = `EduSmart ${kelas} ${tahunAjar}`;
   const username = document.getElementById("db-username").value.trim();
   const password = document.getElementById("db-password").value;
   const password2 = document.getElementById("db-password2").value;
@@ -1586,13 +1638,16 @@ async function executeBuatDatabase() {
   const passwordHash = await sha256(password);
   const database = JSON.parse(JSON.stringify(DEFAULT_DB));
   database.a = { k: kodeAplikasi, ns: school, ng: guru, kl: kelas, gc: [username, password, passwordHash], lk: null, ls: null, fg: null };
+  database.md.u.ta = tahunAjar;
+  database.cfg = { sbUrl: "", sbKey: "", cloudName: "", cloudPreset: "", geminiKey: geminiKey || "" };
+  database.mn = [...DEFAULT_MENUS];
   showLoading(true, "Membuat database...");
   try {
     const bin = await createJsonBinDB(database, kodeAplikasi, nama);
     const binId = bin.metadata.id;
     const configObj = {
-      version: 4, kodeAplikasi, namaSekolah: school, namaGuru: guru, kelas,
-      guruCredentials: { username, password, passwordHash },
+      version: 4, kodeAplikasi, namaSekolah: school, namaGuru: guru, kelas, tahunAjar,
+      guruCredentials: { username, passwordHash },
       geminiApiKey: geminiKey || "",
       database: { provider: "jsonbin", binId },
       createdAt: new Date().toISOString()
@@ -1601,6 +1656,8 @@ async function executeBuatDatabase() {
     saveAppConfig({ ...configObj, binId, cloudinaryUrl: cloud.secure_url || getConfigUrl(kodeAplikasi) });
     if (geminiKey) saveGeminiKey(geminiKey);
     appState.db = database;
+    appState.menus = [...DEFAULT_MENUS];
+    setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
     appState.currentUser = { username, name: guru, role: "guru", sekolah: school, kelas };
     setLS(STORAGE.USER, JSON.stringify(appState.currentUser));
     setLS(STORAGE.DB, JSON.stringify(appState.db));
@@ -1617,10 +1674,11 @@ async function executeBuatDatabase() {
       <div class="grid grid-cols-2 gap-2 text-left text-[11px] bg-slate-50 border rounded-xl p-3">
         <div><b>Sekolah</b><br>${school}</div>
         <div><b>Kelas</b><br>${kelas}</div>
+        <div><b>Tahun Ajar</b><br>${tahunAjar}</div>
         <div><b>Username</b><br><span class="font-mono">${username}</span></div>
-        <div><b>Bin ID</b><br><span class="font-mono text-[9px]">${binId}</span></div>
+        <div class="col-span-2"><b>Bin ID</b><br><span class="font-mono text-[9px]">${binId}</span></div>
       </div>
-      <div class="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-800">⚠️ Catat Kode + Username + Password Anda!</div>
+      <div class="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-800">⚠️ Catat Kode + Username + Password Anda! Password guru hanya tersimpan di JSONBin.</div>
       <div class="flex justify-center gap-2">
         <button onclick="navigator.clipboard.writeText('${kodeAplikasi}');showToast('Kode disalin.','success')" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold">Salin Kode</button>
         <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-semibold">Tutup</button>
@@ -1634,7 +1692,7 @@ async function executeBuatDatabase() {
 }
 
 /* =========================================================
-   PENGATURAN (dengan Cloudinary)
+   PENGATURAN
    ========================================================= */
 function showSetupModal() {
   const cfg = getAppConfig();
@@ -1648,6 +1706,7 @@ function showSetupModal() {
   <div class="space-y-4 text-xs">
     <div class="border-b pb-3">
       <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-gears text-indigo-600"></i> Pengaturan Master</h3>
+      <p class="text-[10px] text-slate-500 mt-1">Semua kredensial (Cloudinary, Supabase, Gemini) otomatis tersinkron ke JSONBin di <code class="bg-slate-100 px-1 rounded">db.cfg</code>.</p>
     </div>
     <div class="p-3 bg-slate-50 border rounded-xl space-y-2">
       <div class="font-semibold"><i class="fa-solid fa-floppy-disk text-indigo-600"></i> Backup & Restore</div>
@@ -1698,12 +1757,12 @@ function showSetupModal() {
         <button onclick="saveCloudinaryFromSettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl">Simpan</button>
         <button onclick="testCloudinary()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl">Test Upload</button>
       </div>
-      <p class="text-[10px] text-slate-500">Ambil dari <a href="https://cloudinary.com" target="_blank" class="text-emerald-600 underline font-semibold">cloudinary.com</a> → Settings → Upload → Add upload preset → <b>Signing Mode: Unsigned</b></p>
+      <p class="text-[10px] text-slate-500">Ambil dari <a href="https://cloudinary.com" target="_blank" class="text-emerald-600 underline font-semibold">cloudinary.com</a> → Settings → Upload → Add upload preset → <b>Signing Mode: Unsigned</b>. Disimpan di JSONBin (db.cfg).</p>
       <div id="cloud-test-result" class="hidden text-[10px] p-2 rounded-lg"></div>
     </div>
     <div class="p-3 bg-purple-50 border border-purple-100 rounded-xl space-y-2">
       <div class="font-semibold text-purple-900"><i class="fa-solid fa-bolt text-purple-600"></i> Supabase</div>
-      <p class="text-[10px] text-slate-600">Setup lengkap ada di menu <b>Supabase Manager</b>.</p>
+      <p class="text-[10px] text-slate-600">Setup lengkap ada di menu <b>Supabase Manager</b>. URL & Anon Key disimpan di JSONBin (db.cfg).</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div><label class="block font-semibold mb-1">URL</label><input id="sb-url" value="${sb?.url || ""}" class="w-full px-2.5 py-1.5 border rounded-lg font-mono text-[10px]"></div>
         <div><label class="block font-semibold mb-1">Anon Key</label><input id="sb-key" type="password" value="${sb?.key || ""}" class="w-full px-2.5 py-1.5 border rounded-lg font-mono text-[10px]"></div>
@@ -1736,6 +1795,10 @@ function saveGeminiFromSettings() {
   saveGeminiKey(key);
   const cfg = getAppConfig();
   if (cfg) { cfg.geminiApiKey = key; setLS(STORAGE.APP_CONFIG, JSON.stringify(cfg)); }
+  if (!appState.db.cfg) appState.db.cfg = {};
+  appState.db.cfg.geminiKey = key;
+  saveLocal();
+  updateJsonBinDB().catch(() => {});
   showToast(key ? "API Key Gemini disimpan." : "API Key dikosongkan.", "success");
 }
 async function testGeminiKey() {
@@ -1761,7 +1824,12 @@ function saveCloudinaryFromSettings() {
   if (!name || !preset) { showToast("Lengkapi Cloud Name & Preset.", "error"); return; }
   setLS(STORAGE.CLOUD_NAME, name);
   setLS(STORAGE.CLOUD_PRESET, preset);
-  showToast("✓ Cloudinary disimpan.", "success");
+  if (!appState.db.cfg) appState.db.cfg = {};
+  appState.db.cfg.cloudName = name;
+  appState.db.cfg.cloudPreset = preset;
+  saveLocal();
+  updateJsonBinDB().catch(() => {});
+  showToast("✓ Cloudinary disimpan (juga ke JSONBin).", "success");
 }
 async function testCloudinary() {
   const r = document.getElementById("cloud-test-result");
@@ -1800,7 +1868,12 @@ function saveSB() {
   const key = document.getElementById("sb-key").value.trim();
   if (!url || !key) { showToast("Lengkapi Supabase.", "error"); return; }
   saveSupabaseConfig(url, key);
-  showToast("Supabase disimpan.", "success");
+  if (!appState.db.cfg) appState.db.cfg = {};
+  appState.db.cfg.sbUrl = url;
+  appState.db.cfg.sbKey = key;
+  saveLocal();
+  updateJsonBinDB().catch(() => {});
+  showToast("Supabase disimpan (juga ke JSONBin).", "success");
 }
 async function testSB() {
   const r = document.getElementById("sb-test-result");
@@ -1848,7 +1921,7 @@ function saveJb() {
   const t = document.getElementById("jb-type").value;
   if (!k) { showToast("API Key wajib.", "error"); return; }
   saveJsonBinCredential(k, t);
-  showToast("API Key disimpan.", "success");
+  showToast("API Key disimpan (lokal).", "success");
   showSetupModal();
 }
 function exportBackup() {
@@ -1884,10 +1957,23 @@ async function saveToCloud() {
   if (!cfg?.binId) { showToast("Bin ID belum ada.", "error"); return; }
   showLoading(true, "Menyimpan...");
   ensureMasterData();
+  appState.db.mn = appState.menus;
   const ok = await updateJsonBinDB();
   try {
     const geminiKey = getGeminiKey();
-    await uploadConfigCloudinary({ ...cfg, geminiApiKey: geminiKey }, cfg.kodeAplikasi);
+    const gcHashOnly = { username: appState.db.a?.gc?.[0] || "", passwordHash: appState.db.a?.gc?.[2] || "" };
+    await uploadConfigCloudinary({
+      version: cfg.version || 4,
+      kodeAplikasi: cfg.kodeAplikasi,
+      namaSekolah: appState.db.a?.ns || cfg.namaSekolah,
+      namaGuru: appState.db.a?.ng || cfg.namaGuru,
+      kelas: appState.db.a?.kl || cfg.kelas,
+      tahunAjar: appState.db.md?.u?.ta || cfg.tahunAjar || "-",
+      guruCredentials: gcHashOnly,
+      geminiApiKey: geminiKey,
+      database: { provider: "jsonbin", binId: cfg.binId },
+      createdAt: cfg.createdAt || new Date().toISOString()
+    }, cfg.kodeAplikasi);
   } catch (e) {}
   const sb = getSupabaseConfig();
   if (sb) {
@@ -2011,7 +2097,7 @@ async function handleAddMenu(e) {
   else item.dataSource = "static";
   appState.menus.push(item);
   saveLocal();
-  showToast("Menu ditambahkan.", "success");
+  showToast("Menu ditambahkan & disinkron.", "success");
   renderApp();
   closeModal();
   try { await updateJsonBinDB(); } catch(e) {}
@@ -2112,7 +2198,12 @@ function saveSetupKredensial() {
   const key = document.getElementById("setup-sb-key").value.trim();
   if (!url || !key) { showToast("Lengkapi URL & Key.", "error"); return; }
   saveSupabaseConfig(url, key);
-  showToast("✓ Tersimpan.", "success");
+  if (!appState.db.cfg) appState.db.cfg = {};
+  appState.db.cfg.sbUrl = url;
+  appState.db.cfg.sbKey = key;
+  saveLocal();
+  updateJsonBinDB().catch(() => {});
+  showToast("✓ Tersimpan (juga ke JSONBin).", "success");
   renderMainContent();
 }
 async function cekKoneksiSupabase() {
@@ -2369,6 +2460,7 @@ async function simpanMasterData() {
   else showToast("Tersimpan lokal.", "error");
   renderMainContent();
 }
+
 /* =========================================================
    DATA SISWA
    ========================================================= */
@@ -2387,6 +2479,7 @@ function renderDataSiswa(c) {
       <div class="flex flex-wrap gap-2 items-center">
         <select onchange="window.__filterKelasSiswa=this.value;renderMainContent()" class="text-xs px-2 py-2 border rounded-xl bg-white"><option value="ALL" ${selected==="ALL"?"selected":""}>Semua Kelas</option>${kelasList.map(k => `<option value="${k}" ${selected===k?"selected":""}>Kelas ${k}</option>`).join("")}</select>
         <button onclick="showBulkSiswa()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-users"></i> Input Banyak</button>
+        <button onclick="downloadTemplateSiswa()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs px-3 py-2 rounded-xl font-bold" title="Download template Excel data siswa"><i class="fa-solid fa-file-excel"></i> Template</button>
         <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-xl font-semibold cursor-pointer"><i class="fa-solid fa-file-import"></i> Import Excel<input type="file" accept=".xlsx,.xls" onchange="importExcelSiswa(event)" class="hidden"></label>
       </div>
     </div>
@@ -2479,6 +2572,7 @@ async function saveBulkSiswa() {
   const total = window.__bulkSiswaDraft.length;
   window.__bulkSiswaDraft = [];
   saveLocal(); setSyncBadge(true);
+  addActivity("tambah_siswa", `Tambah ${total} siswa`);
   showLoading(true, "Menyimpan...");
   const ok = await updateJsonBinDB();
   showLoading(false);
@@ -2490,7 +2584,7 @@ function importExcelSiswa(e) {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
-  r.onload = (ev) => {
+  r.onload = async (ev) => {
     try {
       const data = new Uint8Array(ev.target.result);
       const wb = XLSX.read(data, { type: "array" });
@@ -2520,12 +2614,29 @@ function importExcelSiswa(e) {
         }
       });
       saveLocal(); setSyncBadge(true);
-      showToast(`Import ${n} data.`, "info");
+      addActivity("import_siswa", `Import ${n} siswa dari Excel`);
+      showToast(`Import ${n} data. Menyimpan...`, "info");
+      await updateJsonBinDB();
+      setSyncBadge(false);
       renderMainContent();
     } catch (err) { showToast("File tidak valid.", "error"); }
   };
   r.readAsArrayBuffer(f);
   e.target.value = "";
+}
+
+function downloadTemplateSiswa() {
+  const header = ["NoAbsen", "NIS", "Nama", "Kelas", "JK", "Username", "Password", "TempatLahir", "TglLahir", "Alamat"];
+  const contoh = [
+    [1, "2025001", "Ahmad Fauzi", appState.db.a?.kl || "5", "L", "ahmad.fauzi", "siswa123", "Jakarta", "2014-05-12", "Jl. Merdeka No. 1"],
+    [2, "2025002", "Siti Aminah", appState.db.a?.kl || "5", "P", "siti.aminah", "siswa123", "Bandung", "2014-08-20", "Jl. Sudirman No. 2"]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([header, ...contoh]);
+  ws["!cols"] = header.map(h => ({ wch: Math.max(String(h).length + 2, 12) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Siswa");
+  XLSX.writeFile(wb, `Template_DataSiswa_${Date.now()}.xlsx`);
+  showToast("✓ Template siswa diunduh.", "success");
 }
 
 /* =========================================================
@@ -2594,6 +2705,7 @@ async function saveBulkMapel() {
   const total = window.__bulkMapelDraft.length;
   window.__bulkMapelDraft = [];
   saveLocal(); setSyncBadge(true);
+  addActivity("tambah_mapel", `Tambah ${total} mapel`);
   showLoading(true, "Menyimpan...");
   const ok = await updateJsonBinDB();
   showLoading(false);
@@ -2896,22 +3008,50 @@ async function importNilaiExcel(e, mapelKode) {
    HASIL BELAJAR
    ========================================================= */
 window.__hbKelas = "ALL";
+window.__hbSiswa = "ALL";
+
 function renderHasilBelajar(c) {
   const nc = appState.db.nc || [];
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const kelasList = [...new Set(siswaAll.map(s => s.kelas).filter(Boolean))].sort();
   const filterKelas = window.__hbKelas || "ALL";
-  const filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  const filterSiswa = window.__hbSiswa || "ALL";
+
+  let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
+
+  const siswaDropdownList = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+
   c.innerHTML = `
   <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
     <div class="flex flex-col sm:flex-row justify-between gap-3">
       <h2 class="text-lg font-bold">Hasil Belajar</h2>
       <div class="flex flex-wrap gap-2">
-        <select onchange="window.__hbKelas=this.value;renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white"><option value="ALL" ${filterKelas==="ALL"?"selected":""}>Semua Kelas</option>${kelasList.map(k => `<option value="${k}" ${filterKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}</select>
-        <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold">Cetak PDF</button>
+        <select onchange="window.__hbKelas=this.value; window.__hbSiswa='ALL'; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
+          <option value="ALL" ${filterKelas==="ALL"?"selected":""}>Semua Kelas</option>
+          ${kelasList.map(k => `<option value="${k}" ${filterKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}
+        </select>
+        <select onchange="window.__hbSiswa=this.value; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
+          <option value="ALL" ${filterSiswa==="ALL"?"selected":""}>Semua Siswa</option>
+          ${siswaDropdownList.map(s => `<option value="${s.id}" ${String(filterSiswa)===String(s.id)?"selected":""}>${s.nama} (${s.noAbsen || "-"})</option>`).join("")}
+        </select>
+        <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-file-pdf"></i> Cetak PDF</button>
       </div>
     </div>
+
+    ${filterSiswa !== "ALL" && filtered.length ? `
+      <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs flex items-center justify-between gap-2">
+        <span class="text-indigo-900">
+          <i class="fa-solid fa-user-graduate"></i> Menampilkan hasil belajar:
+          <b>${filtered[0]?.nama || "-"}</b> ${filtered[0]?.nis ? "(" + filtered[0].nis + ")" : ""}
+        </span>
+        <button onclick="cetakRaporSiswa(${filtered[0].id})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg">
+          <i class="fa-solid fa-print"></i> Cetak Rapor Siswa Ini
+        </button>
+      </div>
+    ` : ""}
+
     <div class="overflow-x-auto">
       <table class="w-full text-xs border-collapse">
         <thead><tr class="bg-slate-100 font-bold border-b"><th class="p-2 text-left">No</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Kelas</th><th class="p-2 text-left">Mapel</th>${nc.map(cc => `<th class="p-2 text-center">${cc}</th>`).join("")}<th class="p-2 text-center bg-emerald-50">Rata²</th><th class="p-2 text-center">Status</th></tr></thead>
@@ -2930,6 +3070,7 @@ function renderHasilBelajar(c) {
     </div>
   </div>`;
 }
+
 function cetakRaporPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -2937,11 +3078,18 @@ function cetakRaporPDF() {
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const filterKelas = window.__hbKelas || "ALL";
-  const filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  const filterSiswa = window.__hbSiswa || "ALL";
+
+  let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
+
   doc.setFontSize(16);
   doc.text("LAPORAN HASIL BELAJAR", 14, 20);
   doc.setFontSize(10);
   doc.text(`Sekolah: ${appState.db.a?.ns || "-"}`, 14, 28);
+  doc.text(`Kelas: ${filterKelas === "ALL" ? "Semua" : filterKelas}`, 14, 34);
+  if (filterSiswa !== "ALL" && filtered.length) doc.text(`Siswa: ${filtered[0]?.nama || "-"}`, 14, 40);
+
   const rows = [];
   filtered.forEach(s => {
     mapelAll.forEach(m => {
@@ -2954,9 +3102,51 @@ function cetakRaporPDF() {
       rows.push(row);
     });
   });
-  doc.autoTable({ startY: 40, head: [["No","Nama","Kelas","Mapel",...nc,"Rata²"]], body: rows, styles: { fontSize: 8 } });
+  const startY = (filterSiswa !== "ALL") ? 46 : 42;
+  doc.autoTable({ startY, head: [["No","Nama","Kelas","Mapel",...nc,"Rata²"]], body: rows, styles: { fontSize: 8 } });
   doc.save(`Rapor_${Date.now()}.pdf`);
   showToast("PDF diunduh.", "success");
+}
+
+function cetakRaporSiswa(sid) {
+  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const nc = appState.db.nc || [];
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  const siswa = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
+  if (!siswa) { showToast("Siswa tidak ditemukan.", "error"); return; }
+
+  doc.setFontSize(16);
+  doc.text("RAPOR HASIL BELAJAR SISWA", 105, 20, { align: "center" });
+  doc.setFontSize(10);
+  let y = 30;
+  doc.text(`Sekolah   : ${appState.db.a?.ns || "-"}`, 14, y); y += 6;
+  doc.text(`Kelas     : ${siswa.kelas || "-"}`, 14, y); y += 6;
+  doc.text(`Nama      : ${siswa.nama || "-"}`, 14, y); y += 6;
+  doc.text(`No. Absen : ${siswa.noAbsen || "-"}`, 14, y); y += 6;
+  doc.text(`NIS       : ${siswa.nis || "-"}`, 14, y); y += 8;
+
+  const body = [];
+  mapelAll.forEach(m => {
+    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+    const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
+    let total = 0;
+    const row = [m.nama];
+    nc.forEach(cc => { const v = Number(rec.scores?.[cc] ?? 0); row.push(v); total += v; });
+    const avg = nc.length ? total / nc.length : 0;
+    row.push(avg.toFixed(1));
+    row.push(avg >= (m.kkm || 70) ? "LULUS" : "REMEDIAL");
+    body.push(row);
+  });
+  doc.autoTable({
+    startY: y + 2,
+    head: [["Mata Pelajaran", ...nc, "Rata²", "Status"]],
+    body: body,
+    styles: { fontSize: 8 }
+  });
+  doc.save(`Rapor_${siswa.nama.replace(/\s+/g, "_")}_${Date.now()}.pdf`);
+  showToast("✓ Rapor siswa diunduh.", "success");
 }
 
 /* =========================================================
@@ -3153,10 +3343,9 @@ function renderProfilGuru(c) {
       </div>
       <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div class="p-3 bg-slate-50 rounded-xl"><b>Username:</b> <span class="font-mono">${appState.db.a?.gc?.[0] || "-"}</span></div>
-        <div class="p-3 bg-amber-50 rounded-xl text-amber-800"><b>🔒 Password:</b> Tetap</div>
+        <div class="p-3 bg-amber-50 rounded-xl text-amber-800"><b>🔒 Password:</b> Tersimpan di JSONBin saja (tidak di config publik)</div>
       </div>
     </div>
-    ${renderInfoPengembang()}
   </div>`;
 }
 async function uploadFotoProfil(tipe, e) {
@@ -3231,6 +3420,8 @@ async function executeTarikJSONBin() {
     const db = await loadJsonBinDB(cfg.binId, cred);
     appState.db = db;
     ensureMasterData();
+    restoreMenusFromDb(db);
+    restoreCredsFromDb(db);
     setLS(STORAGE.DB, JSON.stringify(db));
     saveAppConfig(cfg);
     showLoading(false);
@@ -3377,7 +3568,7 @@ async function refreshRankingCard(containerId, kelasFilter, highlightSiswaId) {
 }
 
 /* =========================================================
-   GAME EDUKASI (HITUNG + VOCAB, AI OPSIONAL)
+   GAME EDUKASI
    ========================================================= */
 window.__gameState = { soal: [], idx: 0, benar: 0, salah: 0, mulai: null, selesai: null, siswaId: null };
 
@@ -3689,7 +3880,6 @@ function renderSiswaDashboard(c) {
         ${menu.map(m => `<button onclick="${m.href ? `window.open('${m.href}','_blank')` : `appState.activeView='${m.id}';renderSidebarNav();renderMainContent()`}" class="p-4 rounded-xl border hover:shadow-md transition flex flex-col items-center gap-2"><div class="w-12 h-12 rounded-xl ${m.warna} flex items-center justify-center text-xl"><i class="${m.icon}"></i></div><span class="font-semibold text-xs">${m.name}</span></button>`).join("")}
       </div>
     </div>
-    ${renderInfoPengembang()}
   </div>`;
   setTimeout(() => refreshRankingCard("ranking-siswa-content", appState.currentUser.kelas, sid), 50);
 }
@@ -3742,12 +3932,11 @@ function renderGuruDashboard(c) {
       ${renderRankingCard({ title: "Top 5 Ranking Sementara", kelasFilter: "ALL", highlightSiswaId: null, showKelasDropdown: true, containerId: "ranking-guru-content" })}
     </div>
     <div class="bg-white p-5 rounded-2xl border shadow-sm">
-      <div class="flex items-center justify-between mb-3"><h3 class="font-bold text-sm">🔔 Aktivitas Terbaru</h3><span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">10 terakhir</span></div>
+      <div class="flex items-center justify-between mb-3"><h3 class="font-bold text-sm">🔔 Aktivitas Terbaru</h3><span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">10 terakhir · auto-sync</span></div>
       <div class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar">
         ${aktivitas.length ? aktivitas.map(a => `<div class="p-2 border rounded-lg bg-slate-50 flex gap-2"><div class="text-[10px] text-slate-400 whitespace-nowrap">${formatRelative(a.waktu)}</div><div class="flex-1"><div class="font-semibold text-slate-700">${a.user}</div><div class="text-slate-500 text-[11px]">${a.detail}</div></div></div>`).join("") : '<div class="text-slate-400 text-center py-4">Belum ada aktivitas</div>'}
       </div>
     </div>
-    ${renderInfoPengembang()}
   </div>`;
   setTimeout(() => {
     const ctx = document.getElementById('chartGuru');
@@ -3911,7 +4100,6 @@ function renderKelasku(c) {
         </table>
       </div>
     </div>
-    ${renderInfoPengembang()}
   </div>`;
 }
 async function hapusMenuCustom(id) {
@@ -3957,10 +4145,6 @@ function formatRelative(iso) {
   if (diff < 86400) return Math.floor(diff/3600) + " jam";
   return Math.floor(diff/86400) + " hr";
 }
-function renderInfoPengembang() {
-  return `<div class="bg-white p-5 rounded-2xl border shadow-sm"><h3 class="font-bold text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-circle-info text-indigo-600"></i> Info Pengembang</h3><div class="flex items-center gap-4 p-3 bg-slate-50 rounded-xl"><img src="${PENGEMBANG.foto}" alt="Pengembang" class="w-16 h-16 rounded-full object-cover border-2 border-indigo-200" onerror="this.style.display='none'"><div class="flex-1"><div class="font-bold text-slate-800">${PENGEMBANG.nama}</div><div class="text-xs text-slate-500">Pengembang EduSmart LMS v4</div><div class="text-xs text-slate-600 mt-1"><a href="mailto:${PENGEMBANG.email}" class="text-indigo-600 hover:underline">${PENGEMBANG.email}</a></div></div></div></div>`;
-}
-
 </script>
 </body>
 </html>
