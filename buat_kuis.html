@@ -19,45 +19,16 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 .materi-input { transition: all .15s ease; }
 .materi-input:focus { border-color: #6366f1; background: white; }
 .media-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; }
-
-/* ==== Form Pilihan A-D dengan kunci ==== */
-.opsi-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px; border-radius: 10px;
-  transition: background .15s ease;
-}
+.opsi-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 10px; transition: background .15s ease; }
 .opsi-row:hover { background: #f1f5f9; }
-.opsi-row .huruf-box {
-  width: 38px; height: 38px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 10px; background: #e0e7ff; color: #4338ca;
-  font-weight: 800; font-size: 14px;
-  border: 2px solid transparent;
-  cursor: pointer; transition: all .15s ease;
-  user-select: none;
-}
+.opsi-row .huruf-box { width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #e0e7ff; color: #4338ca; font-weight: 800; font-size: 14px; border: 2px solid transparent; cursor: pointer; transition: all .15s ease; user-select: none; }
 .opsi-row .huruf-box:hover { border-color: #6366f1; }
-.opsi-row.aktif-kunci .huruf-box {
-  background: #10b981; color: white;
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16,185,129,.2);
-}
-.opsi-row .badge-kunci {
-  display: none; background: #10b981; color: white;
-  font-size: 9px; font-weight: 800; padding: 2px 6px;
-  border-radius: 4px; margin-left: 4px; letter-spacing: .5px;
-}
+.opsi-row.aktif-kunci .huruf-box { background: #10b981; color: white; border-color: #059669; box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+.opsi-row .badge-kunci { display: none; background: #10b981; color: white; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-left: 4px; letter-spacing: .5px; }
 .opsi-row.aktif-kunci .badge-kunci { display: inline-block; }
 .opsi-row input[type="text"] { flex: 1; }
-
-/* ==== Preview kunci di kartu bank soal ==== */
-.prev-opsi {
-  display: flex; align-items: baseline; gap: 4px;
-  padding: 2px 4px; border-radius: 4px;
-}
-.prev-opsi.kunci {
-  background: #d1fae5; color: #065f46; font-weight: 700;
-}
+.prev-opsi { display: flex; align-items: baseline; gap: 4px; padding: 2px 4px; border-radius: 4px; }
+.prev-opsi.kunci { background: #d1fae5; color: #065f46; font-weight: 700; }
 .prev-opsi.kunci .tanda { color: #10b981; font-weight: 800; }
 </style>
 </head>
@@ -119,7 +90,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 <script>
 /* =========================================================
-   BAGIAN 1/5 — KONSTANTA, STATE, HELPER DASAR, CONFIG, UPLOAD
+   BAGIAN 1/5 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
    ========================================================= */
 
 const STORAGE = {
@@ -134,9 +105,8 @@ const STORAGE = {
 
 const SUPABASE_BUCKET = "edusmart-profile";
 
-const GEMINI_MODELS = [
-  "gemini-2.5-flash"
-];
+/* ✅ FIX: hanya model yang tersedia */
+const GEMINI_MODELS = ["gemini-2.5-flash"];
 
 const JENIS_SOAL = {
   PG:          { label: "Pilihan Ganda", kode: "PG",          icon: "fa-list-ul" },
@@ -184,21 +154,18 @@ function formatRelative(iso) {
 function uid(prefix = "id") {
   return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
 }
-function normalisasiHurufKunci(k) {
-  const s = String(k ?? "").toUpperCase().trim();
-  return /^[A-D]$/.test(s) ? s : null;
-}
 
 /* ==== UI HELPER ==== */
-function showToast(msg, type = "info") {
+function showToast(msg, type = "info", durasi = 3500) {
   const c = document.getElementById("toast-container");
+  if (!c) return;
   const t = document.createElement("div");
-  const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : "bg-indigo-600";
+  const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : type === "warning" ? "bg-amber-500" : "bg-indigo-600";
   t.className = `${bg} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0 fade-in`;
   t.innerHTML = `<span>${esc(msg)}</span><button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>`;
   c.appendChild(t);
   setTimeout(() => t.classList.remove("translate-y-2","opacity-0"), 10);
-  setTimeout(() => t.remove(), 4500);
+  setTimeout(() => t.remove(), durasi);
 }
 function showLoading(on, text = "Memuat...") {
   let el = document.getElementById("edusmart-loading");
@@ -269,7 +236,7 @@ function getCloudinaryConfig() {
 /* ==== SUPABASE HELPERS ==== */
 function sbHeaders(extra = {}) {
   const sb = getSupabaseConfig();
-  if (!sb) throw new Error("Supabase belum dikonfigurasi. Buka index.html → Pengaturan → Supabase.");
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
   return { "apikey": sb.key, "Authorization": `Bearer ${sb.key}`, "Content-Type": "application/json", ...extra };
 }
 async function sbFetch(table, query = "") {
@@ -498,7 +465,6 @@ function renderMainContent() {
   const c = document.getElementById("main-view-container");
   if (!c) return;
   const v = appState.activeView;
-  // Menu "ai" dihapus — pindah ke dalam modal paket
   const router = { paket: renderPaketList, soal: renderBankSoalList };
   if (router[v]) router[v](c);
   else renderPaketList(c);
@@ -608,8 +574,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 let __paketCache = [];
 let __editPaketId = null;
 let __tempLinks = [];
-let __activeTabPaket = "info";           // "info" | "ai"
-let __tempSoalAI = [];                    // hasil normalisasi soal AI (belum disimpan)
+let __activeTabPaket = "info";
+let __tempSoalAI = [];
 let __tempSoalAIMeta = { mapel: "", kelas: "", topik: "" };
 
 /* ---------- LIST PAKET ---------- */
@@ -678,7 +644,7 @@ async function renderPaketList(c) {
 }
 function refreshPaket() { renderPaketList(document.getElementById("main-view-container")); }
 
-/* ---------- MODAL PAKET (2 TAB) ---------- */
+/* ---------- MODAL PAKET 2 TAB ---------- */
 function showBuatPaketModal(editId = null, defaultTab = "info") {
   __editPaketId = editId;
   __activeTabPaket = defaultTab;
@@ -692,7 +658,7 @@ function showBuatPaketModal(editId = null, defaultTab = "info") {
     const p = __paketCache.find(x => x.id === editId);
     if (p) paket = p;
   }
-  window.__paketTemp = paket; // simpan state paket
+  window.__paketTemp = paket;
 
   renderPaketModal();
   openModal();
@@ -713,7 +679,6 @@ function renderPaketModal() {
       <p class="text-slate-500 mt-1">Isi info paket & opsional generate soal AI sekaligus.</p>
     </div>
 
-    <!-- TAB HEADER -->
     <div class="flex gap-1 border-b">
       <button onclick="switchTabPaket('info')" class="px-4 py-2 text-xs font-bold rounded-t-lg ${tab === 'info' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
         <i class="fa-solid fa-circle-info"></i> Info Paket
@@ -742,7 +707,6 @@ function renderPaketModal() {
 }
 
 function switchTabPaket(tab) {
-  // Simpan dulu input dari tab sekarang
   if (__activeTabPaket === "info") savePaketInfoToTemp();
   __activeTabPaket = tab;
   renderPaketModal();
@@ -846,7 +810,6 @@ function renderPaketAITab(mapelAll, kelasList) {
   const hasKey = !!getGeminiKey();
   const totalAI = __tempSoalAI.length;
 
-  // Auto-fill dari paket info kalau kosong
   if (!__tempSoalAIMeta.mapel && window.__paketTemp?.mapel_kode) __tempSoalAIMeta.mapel = window.__paketTemp.mapel_kode;
   if (!__tempSoalAIMeta.kelas && window.__paketTemp?.kelas) __tempSoalAIMeta.kelas = window.__paketTemp.kelas;
 
@@ -948,10 +911,8 @@ function hapusSemuaSoalAI() {
 
 /* ---------- SIMPAN PAKET + SOAL AI ---------- */
 async function simpanPaket() {
-  // Simpan dulu input dari tab yang sedang aktif
   if (__activeTabPaket === "info") savePaketInfoToTemp();
   else {
-    // Kalau dari tab AI, tetap validasi info paket ada
     __tempSoalAIMeta = {
       mapel: document.getElementById("ai-mapel")?.value || __tempSoalAIMeta.mapel,
       kelas: document.getElementById("ai-kelas")?.value || __tempSoalAIMeta.kelas,
@@ -985,7 +946,6 @@ async function simpanPaket() {
       if (!paketId) throw new Error("Gagal dapat ID paket baru.");
     }
 
-    // Simpan link ke JSONBin
     const cred = getJsonBinCredential();
     const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
     appState.db = freshDb;
@@ -993,7 +953,6 @@ async function simpanPaket() {
     kmSetAllLinks(paketId, __tempLinks.filter(Boolean));
     await updateJsonBinDB(appState.db, currentConfig.binId, cred);
 
-    // Simpan soal AI (jika ada) → bank_soal + auto-assign ke paket
     let insertedSoal = 0;
     if (__tempSoalAI.length > 0) {
       showLoading(true, `Menyimpan ${__tempSoalAI.length} soal AI...`);
@@ -1006,7 +965,6 @@ async function simpanPaket() {
       const inserted = await sbInsert("bank_soal", finalSoal);
       insertedSoal = inserted?.length || 0;
 
-      // Auto-assign ke paket
       if (inserted?.length) {
         const startUrutan = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}`).then(r => r.length);
         const items = inserted.map((soal, idx) => ({
@@ -1406,7 +1364,7 @@ function hapusMediaSoal() {
 }
 
 /* =========================================================
-   RENDER FORM PER JENIS — INTI PERBAIKAN KUNCI JELAS
+   RENDER FORM PER JENIS — KOTAK HURUF A-D YANG JELAS
    ========================================================= */
 function renderJenisForm() {
   const el = document.getElementById("so-jenis-form");
@@ -1414,7 +1372,7 @@ function renderJenisForm() {
   const s = __tempSoal;
   const j = s.jenis;
 
-  /* ---------- PILIHAN GANDA (radio 1 kunci) ---------- */
+  /* --- PG (radio 1 kunci) --- */
   if (j === "PG") {
     const kunci = s.jawaban.kunci || "";
     el.innerHTML = `
@@ -1436,14 +1394,14 @@ function renderJenisForm() {
       </div>`;
   }
 
-  /* ---------- PG KOMPLEKS (checkbox multi-kunci) ---------- */
+  /* --- PGK (checkbox multi kunci) --- */
   else if (j === "PGK") {
     const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [];
     el.innerHTML = `
       <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
         <div class="flex items-center justify-between">
           <div class="font-bold text-slate-700 text-xs">Pilihan Jawaban (A-D) — PG Kompleks</div>
-          <div class="text-[10px] text-slate-500"><i class="fa-solid fa-hand-pointer"></i> Klik huruf = toggle kunci (min 2)</div>
+          <div class="text-[10px] text-slate-500"><i class="fa-solid fa-hand-pointer"></i> Klik huruf = toggle kunci</div>
         </div>
         ${HURUF_PILIHAN.map(k => {
           const aktif = kunciArr.includes(k);
@@ -1456,13 +1414,13 @@ function renderJenisForm() {
         }).join("")}
         <div class="text-[10px] ${kunciArr.length >= 2 ? 'text-emerald-700' : 'text-amber-600'} font-semibold pt-1 border-t">
           ${kunciArr.length >= 2
-            ? `<i class="fa-solid fa-circle-check"></i> Kunci terpilih (${kunciArr.length}): <b>${kunciArr.sort().join(", ")}</b>`
-            : `<i class="fa-solid fa-triangle-exclamation"></i> Pilih minimal 2 kunci (${kunciArr.length} terpilih)`}
+            ? `<i class="fa-solid fa-circle-check"></i> Kunci terpilih (${kunciArr.length}): <b>${kunciArr.slice().sort().join(", ")}</b>`
+            : `<i class="fa-solid fa-triangle-exclamation"></i> Minimal 2 kunci (${kunciArr.length} terpilih)`}
         </div>
       </div>`;
   }
 
-  /* ---------- ISIAN SINGKAT ---------- */
+  /* --- ISIAN --- */
   else if (j === "ISIAN") {
     const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [s.jawaban.kunci || ""];
     el.innerHTML = `
@@ -1480,7 +1438,7 @@ function renderJenisForm() {
       </div>`;
   }
 
-  /* ---------- MENJODOHKAN ---------- */
+  /* --- MENJODOHKAN --- */
   else if (j === "MENJODOHKAN") {
     el.innerHTML = `
       <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
@@ -1501,7 +1459,7 @@ function renderJenisForm() {
     renderJodohList();
   }
 
-  /* ---------- URAIAN ---------- */
+  /* --- URAIAN --- */
   else if (j === "URAIAN") {
     el.innerHTML = `
       <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
@@ -1511,7 +1469,6 @@ function renderJenisForm() {
   }
 }
 
-/* ---------- Handler kunci PG & PGK ---------- */
 function pilihKunciPG(k) {
   __tempSoal.jawaban.kunci = k;
   syncFormKeTemp();
@@ -1526,7 +1483,6 @@ function toggleKunciPGK(k) {
   renderJenisForm();
 }
 
-/* ---------- Handler ISIAN ---------- */
 function updateIsian(i, v) {
   const arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [__tempSoal.jawaban.kunci || ""];
   arr[i] = v;
@@ -1548,7 +1504,6 @@ function hapusIsian(i) {
   renderJenisForm();
 }
 
-/* ---------- Handler MENJODOHKAN ---------- */
 function renderJodohList() {
   const el = document.getElementById("jodoh-list");
   if (!el) return;
@@ -1582,7 +1537,7 @@ function hapusJodoh(i) {
 }
 
 /* =========================================================
-   SIMPAN SOAL (dari modal) → ke bank_soal
+   SIMPAN SOAL → bank_soal
    ========================================================= */
 async function simpanSoal() {
   const pertanyaan = document.getElementById("so-pertanyaan").value.trim();
@@ -1595,7 +1550,6 @@ async function simpanSoal() {
 
   const j = __tempSoal.jenis;
 
-  /* ---- Validasi per jenis ---- */
   if (j === "PG") {
     if (!__tempSoal.jawaban.kunci) { showToast("Pilih kunci jawaban — klik huruf A/B/C/D.", "error"); return; }
     if (!__tempSoal.pilihan.A || !__tempSoal.pilihan.B || !__tempSoal.pilihan.C || !__tempSoal.pilihan.D) {
@@ -1621,7 +1575,6 @@ async function simpanSoal() {
     if (!String(__tempSoal.jawaban.kunci || "").trim()) { showToast("Isi kunci jawaban uraian.", "error"); return; }
   }
 
-  /* ---- Susun payload ---- */
   const payload = {
     jenis: j,
     mapel_kode: __tempSoal.mapel_kode,
@@ -1664,17 +1617,15 @@ async function simpanSoal() {
     showToast("✓ Soal tersimpan.", "success");
     closeModal();
 
-    // Kalau dibuka dari "Buat Soal Baru" di kelola paket → auto-assign
     if (window.__paketIdTambahan && newSoalId) {
       try {
         await toggleSoalDiPaket(window.__paketIdTambahan, newSoalId, true);
         showToast("✓ Soal juga ditambahkan ke paket.", "success");
       } catch(e) { console.warn("Gagal tambah ke paket:", e); }
       window.__paketIdTambahan = null;
-      if (typeof kelolaSoalPaket === "function") {
-        kelolaSoalPaket(window.__paketIdSaatIni || null);
+      if (typeof kelolaSoalPaket === "function" && window.__paketIdSaatIni) {
+        return kelolaSoalPaket(window.__paketIdSaatIni);
       }
-      return;
     }
     refreshBankSoal();
   } catch (err) {
@@ -1687,16 +1638,13 @@ async function simpanSoal() {
    ========================================================= */
 
 /* ---------------------------------------------------------
-   4A. HELPER: renderJawabanPreview(s)
-   Dipakai di: kartu Bank Soal, Preview Paket, Preview AI
-   Menampilkan pilihan A-D + kunci dengan jelas
+   4A. HELPER PREVIEW JAWABAN
    --------------------------------------------------------- */
 function renderJawabanPreview(s) {
   const j = s.jenis;
   const pilihan = s.pilihan || {};
   const jawaban = s.jawaban || {};
 
-  /* ---------- PG: 1 kunci ---------- */
   if (j === "PG") {
     const kunci = String(jawaban.kunci || "").toUpperCase();
     return `
@@ -1716,7 +1664,6 @@ function renderJawabanPreview(s) {
       </div>`;
   }
 
-  /* ---------- PGK: multi kunci ---------- */
   if (j === "PGK") {
     const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci.map(x => String(x).toUpperCase()) : [];
     return `
@@ -1732,11 +1679,10 @@ function renderJawabanPreview(s) {
         }).join("")}
       </div>
       <div class="mt-1 text-[10px] text-emerald-700 font-bold">
-        <i class="fa-solid fa-key"></i> Kunci (${kunciArr.length}): ${kunciArr.sort().join(", ") || "-"}
+        <i class="fa-solid fa-key"></i> Kunci (${kunciArr.length}): ${kunciArr.slice().sort().join(", ") || "-"}
       </div>`;
   }
 
-  /* ---------- ISIAN: alternatif jawaban ---------- */
   if (j === "ISIAN") {
     const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci : [jawaban.kunci || ""];
     const bersih = kunciArr.map(x => String(x).trim()).filter(Boolean);
@@ -1745,7 +1691,6 @@ function renderJawabanPreview(s) {
     </div>`;
   }
 
-  /* ---------- MENJODOHKAN: pasangan kiri → kanan ---------- */
   if (j === "MENJODOHKAN") {
     const kiri = Array.isArray(pilihan.kiri) ? pilihan.kiri : [];
     const kanan = Array.isArray(pilihan.kanan) ? pilihan.kanan : [];
@@ -1763,7 +1708,6 @@ function renderJawabanPreview(s) {
       </div>`;
   }
 
-  /* ---------- URAIAN: kunci teks panjang ---------- */
   if (j === "URAIAN") {
     const kunci = String(jawaban.kunci || "");
     return `
@@ -1777,7 +1721,7 @@ function renderJawabanPreview(s) {
 }
 
 /* ---------------------------------------------------------
-   4B. PREVIEW PAKET (MODAL) — lihat isi paket + soal + kunci
+   4B. PREVIEW PAKET
    --------------------------------------------------------- */
 async function previewPaket(id) {
   showLoading(true, "Memuat paket...");
@@ -1882,7 +1826,6 @@ async function previewPaket(id) {
 
 /* ---------------------------------------------------------
    4C. KELOLA SOAL DALAM PAKET
-   Checkbox assign soal dari bank soal ke paket
    --------------------------------------------------------- */
 async function kelolaSoalPaket(paketId) {
   if (!paketId) { showToast("Paket tidak valid.", "error"); return; }
@@ -1909,7 +1852,7 @@ async function kelolaSoalPaket(paketId) {
       </div>
 
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-        <input id="kp-search" placeholder="Cari soal (pertanyaan / mapel / topik)..." oninput="filterKelolaSoal()" class="flex-1 px-3 py-2 border rounded-xl text-xs">
+        <input id="kp-search" placeholder="Cari soal..." oninput="filterKelolaSoal()" class="flex-1 px-3 py-2 border rounded-xl text-xs">
         <select id="kp-jenis" onchange="filterKelolaSoal()" class="px-3 py-2 border rounded-xl text-xs bg-white">
           <option value="">Semua Jenis</option>
           ${Object.values(JENIS_SOAL).map(j => `<option value="${j.kode}">${j.label}</option>`).join("")}
@@ -1924,13 +1867,13 @@ async function kelolaSoalPaket(paketId) {
           const previewKunci = (() => {
             const jaw = s.jawaban || {};
             if (s.jenis === "PG") return `Kunci: <b class="text-emerald-700">${jaw.kunci || "-"}</b>`;
-            if (s.jenis === "PGK") return `Kunci: <b class="text-emerald-700">${(Array.isArray(jaw.kunci) ? jaw.kunci : []).sort().join(", ") || "-"}</b>`;
+            if (s.jenis === "PGK") return `Kunci: <b class="text-emerald-700">${(Array.isArray(jaw.kunci) ? jaw.kunci.slice().sort() : []).join(", ") || "-"}</b>`;
             if (s.jenis === "ISIAN") return `Kunci: <b class="text-emerald-700">${(Array.isArray(jaw.kunci) ? jaw.kunci : [jaw.kunci || "-"]).slice(0,2).map(esc).join(" / ")}</b>`;
             if (s.jenis === "MENJODOHKAN") return `<span class="text-slate-500">${(s.pilihan?.kiri || []).length} pasang</span>`;
             return `<span class="text-slate-500 italic">Koreksi manual</span>`;
           })();
           return `
-          <label class="flex items-start gap-2 p-2.5 bg-white border rounded-xl cursor-pointer hover:bg-slate-50 kp-item" 
+          <label class="flex items-start gap-2 p-2.5 bg-white border rounded-xl cursor-pointer hover:bg-slate-50 kp-item"
                  data-search="${esc(((s.pertanyaan||"") + " " + (s.mapel_kode||"") + " " + (s.topik||"")).toLowerCase())}"
                  data-jenis="${esc(s.jenis || '')}">
             <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleSoalDiPaket('${paketId}', '${s.id}', this.checked)" class="mt-1 accent-indigo-600 w-4 h-4">
@@ -1984,7 +1927,6 @@ async function toggleSoalDiPaket(paketId, soalId, checked) {
       await sbDelete("paket_soal_items", `?paket_id=eq.${paketId}&soal_id=eq.${soalId}`);
       showToast("Soal dihapus dari paket.", "info");
     }
-    // Update counter
     const counter = document.getElementById("kp-count");
     if (counter) {
       const n = document.querySelectorAll(".kp-item input[type='checkbox']:checked").length;
@@ -1996,105 +1938,146 @@ async function toggleSoalDiPaket(paketId, soalId, checked) {
 }
 
 function tambahSoalKePaketBaru(paketId) {
-  // Set flag supaya simpanSoal auto-assign ke paket ini
   window.__paketIdTambahan = paketId;
   window.__paketIdSaatIni = paketId;
   closeModal();
   showBuatSoalModal(null);
 }
 
-/* ---------------------------------------------------------
-   4D. NORMALISASI SOAL AI — INTI PERBAIKAN
-   Mengubah apapun yang dikirim AI menjadi format konsisten:
-   - pilihan selalu huruf besar A-D
-   - kunci selalu huruf besar (PG) / array huruf besar (PGK)
-   - validasi struktur per jenis
-   --------------------------------------------------------- */
+/* =========================================================
+   4D. ⭐ NORMALISASI SOAL AI — VERSI TOLERAN (INTI PERBAIKAN)
+   Menerima berbagai variasi format dari Gemini:
+   - key bahasa Indonesia / Inggris
+   - pilihan object A-D / array / dibungkus
+   - kunci huruf / teks jawaban / array
+   - PGK dengan 1 kunci tetap diterima
+   - MENJODOHKAN dari berbagai struktur
+   ========================================================= */
 function normalisasiSoalAI(raw) {
-  const jenisRaw = String(raw?.jenis || "").toUpperCase().trim();
+  if (!raw || typeof raw !== "object") return null;
+
+  // --- Normalisasi jenis ---
+  let jenisRaw = String(raw.jenis || raw.type || "").toUpperCase().trim();
+  if (jenisRaw.includes("PILIHAN") && jenisRaw.includes("GANDA") && !jenisRaw.includes("KOMPLEKS")) jenisRaw = "PG";
+  if (jenisRaw === "PG" || jenisRaw === "MULTIPLE CHOICE") jenisRaw = "PG";
+  if (jenisRaw.includes("KOMPLEKS") || jenisRaw === "PGK" || jenisRaw === "MULTIPLE ANSWER") jenisRaw = "PGK";
+  if (jenisRaw.includes("JODOH") || jenisRaw.includes("MATCH") || jenisRaw === "PAIRING") jenisRaw = "MENJODOHKAN";
+  if (jenisRaw.includes("ISIAN") || jenisRaw.includes("SHORT") || jenisRaw === "FILL") jenisRaw = "ISIAN";
+  if (jenisRaw.includes("URAIAN") || jenisRaw.includes("ESSAY") || jenisRaw === "ESAI") jenisRaw = "URAIAN";
+
+  // --- Pertanyaan ---
+  const pertanyaan = String(raw.pertanyaan || raw.question || raw.soal || raw.text || "").trim();
+  if (!pertanyaan) return null;
+
+  const pembahasan = String(raw.pembahasan || raw.explanation || raw.penjelasan || "").trim();
   const out = {
     jenis: jenisRaw,
-    pertanyaan: String(raw?.pertanyaan || "").trim(),
-    pembahasan: String(raw?.pembahasan || "").trim(),
+    pertanyaan,
+    pembahasan,
     tingkat: "sedang",
     skor: 1,
     pilihan: null,
     jawaban: {},
     media: null
   };
-  if (!out.pertanyaan) return null;
 
-  /* ---- Helper: konversi apapun → { A, B, C, D } ---- */
-  const normPilihan = (raw) => {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-    const keys = Object.keys(raw);
-    const map = {};
-    // Prioritas: key A-D (case-insensitive)
-    keys.forEach(k => {
-      const K = k.toUpperCase().trim();
-      if (/^[A-D]$/.test(K)) map[K] = String(raw[k] ?? "").trim();
-    });
-    // Fallback: pakai urutan kunci (a,b,c / 1,2,3 / opsi1..4)
-    if (!Object.keys(map).length) {
-      ["A","B","C","D"].forEach((letter, i) => {
-        if (keys[i] !== undefined) map[letter] = String(raw[keys[i]] ?? "").trim();
-      });
+  // --- Helper: normalisasi pilihan jadi {A,B,C,D} ---
+  const normPilihan = (src) => {
+    if (!src) return null;
+    // Kalau dibungkus {pilihan: {...}}
+    if (src.pilihan && typeof src.pilihan === "object" && !Array.isArray(src.pilihan)) src = src.pilihan;
+    // Kalau array → konversi ke A,B,C,D
+    if (Array.isArray(src)) {
+      const m = {};
+      src.forEach((t, i) => { if (i < 4) m[HURUF_PILIHAN[i]] = String(t ?? "").trim(); });
+      return Object.keys(m).length ? m : null;
     }
-    if (!map.A || !map.B) return null;
-    return map;
+    if (typeof src !== "object") return null;
+    const keys = Object.keys(src);
+    const m = {};
+    // Prioritas: key A-D
+    keys.forEach(k => {
+      const K = String(k).toUpperCase().trim();
+      if (/^[A-D]$/.test(K)) m[K] = String(src[k] ?? "").trim();
+    });
+    // Fallback: pakai urutan kunci
+    if (!Object.keys(m).length) {
+      HURUF_PILIHAN.forEach((h, i) => { if (keys[i] !== undefined) m[h] = String(src[keys[i]] ?? "").trim(); });
+    }
+    return Object.keys(m).length ? m : null;
   };
 
-  /* ---- Helper: kunci tunggal apapun → "A".."D" ---- */
-  const normKunciSingle = (k) => {
-    const s = String(k ?? "").toUpperCase().trim();
-    return /^[A-D]$/.test(s) ? s : null;
-  };
+  // --- Ambil rawKunci dari berbagai bentuk ---
+  let rawKunci = raw.jawaban ?? raw.answer ?? raw.kunci ?? raw.correct ?? null;
+  if (rawKunci && typeof rawKunci === "object" && !Array.isArray(rawKunci)) {
+    rawKunci = rawKunci.kunci ?? rawKunci.answer ?? rawKunci.jawaban ?? rawKunci.correct ?? null;
+  }
 
-  /* ---- Helper: kunci array apapun → ["A","B",...] ---- */
-  const normKunciArray = (arr) => {
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .map(x => String(x ?? "").toUpperCase().trim())
-      .filter(x => /^[A-D]$/.test(x))
-      .sort();
+  // --- Helper: cari huruf dari teks pilihan ---
+  const findHurufDariTeks = (teks, pilihan) => {
+    if (!pilihan) return null;
+    const t = String(teks).trim().toUpperCase();
+    for (const h of HURUF_PILIHAN) {
+      if (pilihan[h] && pilihan[h].toUpperCase() === t) return h;
+    }
+    return null;
   };
 
   if (jenisRaw === "PG") {
-    out.pilihan = normPilihan(raw.pilihan);
-    if (!out.pilihan) return null;
-    const k = normKunciSingle(raw.jawaban?.kunci);
-    if (!k) return null;
-    if (!out.pilihan[k]) return null;
+    out.pilihan = normPilihan(raw.pilihan || raw.options || raw.opsi || raw.choices);
+    if (!out.pilihan || !out.pilihan.A || !out.pilihan.B) return null;
+    let k = String(rawKunci || "").toUpperCase().trim();
+    if (!/^[A-D]$/.test(k)) k = findHurufDariTeks(rawKunci, out.pilihan);
+    if (!k || !out.pilihan[k]) return null;
     out.jawaban = { kunci: k };
+
   } else if (jenisRaw === "PGK") {
-    out.pilihan = normPilihan(raw.pilihan);
-    if (!out.pilihan) return null;
-    const arr = normKunciArray(raw.jawaban?.kunci);
-    if (arr.length < 2) return null;
-    out.jawaban = { kunci: arr };
+    out.pilihan = normPilihan(raw.pilihan || raw.options || raw.opsi || raw.choices);
+    if (!out.pilihan || !out.pilihan.A || !out.pilihan.B) return null;
+    let arr = Array.isArray(rawKunci) ? rawKunci : (rawKunci ? [rawKunci] : []);
+    let clean = arr.map(x => {
+      let s = String(x ?? "").toUpperCase().trim();
+      if (/^[A-D]$/.test(s)) return s;
+      return findHurufDariTeks(x, out.pilihan);
+    }).filter(Boolean);
+    clean = [...new Set(clean)].sort();
+    // ✅ TOLERAN: kalau cuma 1 kunci, terima juga (AI kadang salah jenis)
+    if (clean.length === 0) return null;
+    out.jawaban = { kunci: clean };
+
   } else if (jenisRaw === "ISIAN") {
-    const k = raw.jawaban?.kunci;
-    const arr = Array.isArray(k) ? k : [k];
+    const arr = Array.isArray(rawKunci) ? rawKunci : [rawKunci];
     const clean = arr.map(x => String(x ?? "").trim()).filter(Boolean);
     if (!clean.length) return null;
     out.jawaban = { kunci: clean };
+
   } else if (jenisRaw === "MENJODOHKAN") {
-    const kiri = raw.pilihan?.kiri;
-    const kanan = raw.pilihan?.kanan;
+    let pil = raw.pilihan || raw.pairs || {};
+    if (pil.pilihan && typeof pil.pilihan === "object" && !Array.isArray(pil.pilihan)) pil = pil.pilihan;
+    const kiri = pil.kiri || raw.kiri || raw.left || raw.soal || raw.items || [];
+    const kanan = pil.kanan || raw.kanan || raw.right || raw.jawaban || [];
     if (!Array.isArray(kiri) || !Array.isArray(kanan)) return null;
     if (kiri.length < 2 || kiri.length !== kanan.length) return null;
-    const cleanKiri = kiri.map(x => String(x ?? "").trim());
-    const cleanKanan = kanan.map(x => String(x ?? "").trim());
-    if (cleanKiri.some(x => !x) || cleanKanan.some(x => !x)) return null;
-    out.pilihan = { kiri: cleanKiri, kanan: cleanKanan };
-    out.jawaban = { pasangan: cleanKiri.map((_, i) => [i, i]) };
+    const cKiri = kiri.map(x => String(x ?? "").trim());
+    const cKanan = kanan.map(x => String(x ?? "").trim());
+    if (cKiri.some(x => !x) || cKanan.some(x => !x)) return null;
+    out.pilihan = { kiri: cKiri, kanan: cKanan };
+    // Coba baca pasangan dari AI; kalau tidak ada, default [i, i]
+    let pasangan = null;
+    if (Array.isArray(raw.jawaban?.pasangan)) pasangan = raw.jawaban.pasangan;
+    else if (Array.isArray(raw.pasangan)) pasangan = raw.pasangan;
+    if (!pasangan) pasangan = cKiri.map((_, i) => [i, i]);
+    out.jawaban = { pasangan };
+
   } else if (jenisRaw === "URAIAN") {
-    const k = String(raw.jawaban?.kunci || "").trim();
+    const k = String(rawKunci || "").trim();
     if (!k) return null;
     out.jawaban = { kunci: k };
+
   } else {
     return null;
   }
+
   return out;
 }
 /* =========================================================
@@ -2143,14 +2126,12 @@ function simpanGeminiKey() {
   else delLS(STORAGE.GEMINI_KEY);
   showToast(k ? "API Key disimpan." : "API Key dihapus.", "success");
   closeModal();
-  // Refresh tab AI kalau sedang di modal paket
   if (__activeTabPaket === "ai") renderPaketModal();
   else if (appState.activeView === "paket") renderPaketList(document.getElementById("main-view-container"));
 }
 
 /* ---------------------------------------------------------
-   5B. GENERATE AI — dipanggil dari Tab 2 modal paket
-   Hasil masuk ke __tempSoalAI (belum disimpan ke DB)
+   5B. GENERATOR AI (dipanggil dari Tab 2 modal paket)
    --------------------------------------------------------- */
 async function jalankanGenerateAI() {
   const apiKey = getGeminiKey();
@@ -2172,7 +2153,6 @@ async function jalankanGenerateAI() {
   if (total === 0) { showToast("Minimal 1 soal.", "error"); return; }
   if (total > 40) { showToast("Maksimal 40 soal per generate.", "error"); return; }
 
-  // Simpan meta
   __tempSoalAIMeta = { mapel, kelas, topik };
 
   const btn = document.getElementById("ai-gen-btn");
@@ -2184,35 +2164,69 @@ async function jalankanGenerateAI() {
   if (out) out.classList.add("hidden");
   if (loaderText) loaderText.textContent = `Menghubungi Gemini... (${total} soal)`;
 
-  const systemPrompt = "Anda asisten pembuatan soal SD Indonesia kelas 4-6. Selalu balas JSON valid, tanpa markdown, tanpa penjelasan tambahan.";
-  const userPrompt = `
-Buat soal mata pelajaran "${mapel}" kelas "${kelas}" topik "${topik}".
-Jumlah per jenis:
-- PG: ${numPG}
-- PGK: ${numPGK}
+  const systemPrompt = "Anda asisten pembuatan soal SD Indonesia. WAJIB balas dengan JSON ARRAY saja. Jangan pakai markdown, jangan pakai penjelasan tambahan.";
+
+  const userPrompt = `Buat soal mata pelajaran "${mapel}" kelas "${kelas}" topik "${topik}".
+
+Jumlah soal yang diminta:
+- PG (Pilihan Ganda): ${numPG}
+- PGK (PG Kompleks): ${numPGK}
 - MENJODOHKAN: ${numJodoh}
 - ISIAN: ${numIsian}
 - URAIAN: ${numUraian}
 
-Balas HANYA array JSON. Setiap elemen objek:
-{
-  "jenis": "PG" | "PGK" | "MENJODOHKAN" | "ISIAN" | "URAIAN",
-  "pertanyaan": "...",
-  "pilihan": {...},
-  "jawaban": {...},
-  "pembahasan": "..."
-}
+Balas HANYA array JSON. Setiap elemen objek. Contoh PERSIS format:
 
-WAJIB format tepat:
-- PG: "pilihan": {"A":"...","B":"...","C":"...","D":"..."}, "jawaban": {"kunci":"A"}
-- PGK: "pilihan": {"A":"...","B":"...","C":"...","D":"..."}, "jawaban": {"kunci":["A","C"]}
-- MENJODOHKAN: "pilihan": {"kiri":["...","...","..."], "kanan":["...","...","..."]}, "jawaban": {"pasangan":[[0,0],[1,1],[2,2]]}
-- ISIAN: "pilihan": null, "jawaban": {"kunci":["alt1","alt2"]}
-- URAIAN: "pilihan": null, "jawaban": {"kunci":"jawaban lengkap"}
+[
+  {
+    "jenis": "PG",
+    "pertanyaan": "Ibu kota Indonesia adalah?",
+    "pilihan": {"A": "Jakarta", "B": "Bandung", "C": "Surabaya", "D": "Medan"},
+    "jawaban": {"kunci": "A"},
+    "pembahasan": "Jakarta adalah ibu kota Indonesia."
+  },
+  {
+    "jenis": "PGK",
+    "pertanyaan": "Hewan herbivora adalah?",
+    "pilihan": {"A": "Sapi", "B": "Kucing", "C": "Kambing", "D": "Singa"},
+    "jawaban": {"kunci": ["A", "C"]},
+    "pembahasan": "Sapi dan kambing makan tumbuhan."
+  },
+  {
+    "jenis": "MENJODOHKAN",
+    "pertanyaan": "Jodohkan hewan dengan makanannya!",
+    "pilihan": {"kiri": ["Sapi", "Ayam", "Kucing"], "kanan": ["Rumput", "Biji", "Ikan"]},
+    "jawaban": {"pasangan": [[0,0],[1,1],[2,2]]},
+    "pembahasan": "Sapi makan rumput, ayam makan biji, kucing makan ikan."
+  },
+  {
+    "jenis": "ISIAN",
+    "pertanyaan": "Hewan pemakan tumbuhan disebut?",
+    "pilihan": null,
+    "jawaban": {"kunci": ["herbivora"]},
+    "pembahasan": "Herbivora artinya pemakan tumbuhan."
+  },
+  {
+    "jenis": "URAIAN",
+    "pertanyaan": "Jelaskan pengertian ekosistem!",
+    "pilihan": null,
+    "jawaban": {"kunci": "Ekosistem adalah hubungan timbal balik antara makhluk hidup dengan lingkungannya."},
+    "pembahasan": "Ekosistem mencakup komponen biotik dan abiotik."
+  }
+]
 
-Untuk PG & PGK: WAJIB ada 4 pilihan key HURUF BESAR "A","B","C","D".
-Untuk MENJODOHKAN: minimal 3 pasang, jumlah kiri = kanan.
-Jawab hanya array JSON.`;
+ATURAN WAJIB:
+1. Setiap soal WAJIB punya key: "jenis", "pertanyaan", "jawaban" (pembahasan & pilihan opsional sesuai jenis).
+2. PG & PGK: "pilihan" WAJIB object dengan key "A","B","C","D" (huruf besar).
+3. PG: "jawaban.kunci" = 1 huruf saja, contoh: "A"
+4. PGK: "jawaban.kunci" = ARRAY minimal 2 huruf, contoh: ["A","C"]
+5. MENJODOHKAN: "pilihan.kiri" & "pilihan.kanan" WAJIB array string dengan panjang SAMA, minimal 3.
+6. MENJODOHKAN: "jawaban.pasangan" = [[0,0],[1,1],[2,2],...]
+7. ISIAN: "pilihan" = null, "jawaban.kunci" = array string alternatif, contoh: ["jawaban1","jawaban2"]
+8. URAIAN: "pilihan" = null, "jawaban.kunci" = string panjang
+9. Jangan pakai teks di luar JSON. Jangan bungkus dengan markdown.
+
+Jawab HANYA array JSON.`;
 
   const schema = {
     type: "ARRAY",
@@ -2239,47 +2253,45 @@ Jawab hanya array JSON.`;
     try { soalArr = JSON.parse(jsonText); }
     catch (e) {
       const m = jsonText.match(/\[[\s\S]*\]/);
-      if (m) soalArr = JSON.parse(m[0]);
-      else throw new Error("Format JSON dari AI tidak valid.");
+      if (m) {
+        try { soalArr = JSON.parse(m[0]); }
+        catch(e2) { throw new Error("Format JSON tidak valid."); }
+      }
+      else throw new Error("Format JSON tidak valid.");
     }
-    if (!Array.isArray(soalArr) || !soalArr.length) throw new Error("AI tidak mengembalikan soal.");
+    if (!Array.isArray(soalArr) || !soalArr.length) throw new Error("AI tidak mengembalikan array.");
 
-    // ⭐ NORMALISASI — inti perbaikan
+    // Normalisasi
     const normalized = soalArr.map(normalisasiSoalAI).filter(Boolean);
     const skipped = soalArr.length - normalized.length;
 
     if (!normalized.length) {
-      throw new Error("Semua soal dari AI formatnya tidak valid. Coba generate ulang atau ubah topik.");
+      throw new Error("Semua soal formatnya tidak valid. Coba generate ulang atau ubah topik.");
     }
 
-    // Tambahkan ke __tempSoalAI (append, bukan replace — supaya bisa generate bertahap)
     __tempSoalAI = [...__tempSoalAI, ...normalized];
 
     if (loader) loader.classList.add("hidden");
     if (btn) btn.disabled = false;
 
-    if (skipped > 0) {
-      showToast(`✓ ${normalized.length} soal valid, ${skipped} dilewati (format tidak lengkap).`, "info");
-    } else {
-      showToast(`✓ Berhasil generate ${normalized.length} soal.`, "success");
-    }
+    if (skipped > 0) showToast(`✓ ${normalized.length} soal valid, ${skipped} dilewati.`, "info");
+    else showToast(`✓ Berhasil generate ${normalized.length} soal.`, "success");
 
-    // Re-render tab AI untuk tampilkan preview
     renderPaketModal();
 
   } catch (err) {
     if (loader) loader.classList.add("hidden");
     if (out) {
       out.classList.remove("hidden");
-      out.innerHTML = `<div class="text-red-600 text-xs"><b>Gagal:</b> ${esc(err.message)}</div>`;
+      out.innerHTML = `<div class="text-red-600 text-xs whitespace-pre-wrap"><b>Gagal:</b> ${esc(err.message)}</div>`;
     }
     if (btn) btn.disabled = false;
-    showToast("Gagal generate: " + err.message, "error");
+    showToast("Gagal generate: " + err.message, "error", 6000);
   }
 }
 
 /* ---------------------------------------------------------
-   5C. EXPORT PAKET ke JSON (backup)
+   5C. EXPORT PAKET JSON
    --------------------------------------------------------- */
 async function exportPaketJSON(id) {
   try {
@@ -2315,18 +2327,15 @@ async function exportPaketJSON(id) {
    5D. KEYBOARD SHORTCUT
    --------------------------------------------------------- */
 document.addEventListener("keydown", (e) => {
-  // Ctrl+S / Cmd+S → klik tombol simpan di modal
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
     const saveBtn = document.querySelector('#modal-body button[onclick*="simpan"], #modal-body button[onclick*="Simpan"]');
     if (saveBtn) saveBtn.click();
   }
-  // ESC → tutup modal
   if (e.key === "Escape") {
     const modal = document.getElementById("modal-container");
     if (modal && !modal.classList.contains("hidden")) closeModal();
   }
-  // Tab navigation di modal paket: Alt+1 → Info, Alt+2 → AI
   if (e.altKey && (e.key === "1" || e.key === "2")) {
     const modal = document.getElementById("modal-container");
     if (modal && !modal.classList.contains("hidden")) {
@@ -2339,15 +2348,16 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* ---------------------------------------------------------
-   5E. BOOT LOG & SAFETY CHECK
+   5E. BOOT LOG
    --------------------------------------------------------- */
-console.log("[EduSmart] buat_kuis.html v4.2 loaded");
+console.log("[EduSmart] buat_kuis.html v4.3 loaded");
+console.log("  • GEMINI_MODELS: gemini-2.5-flash");
 console.log("  • Menu sidebar: Paket Soal, Bank Soal (Generator AI di dalam paket)");
 console.log("  • Form PG/PGK: klik kotak huruf A-D untuk set kunci");
 console.log("  • Tab paket: Info Paket + Generate AI (Alt+1 / Alt+2)");
-console.log("  • normalisasiSoalAI(): pilihan AI apapun → huruf besar A-D");
+console.log("  • normalisasiSoalAI(): toleran — terima PGK 1 kunci, kunci teks → huruf, dll");
 
-// Safety: pastikan semua fungsi yang dibutuhkan ada
+// Safety: pastikan semua fungsi ada
 setTimeout(() => {
   const cek = [
     "renderPaketList", "renderBankSoalList", "showBuatPaketModal",
