@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Administrasi Kelas & Cetak Kartu (F4)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .f4-sheet-portrait {
+            width: 215mm;
+            min-height: 330mm;
+            padding: 10mm 12mm;
+            margin: 0 auto 20px auto;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            position: relative;
+            page-break-after: always;
+        }
+
+        .f4-sheet-landscape {
+            width: 330mm;
+            min-height: 215mm;
+            padding: 10mm 12mm;
+            margin: 0 auto 20px auto;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            position: relative;
+            page-break-after: always;
+        }
+
+        .card-item {
+            width: 88mm;
+            height: 154mm;
+            padding: 4mm 5mm;
+            box-sizing: border-box;
+            background: #ffffff;
+            border: 1px dashed #94a3b8;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            font-size: 11px;
+            page-break-inside: avoid;
+        }
+
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            table-layout: fixed;
+        }
+
+        .doc-table th, .doc-table td {
+            border: 1px solid #334155;
+            padding: 4px 6px;
+            text-align: center;
+            vertical-align: middle;
+            overflow: hidden;
+        }
+
+        .doc-table th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9.5px;
+            color: #1e293b;
+        }
+
+        .iuran-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+            table-layout: fixed;
+        }
+
+        .iuran-table th, .iuran-table td {
+            border: 1px solid #1e293b;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .iuran-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9px;
+        }
+
+        @media print {
+            @page {
+                size: 215mm 330mm;
+                margin: 0;
+            }
+
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .f4-sheet-portrait, .f4-sheet-landscape {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 10mm 12mm !important;
+            }
+
+            .f4-sheet-portrait {
+                width: 215mm !important;
+                min-height: 330mm !important;
+            }
+
+            .f4-sheet-landscape {
+                width: 330mm !important;
+                min-height: 215mm !important;
+            }
+
+            .card-item {
+                border: 1px dashed #64748b !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row">
+
+    <!-- SIDEBAR -->
+    <aside class="no-print w-full md:w-96 bg-slate-900 text-slate-100 p-5 overflow-y-auto max-h-screen flex-shrink-0 shadow-2xl flex flex-col justify-between">
+        <div>
+            <div class="flex items-center gap-3 mb-5 pb-3 border-b border-slate-800">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-900/50">
+                    <i class="fa-solid fa-folder-tree text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base leading-tight text-white">Administrasi Kelas</h1>
+                    <p class="text-xs text-slate-400">Cetak Dokumen & Kartu F4</p>
+                </div>
+            </div>
+
+            <div class="mb-5 space-y-1">
+                <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Pilih Jenis Dokumen</label>
+                
+                <button type="button" onclick="switchModule('absen')" id="nav-absen" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all bg-indigo-600 text-white shadow-md shadow-indigo-900/40">
+                    <i class="fa-solid fa-clipboard-user w-4 text-center"></i>
+                    <span>Tabel Presensi / Absen Siswa</span>
+                </button>
+
+                <button type="button" onclick="switchModule('penilaian')" id="nav-penilaian" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-chart-line w-4 text-center"></i>
+                    <span>Tabel Penilaian Guru (Asesmen)</span>
+                </button>
+
+                <button type="button" onclick="switchModule('kas')" id="nav-kas" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-vault w-4 text-center"></i>
+                    <span>Tabel Buku Kas Kelas</span>
+                </button>
+
+                <button type="button" onclick="switchModule('jurnal')" id="nav-jurnal" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-book-bookmark w-4 text-center"></i>
+                    <span>Jurnal & Agenda Harian</span>
+                </button>
+
+                <button type="button" onclick="switchModule('inventaris')" id="nav-inventaris" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-boxes-packing w-4 text-center"></i>
+                    <span>Tabel Inventaris Barang Kelas</span>
+                </button>
+
+                <button type="button" onclick="switchModule('bk')" id="nav-bk" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-user-shield w-4 text-center"></i>
+                    <span>Catatan BK / Kedisiplinan Siswa</span>
+                </button>
+
+                <button type="button" onclick="switchModule('tabungan')" id="nav-tabungan" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-piggy-bank w-4 text-center"></i>
+                    <span>Tabel Rekap Tabungan Siswa</span>
+                </button>
+
+                <button type="button" onclick="switchModule('iuran')" id="nav-iuran" class="nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                    <i class="fa-solid fa-id-card w-4 text-center"></i>
+                    <span>Kartu Iuran Komite (8x15 cm)</span>
+                </button>
+            </div>
+
+            <form id="docForm" class="space-y-4 text-xs" onsubmit="event.preventDefault();">
+                
+                <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-2.5">
+                    <span class="block text-[11px] font-bold text-indigo-400 uppercase tracking-wide">Data Umum Sekolah & Kelas</span>
+                    
+                    <div>
+                        <label class="block text-slate-300 mb-1">Nama Instansi / Sekolah</label>
+                        <input type="text" id="schoolName" value="SD NEGERI HARAPAN BANGSA" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 text-slate-100 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Kelas</label>
+                            <input type="text" id="className" value="VI - A" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 text-slate-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Tahun Ajaran</label>
+                            <input type="text" id="academicYear" value="2026 / 2027" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 text-slate-100 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-2.5">
+                    <span class="block text-[11px] font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrows-up-down"></i> Tinggi Baris / Spasi Vertikal
+                    </span>
+                    
+                    <div>
+                        <input type="range" id="rowHeightSlider" min="1" max="10" value="3" step="1" 
+                               class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                               oninput="updateRowHeightLabel(); renderPreview();">
+                        <div class="flex justify-between text-[8px] text-slate-400 mt-1 px-0.5">
+                            <span>Rapat</span>
+                            <span>Sedang</span>
+                            <span>Tinggi</span>
+                            <span>S.Tinggi</span>
+                            <span>Ekstra</span>
+                            <span>Besar</span>
+                            <span>Longgar</span>
+                            <span>Luas</span>
+                            <span>Maks</span>
+                            <span>Ultra</span>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <span id="rowHeightLabel" class="text-[10px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/50">
+                            Sedang (Default)
+                        </span>
+                    </div>
+                </div>
+
+                <div id="moduleControls" class="space-y-3"></div>
+
+                <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 space-y-2">
+                    <span class="block text-[11px] font-bold text-indigo-400 uppercase tracking-wide">Penandatangan / Paraf</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-300 text-[10px] mb-0.5" id="lblSignLeft">Tanda Tangan Kiri</label>
+                            <input type="text" id="signLeft" value="" placeholder="(Bisa dikosongi)" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 text-[10px] mb-0.5" id="lblSignRight">Tanda Tangan Kanan</label>
+                            <input type="text" id="signRight" value="" placeholder="(Bisa dikosongi)" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100">
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800 space-y-2 mt-4">
+            <button type="button" onclick="window.print()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-900/50 flex items-center justify-center gap-2 transition-all">
+                <i class="fa-solid fa-print"></i> Cetak Dokumen / F4
+            </button>
+            <p class="text-[10px] text-center text-slate-400 italic">
+                <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i> Atur ukuran kertas ke <b>F4 / Folio (215 x 330 mm)</b>.
+            </p>
+        </div>
+    </aside>
+
+    <!-- MAIN PREVIEW -->
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto flex flex-col items-center bg-slate-200/70 min-h-screen">
+        
+        <div class="no-print bg-white border border-slate-300 rounded-2xl p-4 mb-6 max-w-5xl w-full flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div id="moduleIcon" class="bg-indigo-100 text-indigo-700 p-3 rounded-xl text-lg">
+                    <i class="fa-solid fa-id-card"></i>
+                </div>
+                <div>
+                    <h2 id="moduleTitle" class="font-bold text-sm text-slate-800">Kartu Iuran Komite (Ukuran 8 x 15 cm)</h2>
+                    <p id="moduleSubtitle" class="text-xs text-slate-500">Hasil cetak presisi pada lembar kertas F4 (4 kartu per lembar).</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs bg-slate-100 px-3 py-1.5 rounded-full border border-slate-300 text-slate-700 font-semibold" id="pageCounterBadge">1 Lembar F4</span>
+            </div>
+        </div>
+
+        <div id="printSheetsContainer" class="w-full flex flex-col items-center"></div>
+
+    </main>
+
+    <script>
+        let currentModule = 'absen';
+        let cardMode = 'blank';
+
+        // ============================================================
+        // ROW HEIGHT CONFIGURATION (10 LEVEL)
+        // rowHeight  = tinggi baris untuk tabel utama (mm)
+        // cardMonthH = tinggi baris BULAN di Kartu Iuran (mm) - khusus, lebih kecil
+        // ============================================================
+        const rowHeightLevels = {
+            1:  { label: 'Rapat',            rowPad: 2,  rowHeight: 5,    cardMonthH: 4.0, cardRowPad: 0.5, signSpace: 'h-8'  },
+            2:  { label: 'Sedang',           rowPad: 3,  rowHeight: 6,    cardMonthH: 4.5, cardRowPad: 1,   signSpace: 'h-9'  },
+            3:  { label: 'Sedang (Default)', rowPad: 4,  rowHeight: 7,    cardMonthH: 5.0, cardRowPad: 1.5, signSpace: 'h-10' },
+            4:  { label: 'Tinggi',           rowPad: 5,  rowHeight: 8.5,  cardMonthH: 5.5, cardRowPad: 2,   signSpace: 'h-12' },
+            5:  { label: 'S. Tinggi',        rowPad: 6,  rowHeight: 10,   cardMonthH: 6.0, cardRowPad: 2.5, signSpace: 'h-14' },
+            6:  { label: 'Ekstra',           rowPad: 7,  rowHeight: 11.5, cardMonthH: 6.5, cardRowPad: 3,   signSpace: 'h-16' },
+            7:  { label: 'Besar',            rowPad: 8,  rowHeight: 13,   cardMonthH: 7.0, cardRowPad: 3.5, signSpace: 'h-20' },
+            8:  { label: 'Longgar',          rowPad: 9,  rowHeight: 15,   cardMonthH: 7.5, cardRowPad: 4,   signSpace: 'h-24' },
+            9:  { label: 'Luas',             rowPad: 10, rowHeight: 17,   cardMonthH: 8.0, cardRowPad: 4.5, signSpace: 'h-28' },
+            10: { label: 'Maksimal',         rowPad: 12, rowHeight: 19,   cardMonthH: 8.5, cardRowPad: 5,   signSpace: 'h-32' }
+        };
+
+        function getRowHeightConfig() {
+            const slider = document.getElementById('rowHeightSlider');
+            const level = slider ? parseInt(slider.value) : 3;
+            return rowHeightLevels[level] || rowHeightLevels[3];
+        }
+
+        function updateRowHeightLabel() {
+            const config = getRowHeightConfig();
+            const label = document.getElementById('rowHeightLabel');
+            if (label) label.textContent = config.label;
+        }
+
+        function getCurrentRowHeightStyle() {
+            const config = getRowHeightConfig();
+            return {
+                rowHeightMm: config.rowHeight,
+                cellPad: config.rowPad,
+                cardMonthH: config.cardMonthH,
+                cardRowPad: config.cardRowPad,
+                signSpace: config.signSpace
+            };
+        }
+
+        // ============================================================
+        // CARD COLUMN WIDTH CONFIGURATION (7 LEVEL)
+        // Mengatur LEBAR KOLOM tabel iuran: Bulan, Tanggal, Jumlah, Paraf
+        // ============================================================
+        const cardColWidthLevels = {
+            1: { label: 'Bulan Sempit',   bulan: 22, tanggal: 20, jumlah: 30, paraf: 28 },
+            2: { label: 'Bulan Kecil',    bulan: 24, tanggal: 20, jumlah: 30, paraf: 26 },
+            3: { label: 'Bulan Sedang',   bulan: 26, tanggal: 20, jumlah: 28, paraf: 26 },
+            4: { label: 'Seimbang',       bulan: 24, tanggal: 18, jumlah: 32, paraf: 26 },
+            5: { label: 'Jumlah Besar',   bulan: 22, tanggal: 16, jumlah: 36, paraf: 26 },
+            6: { label: 'Jumlah Lebar',   bulan: 20, tanggal: 15, jumlah: 40, paraf: 25 },
+            7: { label: 'Jumlah Maks',    bulan: 18, tanggal: 14, jumlah: 44, paraf: 24 }
+        };
+
+        function getCardColWidthConfig() {
+            const slider = document.getElementById('cardColWidthSlider');
+            const level = slider ? parseInt(slider.value) : 4;
+            return cardColWidthLevels[level] || cardColWidthLevels[4];
+        }
+
+        function updateCardColWidthLabel() {
+            const config = getCardColWidthConfig();
+            const label = document.getElementById('cardColWidthLabel');
+            if (label) label.textContent = config.label;
+        }
+
+        // ============================================================
+        // EXCEL TEMPLATE & IMPORT
+        // ============================================================
+        function getExcelControlHTML(targetTextAreaId) {
+            return `
+                <div class="bg-slate-900/80 border border-slate-700/80 p-2.5 rounded-xl space-y-2 my-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> Olah Data Siswa via Excel
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="downloadExcelTemplate()" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-[10px] font-medium flex items-center justify-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-download text-amber-400"></i> Unduh Template
+                        </button>
+                        <label class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-emerald-900/30">
+                            <i class="fa-solid fa-file-import"></i> Impor Excel
+                            <input type="file" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelImport(event, '${targetTextAreaId}')">
+                        </label>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadExcelTemplate() {
+            const templateData = [
+                { "No": 1, "NIS": "1001", "Nama Siswa": "Ahmad Fauzi", "L/P": "L" },
+                { "No": 2, "NIS": "1002", "Nama Siswa": "Budi Santoso", "L/P": "L" },
+                { "No": 3, "NIS": "1003", "Nama Siswa": "Citra Lestari", "L/P": "P" },
+                { "No": 4, "NIS": "1004", "Nama Siswa": "Dewi Anggraini", "L/P": "P" },
+                { "No": 5, "NIS": "1005", "Nama Siswa": "Eko Prasetyo", "L/P": "L" }
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(templateData);
+            worksheet['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 30 }, { wch: 8 }];
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Siswa");
+            XLSX.writeFile(workbook, "Template_Daftar_Siswa_Kelas.xlsx");
+        }
+
+        function handleExcelImport(event, targetTextAreaId) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    if (!jsonData || jsonData.length === 0) {
+                        alert('File Excel kosong!');
+                        return;
+                    }
+
+                    let nameColIndex = -1;
+                    let startRow = 0;
+
+                    for (let r = 0; r < Math.min(5, jsonData.length); r++) {
+                        const row = jsonData[r];
+                        if (Array.isArray(row)) {
+                            for (let c = 0; c < row.length; c++) {
+                                const val = String(row[c] || '').toLowerCase().trim();
+                                if (val.includes('nama') || val.includes('siswa')) {
+                                    nameColIndex = c;
+                                    startRow = r + 1;
+                                    break;
+                                }
+                            }
+                        }
+                        if (nameColIndex !== -1) break;
+                    }
+
+                    if (nameColIndex === -1) {
+                        nameColIndex = 1;
+                        startRow = 0;
+                    }
+
+                    const extractedNames = [];
+                    for (let r = startRow; r < jsonData.length; r++) {
+                        const row = jsonData[r];
+                        if (row && row[nameColIndex]) {
+                            const nameVal = String(row[nameColIndex]).trim();
+                            if (nameVal && !nameVal.toLowerCase().includes('nama') && !nameVal.toLowerCase().includes('siswa')) {
+                                extractedNames.push(nameVal);
+                            }
+                        }
+                    }
+
+                    if (extractedNames.length > 0) {
+                        const targetElem = document.getElementById(targetTextAreaId);
+                        if (targetElem) {
+                            targetElem.value = extractedNames.join('\n');
+                            
+                            const rowCountInput = document.getElementById('absenRowCount') || document.getElementById('nilaiRowCount');
+                            if (rowCountInput && extractedNames.length > parseInt(rowCountInput.value)) {
+                                rowCountInput.value = extractedNames.length;
+                            }
+                            
+                            renderPreview();
+                        }
+                    } else {
+                        alert('Tidak ditemukan data nama siswa dalam file Excel yang diunggah.');
+                    }
+                } catch (err) {
+                    alert('Gagal membaca file Excel. Pastikan file berformat .xlsx, .xls, atau .csv');
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ============================================================
+        // MONTH CYCLES
+        // ============================================================
+        const monthsJuly = [
+            "Juli", "Agustus", "September", "Oktober", 
+            "November", "Desember", "Januari", "Februari", 
+            "Maret", "April", "Mei", "Juni"
+        ];
+
+        const monthsJanuary = [
+            "Januari", "Februari", "Maret", "April", 
+            "Mei", "Juni", "Juli", "Agustus", 
+            "September", "Oktober", "November", "Desember"
+        ];
+
+        // ============================================================
+        // SAMPLE STUDENTS
+        // ============================================================
+        const sampleStudents = [
+            "Ahmad Fauzi", "Budi Santoso", "Citra Lestari", "Dewi Anggraini",
+            "Eko Prasetyo", "Fani Rahmawati", "Gita Gutawa", "Hadi Wijaya",
+            "Indah Permata", "Joko Widodo", "Kurnia Mega", "Lani Triana"
+        ];
+
+        // ============================================================
+        // MODULE SWITCHER
+        // ============================================================
+        function switchModule(moduleKey) {
+            currentModule = moduleKey;
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all text-slate-300 hover:bg-slate-800 hover:text-white";
+            });
+
+            const activeBtn = document.getElementById(`nav-${moduleKey}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn w-full text-left px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2.5 transition-all bg-indigo-600 text-white shadow-md shadow-indigo-900/40";
+            }
+
+            renderSidebarControls();
+            renderPreview();
+        }
+
+        // ============================================================
+        // SIDEBAR CONTROLS PER MODULE
+        // ============================================================
+        function renderSidebarControls() {
+            const container = document.getElementById('moduleControls');
+            const iconContainer = document.getElementById('moduleIcon');
+            const titleElement = document.getElementById('moduleTitle');
+            const subtitleElement = document.getElementById('moduleSubtitle');
+
+            const lblSignLeft = document.getElementById('lblSignLeft');
+            const lblSignRight = document.getElementById('lblSignRight');
+            const signLeftInput = document.getElementById('signLeft');
+            const signRightInput = document.getElementById('signRight');
+
+            if (currentModule === 'absen') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-clipboard-user"></i>`;
+                titleElement.innerText = "Tabel Presensi / Absensi Siswa";
+                subtitleElement.innerText = "Format daftar hadir bulanan (31 hari) siap cetak F4 Landscape.";
+                lblSignLeft.innerText = "Mengetahui, Kepala Sekolah";
+                lblSignRight.innerText = "Guru Kelas / Wali Kelas";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-300 mb-1">Bulan Presensi</label>
+                                <select id="absenMonth" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                                    <option value="Juli">Juli</option>
+                                    <option value="Agustus">Agustus</option>
+                                    <option value="September">September</option>
+                                    <option value="Oktober">Oktober</option>
+                                    <option value="November">November</option>
+                                    <option value="Desember">Desember</option>
+                                    <option value="Januari">Januari</option>
+                                    <option value="Februari">Februari</option>
+                                    <option value="Maret">Maret</option>
+                                    <option value="April">April</option>
+                                    <option value="Mei">Mei</option>
+                                    <option value="Juni">Juni</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 mb-1">Jumlah Baris Siswa</label>
+                                <input type="number" id="absenRowCount" value="28" min="10" max="45" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                            </div>
+                        </div>
+
+                        ${getExcelControlHTML('absenStudentList')}
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Daftar Nama Siswa</label>
+                            <textarea id="absenStudentList" rows="5" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-[11px]">${sampleStudents.join('\n')}</textarea>
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'penilaian') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-chart-line"></i>`;
+                titleElement.innerText = "Tabel Penilaian / Asesmen Guru";
+                subtitleElement.innerText = "Format penilaian rekapitulasi nilai tugas, harian, dan ujian pada F4 Portrait.";
+                lblSignLeft.innerText = "Mengetahui, Kepala Sekolah";
+                lblSignRight.innerText = "Guru Mata Pelajaran / Kelas";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Mata Pelajaran</label>
+                            <input type="text" id="subjectName" value="Matematika / Kurikulum Merdeka" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-300 mb-1">Semester</label>
+                                <select id="semesterVal" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                                    <option value="Ganjil (1)">Ganjil (1)</option>
+                                    <option value="Genap (2)">Genap (2)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 mb-1">Jumlah Baris</label>
+                                <input type="number" id="nilaiRowCount" value="25" min="10" max="40" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                            </div>
+                        </div>
+
+                        ${getExcelControlHTML('nilaiStudentList')}
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Daftar Nama Siswa</label>
+                            <textarea id="nilaiStudentList" rows="5" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-[11px]">${sampleStudents.join('\n')}</textarea>
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'kas') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-vault"></i>`;
+                titleElement.innerText = "Tabel Buku Kas Kelas";
+                subtitleElement.innerText = "Catatan rekapitulasi Pemasukan, Pengeluaran, dan Saldo Kas Kelas pada F4.";
+                lblSignLeft.innerText = "Wali Kelas";
+                lblSignRight.innerText = "Bendahara Kelas";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Periode Kas</label>
+                            <input type="text" id="kasPeriod" value="Bulan September 2026" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Jumlah Baris Tabel</label>
+                            <input type="number" id="kasRowCount" value="22" min="10" max="35" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'jurnal') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-book-bookmark"></i>`;
+                titleElement.innerText = "Jurnal & Agenda Harian Kelas";
+                subtitleElement.innerText = "Catatan kegiatan pembelajaran, materi, dan absensi harian kelas.";
+                lblSignLeft.innerText = "Mengetahui, Kepala Sekolah";
+                lblSignRight.innerText = "Guru / Wali Kelas";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Bulan Jurnal</label>
+                            <input type="text" id="jurnalMonth" value="September 2026" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Jumlah Baris Pertemuan</label>
+                            <input type="number" id="jurnalRowCount" value="20" min="10" max="30" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'inventaris') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-boxes-packing"></i>`;
+                titleElement.innerText = "Tabel Inventaris & Barang Kelas";
+                subtitleElement.innerText = "Daftar cek prasarana, meubelair, dan peralatan kelengkapan kelas pada F4.";
+                lblSignLeft.innerText = "Mengetahui, Kepala Sekolah";
+                lblSignRight.innerText = "Wali Kelas / Pengelola Barang";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Jumlah Baris Barang</label>
+                            <input type="number" id="invRowCount" value="22" min="10" max="35" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'bk') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-user-shield"></i>`;
+                titleElement.innerText = "Catatan Bimbingan BK / Kedisiplinan";
+                subtitleElement.innerText = "Buku rekap kejadian, bimbingan, serta konseling siswa kelas.";
+                lblSignLeft.innerText = "Guru BK / Pendamping";
+                lblSignRight.innerText = "Wali Kelas";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Jumlah Baris Catatan</label>
+                            <input type="number" id="bkRowCount" value="20" min="10" max="30" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'tabungan') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-piggy-bank"></i>`;
+                titleElement.innerText = "Tabel Rekap Tabungan Siswa";
+                subtitleElement.innerText = "Buku catatan simpanan dan tabungan harian/mingguan siswa F4 Landscape.";
+                lblSignLeft.innerText = "Mengetahui, Wali Kelas";
+                lblSignRight.innerText = "Pengelola Tabungan";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Bulan / Periode Tabungan</label>
+                            <input type="text" id="tabMonth" value="Tahun Ajaran 2026/2027" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Jumlah Baris Siswa</label>
+                            <input type="number" id="tabRowCount" value="25" min="10" max="40" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        ${getExcelControlHTML('tabStudentList')}
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Daftar Nama Siswa</label>
+                            <textarea id="tabStudentList" rows="4" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-[11px]">${sampleStudents.join('\n')}</textarea>
+                        </div>
+                    </div>
+                `;
+            } else if (currentModule === 'iuran') {
+                iconContainer.innerHTML = `<i class="fa-solid fa-id-card"></i>`;
+                titleElement.innerText = "Kartu Iuran Komite (8 x 15 cm)";
+                subtitleElement.innerText = "Ditata 4 kartu per lembar F4 dengan garis potong presisi.";
+                lblSignLeft.innerText = "Nama / Paraf Ketua Komite";
+                lblSignRight.innerText = "Nama / Paraf Bendahara";
+
+                if (signLeftInput.value === "H. Ahmad Dahlan, S.Pd.") signLeftInput.value = "";
+                if (signRightInput.value === "Ibu Siti Aminah, S.Pd.") signRightInput.value = "";
+
+                container.innerHTML = `
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Judul Kartu</label>
+                            <input type="text" id="cardTitle" value="KARTU IURAN KOMITE" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-300 mb-1">Awal Periode</label>
+                                <select id="monthStart" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                                    <option value="july">Juli - Juni</option>
+                                    <option value="january">Januari - Des</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 mb-1">Nominal / Jumlah (Opsional)</label>
+                                <input type="text" id="defaultAmount" value="" placeholder="(Kosong / Isi)" class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 mb-1">Catatan Pembayaran</label>
+                            <input type="text" id="deadlineNote" value="Catatan: Pembayaran paling lambat tanggal 15 setiap bulannya." class="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100">
+                        </div>
+
+                        <div class="bg-slate-800/60 p-3 rounded-xl border border-amber-700/60 space-y-2.5">
+                            <span class="block text-[11px] font-bold text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-left-right"></i> Lebar Kolom Kartu
+                            </span>
+                            
+                            <div>
+                                <input type="range" id="cardColWidthSlider" min="1" max="7" value="4" step="1" 
+                                       class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                       oninput="updateCardColWidthLabel(); renderPreview();">
+                                <div class="flex justify-between text-[8px] text-slate-400 mt-1 px-0.5">
+                                    <span>Bulan Sempit</span>
+                                    <span>Seimbang</span>
+                                    <span>Jumlah Besar</span>
+                                </div>
+                            </div>
+                            
+                            <div class="text-center">
+                                <span id="cardColWidthLabel" class="text-[10px] font-semibold text-amber-300 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/50">
+                                    Seimbang (Default)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-700/80 pt-2">
+                            <label class="block text-slate-300 mb-1.5 font-semibold">Mode Isian Kartu</label>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <button type="button" id="btnModeBlank" onclick="setCardMode('blank')" class="py-1.5 px-2 rounded-lg border text-indigo-300 border-indigo-500 bg-indigo-950/40 text-[11px] font-semibold">Kartu Kosong</button>
+                                <button type="button" id="btnModeStudents" onclick="setCardMode('students')" class="py-1.5 px-2 rounded-lg border text-slate-400 border-slate-700 hover:bg-slate-800 text-[11px]">Daftar Siswa</button>
+                            </div>
+
+                            <div id="iuranBlankSec">
+                                <label class="block text-slate-400 text-[10px] mb-1">Jumlah Kartu</label>
+                                <input type="number" id="blankCount" value="4" min="1" max="40" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100">
+                            </div>
+
+                            <div id="iuranStudentsSec" class="hidden space-y-2">
+                                ${getExcelControlHTML('studentList')}
+                                <label class="block text-slate-400 text-[10px] mb-1">Daftar Nama Siswa (1 Nama Per Baris)</label>
+                                <textarea id="studentList" rows="4" class="w-full p-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-[11px]">${sampleStudents.join('\n')}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.querySelectorAll('#docForm input, #docForm select, #docForm textarea').forEach(element => {
+                element.addEventListener('input', renderPreview);
+            });
+        }
+
+        function setCardMode(mode) {
+            cardMode = mode;
+            const btnBlank = document.getElementById('btnModeBlank');
+            const btnStudents = document.getElementById('btnModeStudents');
+            const secBlank = document.getElementById('iuranBlankSec');
+            const secStudents = document.getElementById('iuranStudentsSec');
+
+            if (mode === 'blank') {
+                btnBlank.className = "py-1.5 px-2 rounded-lg border text-indigo-300 border-indigo-500 bg-indigo-950/40 text-[11px] font-semibold";
+                btnStudents.className = "py-1.5 px-2 rounded-lg border text-slate-400 border-slate-700 hover:bg-slate-800 text-[11px]";
+                secBlank.classList.remove('hidden');
+                secStudents.classList.add('hidden');
+            } else {
+                btnStudents.className = "py-1.5 px-2 rounded-lg border text-indigo-300 border-indigo-500 bg-indigo-950/40 text-[11px] font-semibold";
+                btnBlank.className = "py-1.5 px-2 rounded-lg border text-slate-400 border-slate-700 hover:bg-slate-800 text-[11px]";
+                secStudents.classList.remove('hidden');
+                secBlank.classList.add('hidden');
+            }
+            renderPreview();
+        }
+
+        // ============================================================
+        // MAIN RENDER
+        // ============================================================
+        function renderPreview() {
+            const container = document.getElementById('printSheetsContainer');
+            container.innerHTML = '';
+
+            if (currentModule === 'iuran') {
+                renderKartuIuran(container);
+            } else if (currentModule === 'absen') {
+                renderTabelAbsen(container);
+            } else if (currentModule === 'penilaian') {
+                renderTabelPenilaian(container);
+            } else if (currentModule === 'kas') {
+                renderTabelKas(container);
+            } else if (currentModule === 'jurnal') {
+                renderJurnalKelas(container);
+            } else if (currentModule === 'inventaris') {
+                renderInventaris(container);
+            } else if (currentModule === 'bk') {
+                renderBK(container);
+            } else if (currentModule === 'tabungan') {
+                renderTabungan(container);
+            }
+        }
+
+        // ============================================================
+        // KARTU IURAN
+        // ============================================================
+        function renderKartuIuran(container) {
+            let cardDataList = [];
+
+            if (cardMode === 'blank') {
+                const count = parseInt(document.getElementById('blankCount')?.value) || 4;
+                for (let i = 0; i < count; i++) {
+                    cardDataList.push({ name: '', class: '' });
+                }
+            } else {
+                const text = document.getElementById('studentList')?.value || '';
+                const lines = text.split('\n').filter(l => l.trim() !== '');
+                if (lines.length === 0) {
+                    cardDataList = [{ name: '', class: '' }];
+                } else {
+                    lines.forEach(l => cardDataList.push({ name: l.trim(), class: '' }));
+                }
+            }
+
+            const cardsPerPage = 4;
+            const totalSheets = Math.ceil(cardDataList.length / cardsPerPage);
+            document.getElementById('pageCounterBadge').innerText = `${totalSheets} Lembar F4 (${cardDataList.length} Kartu)`;
+
+            const schoolName = document.getElementById('schoolName')?.value ?? '';
+            const className = document.getElementById('className')?.value ?? '';
+            const academicYear = document.getElementById('academicYear')?.value ?? '';
+            const cardTitle = document.getElementById('cardTitle')?.value ?? 'KARTU IURAN KOMITE';
+            const monthStart = document.getElementById('monthStart')?.value || 'july';
+            const defaultAmount = document.getElementById('defaultAmount')?.value ?? '';
+            const deadlineNote = document.getElementById('deadlineNote')?.value ?? '';
+            const signLeft = document.getElementById('signLeft')?.value ?? '';
+            const signRight = document.getElementById('signRight')?.value ?? '';
+
+            const months = monthStart === 'july' ? monthsJuly : monthsJanuary;
+            const rowHeightConfig = getCurrentRowHeightStyle();
+
+            for (let page = 0; page < totalSheets; page++) {
+                const sheetDiv = document.createElement('div');
+                sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-center items-center';
+
+                const pageCards = cardDataList.slice(page * cardsPerPage, (page + 1) * cardsPerPage);
+
+                let gridHTML = `<div class="flex flex-wrap justify-center items-center content-center gap-x-6 gap-y-4 w-full">`;
+
+                for (let i = 0; i < pageCards.length; i++) {
+                    gridHTML += createSingleCardHTML(pageCards[i].name, className, schoolName, academicYear, cardTitle, months, defaultAmount, deadlineNote, signLeft, signRight, rowHeightConfig);
+                }
+
+                const remaining = cardsPerPage - pageCards.length;
+                for (let r = 0; r < remaining; r++) {
+                    gridHTML += createSingleCardHTML('', className, schoolName, academicYear, cardTitle, months, defaultAmount, deadlineNote, signLeft, signRight, rowHeightConfig);
+                }
+
+                gridHTML += `</div>`;
+                sheetDiv.innerHTML = gridHTML;
+                container.appendChild(sheetDiv);
+            }
+        }
+
+        function createSingleCardHTML(name, cls, school, year, title, months, amount, note, signL, signR, rowHeightConfig) {
+            const colCfg = getCardColWidthConfig();
+            const rowH = rowHeightConfig.cardMonthH;   // <-- tinggi baris bulan (mm), IKUT slider
+            const cellP = rowHeightConfig.cardRowPad;  // <-- padding sel
+
+            let rowsHTML = '';
+            months.forEach(m => {
+                rowsHTML += `
+                    <tr style="height:${rowH}mm;">
+                        <td class="font-medium text-[9.5px] text-left pl-1.5" style="height:${rowH}mm; padding:${cellP}px 3px;">${m}</td>
+                        <td style="height:${rowH}mm; padding:${cellP}px 3px;"></td>
+                        <td class="text-slate-700 text-[9px]" style="height:${rowH}mm; padding:${cellP}px 3px;">${amount}</td>
+                        <td style="height:${rowH}mm; padding:${cellP}px 3px;"></td>
+                    </tr>
+                `;
+            });
+
+            return `
+                <div class="card-item rounded-sm">
+                    <div class="text-center border-b pb-1 border-slate-300">
+                        <h3 class="font-bold text-[9.5px] tracking-tight uppercase text-slate-800 leading-none">${school}</h3>
+                        <h2 class="font-extrabold text-[11.5px] text-indigo-900 tracking-wide mt-0.5 uppercase">${title}</h2>
+                        <p class="text-[8.5px] font-semibold text-slate-500 leading-none mt-0.5">Tahun Ajaran: ${year}</p>
+                    </div>
+
+                    <div class="mt-1 mb-0.5 space-y-0.5 text-[10px]">
+                        <div class="flex items-center">
+                            <span class="w-11 font-semibold text-slate-700">Nama</span>
+                            <span class="mr-1">:</span>
+                            <span class="font-bold text-slate-900 truncate border-b border-dotted border-slate-400 flex-1 pl-1">
+                                ${name || '&nbsp;'}
+                            </span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="w-11 font-semibold text-slate-700">Kelas</span>
+                            <span class="mr-1">:</span>
+                            <span class="font-medium text-slate-800 border-b border-dotted border-slate-400 flex-1 pl-1">
+                                ${cls || '&nbsp;'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-0.5">
+                        <table class="iuran-table">
+                            <colgroup>
+                                <col style="width: ${colCfg.bulan}%;">
+                                <col style="width: ${colCfg.tanggal}%;">
+                                <col style="width: ${colCfg.jumlah}%;">
+                                <col style="width: ${colCfg.paraf}%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th class="text-left pl-1.5" style="padding:${cellP}px 3px;">Bulan</th>
+                                    <th style="padding:${cellP}px 3px;">Tanggal</th>
+                                    <th style="padding:${cellP}px 3px;">Jumlah</th>
+                                    <th style="padding:${cellP}px 3px;">Paraf</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rowsHTML}</tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex-1"></div>
+
+                    <div class="mt-auto">
+                        <div class="text-[8.5px] italic text-slate-600 mb-1 leading-tight text-center">
+                            ${note}
+                        </div>
+
+                        <div class="pt-1 border-t border-slate-300 grid grid-cols-2 gap-1 text-[8.5px] text-center">
+                            <div class="flex flex-col justify-between ${rowHeightConfig.signSpace}">
+                                <div>
+                                    <p class="leading-none text-slate-600">Mengetahui,</p>
+                                    <p class="font-bold text-slate-800 uppercase leading-none mt-0.5">Ketua Komite</p>
+                                </div>
+                                <p class="font-medium text-slate-900 truncate border-b border-slate-400 pb-0.5 mx-1 min-h-[12px]">${signL || '&nbsp;'}</p>
+                            </div>
+                            <div class="flex flex-col justify-between ${rowHeightConfig.signSpace}">
+                                <div>
+                                    <p class="leading-none text-slate-600">Bendahara,</p>
+                                    <p class="font-bold text-slate-800 leading-none mt-0.5">${cls ? 'Kelas ' + cls : 'Kelas'}</p>
+                                </div>
+                                <p class="font-medium text-slate-900 truncate border-b border-slate-400 pb-0.5 mx-1 min-h-[12px]">${signR || '&nbsp;'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // TABEL PRESENSI / ABSEN
+        // ============================================================
+        function renderTabelAbsen(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Landscape";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const month = document.getElementById('absenMonth')?.value || 'September';
+            const rowCount = parseInt(document.getElementById('absenRowCount')?.value) || 25;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const listRaw = document.getElementById('absenStudentList')?.value || '';
+            const studentArray = listRaw.split('\n').filter(s => s.trim() !== '');
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let dayCols = '';
+            for (let i = 1; i <= 31; i++) {
+                dayCols += `<th class="w-5 text-[8.5px] p-0.5">${i}</th>`;
+            }
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                const sName = studentArray[r] || '';
+                let dayCells = '';
+                for (let d = 1; d <= 31; d++) {
+                    dayCells += `<td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>`;
+                }
+
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="text-left pl-2 font-medium" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;">${sName}</td>
+                        ${dayCells}
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-landscape flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">DAFTAR PRESENSI SISWA / ABSENSI BULANAN</h3>
+                        <div class="flex justify-center gap-6 text-xs mt-1 font-semibold text-slate-700">
+                            <span>KELAS: ${cls}</span>
+                            <span>BULAN: ${month.toUpperCase()}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="w-8">NO</th>
+                                <th rowspan="2" class="w-48 text-left pl-2">NAMA SISWA</th>
+                                <th colspan="31">TANGGAL BULAN ${month.toUpperCase()}</th>
+                                <th colspan="3">REKAP</th>
+                            </tr>
+                            <tr>
+                                ${dayCols}
+                                <th class="w-6">S</th>
+                                <th class="w-6">I</th>
+                                <th class="w-6">A</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Kepala Sekolah</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Guru / Wali Kelas ${cls}</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // TABEL PENILAIAN
+        // ============================================================
+        function renderTabelPenilaian(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Portrait";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const subject = document.getElementById('subjectName')?.value || 'Matematika';
+            const sem = document.getElementById('semesterVal')?.value || 'Ganjil';
+            const rowCount = parseInt(document.getElementById('nilaiRowCount')?.value) || 22;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const listRaw = document.getElementById('nilaiStudentList')?.value || '';
+            const studentArray = listRaw.split('\n').filter(s => s.trim() !== '');
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                const sName = studentArray[r] || '';
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="text-left pl-2 font-medium" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;">${sName}</td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">REKAPITULASI LEMBAR PENILAIAN HASIL BELAJAR (ASESMEN)</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>MATA PELAJARAN: ${subject.toUpperCase()}</span>
+                            <span>KELAS: ${cls}</span>
+                            <span>SEMESTER: ${sem.toUpperCase()}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="w-8">NO</th>
+                                <th rowspan="2" class="text-left pl-2">NAMA SISWA</th>
+                                <th colspan="4">NILAI FORMATIF / TUGAS</th>
+                                <th colspan="2">SUMATIF</th>
+                                <th rowspan="2" class="w-16">NILAI AKHIR</th>
+                            </tr>
+                            <tr>
+                                <th class="w-10">T1</th>
+                                <th class="w-10">T2</th>
+                                <th class="w-10">T3</th>
+                                <th class="w-10">T4</th>
+                                <th class="w-12">PTS</th>
+                                <th class="w-12">PAS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Kepala Sekolah</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Guru Pengampu</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // TABEL KAS
+        // ============================================================
+        function renderTabelKas(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Portrait";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const period = document.getElementById('kasPeriod')?.value || 'September 2026';
+            const rowCount = parseInt(document.getElementById('kasRowCount')?.value) || 22;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="w-20" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="text-right pr-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="text-right pr-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="text-right pr-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">BUKU LAPORAN KAS KELAS</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>KELAS: ${cls}</span>
+                            <span>PERIODE: ${period.toUpperCase()}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th class="w-8">NO</th>
+                                <th class="w-24">TANGGAL</th>
+                                <th class="text-left pl-2">URAIAN TRANSAKSI / KETERANGAN</th>
+                                <th class="w-24">PEMASUKAN (Rp)</th>
+                                <th class="w-24">PENGELUARAN (Rp)</th>
+                                <th class="w-24">SALDO (Rp)</th>
+                                <th class="w-12">PARAF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                            <tr class="font-bold bg-slate-100" style="height:${rowHeightMm}mm;">
+                                <td colspan="3" class="text-right pr-3 uppercase">TOTAL REKAPITULASI:</td>
+                                <td class="text-right pr-2">Rp</td>
+                                <td class="text-right pr-2">Rp</td>
+                                <td class="text-right pr-2">Rp</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Wali Kelas ${cls}</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Bendahara Kelas</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // JURNAL KELAS
+        // ============================================================
+        function renderJurnalKelas(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Portrait";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const month = document.getElementById('jurnalMonth')?.value || 'September 2026';
+            const rowCount = parseInt(document.getElementById('jurnalRowCount')?.value) || 18;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="w-20" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-12" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-24" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="w-16" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">JURNAL & AGENDA HARIAN KELAS</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>KELAS: ${cls}</span>
+                            <span>BULAN: ${month.toUpperCase()}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th class="w-8">NO</th>
+                                <th class="w-20">HARI / TGL</th>
+                                <th class="w-12">JAM KE</th>
+                                <th class="w-24">MATA PELAJARAN</th>
+                                <th class="text-left pl-2">MATERI / POKOK BAHASAN</th>
+                                <th class="w-16">ABSENSI</th>
+                                <th class="w-12">PARAF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Kepala Sekolah</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Guru Kelas / Mata Pelajaran</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // INVENTARIS
+        // ============================================================
+        function renderInventaris(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Portrait";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const rowCount = parseInt(document.getElementById('invRowCount')?.value) || 22;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            const sampleItems = [
+                "Meja Murid", "Kursi Murid", "Meja Guru", "Kursi Guru", 
+                "Papan Tulis Whiteboard", "Penghapus Papan Tulis", "Almari Kelas", 
+                "Jam Dinding", "Kipas Angin / AC", "Papan Jadwal / Display",
+                "Tempat Sampah", "Sapu & Alat Kebersihan", "Proyektor / Screen"
+            ];
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                const item = sampleItems[r] || '';
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="text-left pl-2 font-medium" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;">${item}</td>
+                        <td class="w-16" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-12" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-12" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-12" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">DAFTAR INVENTARIS BARANG & SARANA KELAS</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>RUANG KELAS: ${cls}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" class="w-8">NO</th>
+                                <th rowspan="2" class="text-left pl-2">NAMA BARANG / SARANA</th>
+                                <th rowspan="2" class="w-16">JUMLAH</th>
+                                <th colspan="3">KONDISI</th>
+                                <th rowspan="2" class="w-32">KETERANGAN / ASAL</th>
+                            </tr>
+                            <tr>
+                                <th class="w-12">BAIK</th>
+                                <th class="w-12">R. RINGAN</th>
+                                <th class="w-12">R. BERAT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Kepala Sekolah</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Wali Kelas ${cls}</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // BK / KEDISIPLINAN
+        // ============================================================
+        function renderBK(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Portrait";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const rowCount = parseInt(document.getElementById('bkRowCount')?.value) || 20;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="w-20" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td class="w-32 text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="w-32 text-left pl-2" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;"></td>
+                        <td class="w-12" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-portrait flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">CATATAN BIMBINGAN KONSELING & KEDISIPLINAN SISWA</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>KELAS: ${cls}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th class="w-8">NO</th>
+                                <th class="w-20">TANGGAL</th>
+                                <th class="w-32 text-left pl-2">NAMA SISWA</th>
+                                <th class="text-left pl-2">KEJADIAN / PERMASALAHAN / PRESTASI</th>
+                                <th class="w-32 text-left pl-2">TINDAK LANJUT / SOLUSI</th>
+                                <th class="w-12">PARAF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Guru BK / Guru Pendamping</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Wali Kelas ${cls}</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // TABUNGAN
+        // ============================================================
+        function renderTabungan(container) {
+            document.getElementById('pageCounterBadge').innerText = "1 Lembar F4 Landscape";
+
+            const school = document.getElementById('schoolName')?.value ?? '';
+            const cls = document.getElementById('className')?.value ?? '';
+            const year = document.getElementById('academicYear')?.value ?? '';
+            const month = document.getElementById('tabMonth')?.value || 'Tahun Ajaran 2026/2027';
+            const rowCount = parseInt(document.getElementById('tabRowCount')?.value) || 25;
+            const signL = document.getElementById('signLeft')?.value || '';
+            const signR = document.getElementById('signRight')?.value || '';
+
+            const listRaw = document.getElementById('tabStudentList')?.value || '';
+            const studentArray = listRaw.split('\n').filter(s => s.trim() !== '');
+
+            const cfg = getCurrentRowHeightStyle();
+            const rowHeightMm = cfg.rowHeightMm;
+
+            let rowsHTML = '';
+            for (let r = 0; r < rowCount; r++) {
+                const sName = studentArray[r] || '';
+                rowsHTML += `
+                    <tr style="height:${rowHeightMm}mm;">
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;">${r + 1}</td>
+                        <td class="text-left pl-2 font-medium" style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 4px;">${sName}</td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                        <td style="height:${rowHeightMm}mm; padding:${cfg.cellPad}px 2px;"></td>
+                    </tr>
+                `;
+            }
+
+            const sheetDiv = document.createElement('div');
+            sheetDiv.className = 'f4-sheet-landscape flex flex-col justify-between';
+
+            sheetDiv.innerHTML = `
+                <div>
+                    <div class="text-center border-b border-slate-900 pb-2 mb-3">
+                        <h2 class="font-extrabold text-base tracking-wide uppercase text-slate-900">${school}</h2>
+                        <h3 class="font-bold text-sm text-indigo-900 uppercase">REKAPITULASI BUKU TABUNGAN & SIMPANAN SISWA</h3>
+                        <div class="flex justify-between text-xs mt-2 font-semibold text-slate-700 px-2">
+                            <span>KELAS: ${cls}</span>
+                            <span>PERIODE: ${month.toUpperCase()}</span>
+                            <span>TAHUN AJARAN: ${year}</span>
+                        </div>
+                    </div>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th class="w-8">NO</th>
+                                <th class="w-48 text-left pl-2">NAMA SISWA</th>
+                                <th class="w-28">SALDO AWAL (Rp)</th>
+                                <th class="w-28">TOTAL MASUK (Rp)</th>
+                                <th class="w-28">TOTAL PENARIKAN (Rp)</th>
+                                <th class="w-28">SALDO AKHIR (Rp)</th>
+                                <th class="w-24">PARAF SISWA</th>
+                                <th>KETERANGAN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                            <tr class="font-bold bg-slate-100" style="height:${rowHeightMm}mm;">
+                                <td colspan="2" class="text-right pr-3 uppercase">TOTAL KELAS:</td>
+                                <td>Rp</td>
+                                <td>Rp</td>
+                                <td>Rp</td>
+                                <td>Rp</td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-2 text-xs text-center mt-4 pt-2">
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Mengetahui,</p>
+                            <p class="font-bold">Wali Kelas ${cls}</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signL || '&nbsp;'}</p>
+                    </div>
+                    <div class="flex flex-col justify-between h-20">
+                        <div>
+                            <p>Kota, ......................... 20...</p>
+                            <p class="font-bold">Pengelola Tabungan Kelas</p>
+                        </div>
+                        <p class="font-bold border-b border-slate-900 inline-block mx-auto min-w-[160px]">${signR || '&nbsp;'}</p>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(sheetDiv);
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        window.onload = function() {
+            updateRowHeightLabel();
+            switchModule('absen');
+        };
+    </script>
+</body>
+</html>
