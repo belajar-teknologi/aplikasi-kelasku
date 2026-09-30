@@ -192,34 +192,58 @@ const FIELD = {
   LOGIN: { ID: 0, SISWA_ID: 1, NAMA: 2, NIS: 3, KELAS: 4, WAKTU: 5 }
 };
 
-const SUPABASE_SETUP_SQL = `-- EDUSMART SETUP v5 — Jalankan SEKALI di SQL Editor Supabase
+const SUPABASE_SETUP_SQL = `-- ============================================================
+-- EDUSMART SETUP v5 - SATU KALI JALAN UNTUK SEMUA
+-- Jalankan di Supabase SQL Editor. Cukup sekali saja.
+-- ============================================================
+
 CREATE OR REPLACE FUNCTION create_dynamic_table(p_table_name TEXT, p_columns JSONB)
 RETURNS VOID AS $$
-DECLARE col_record RECORD; sql_query TEXT;
+DECLARE
+  col_record RECORD;
+  sql_query TEXT;
 BEGIN
-  IF p_table_name !~ '^[a-z][a-z0-9_]*$' THEN RAISE EXCEPTION 'Nama tabel tidak valid'; END IF;
-  sql_query := format('CREATE TABLE IF NOT EXISTS public.%I (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), created_at TIMESTAMPTZ DEFAULT now()', p_table_name);
+  IF p_table_name !~ '^[a-z][a-z0-9_]*$' THEN
+    RAISE EXCEPTION 'Nama tabel hanya boleh huruf kecil, angka, dan underscore';
+  END IF;
+  sql_query := format('CREATE TABLE IF NOT EXISTS public.%I (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ DEFAULT now()', p_table_name);
   FOR col_record IN SELECT * FROM jsonb_to_recordset(p_columns) AS (name text, type text)
   LOOP
-    IF col_record.type NOT IN ('text','integer','numeric','boolean','timestamptz','date','time','jsonb','bigint','real') THEN RAISE EXCEPTION 'Tipe % tidak diizinkan', col_record.type; END IF;
+    IF col_record.type NOT IN ('text','integer','numeric','boolean','timestamptz','date','time','jsonb','bigint','real') THEN
+      RAISE EXCEPTION 'Tipe kolom % tidak diizinkan', col_record.type;
+    END IF;
+    IF col_record.name !~ '^[a-z][a-z0-9_]*$' THEN
+      RAISE EXCEPTION 'Nama kolom % tidak valid', col_record.name;
+    END IF;
     sql_query := sql_query || format(', %I %s', col_record.name, col_record.type);
   END LOOP;
-  sql_query := sql_query || ');'; EXECUTE sql_query;
+  sql_query := sql_query || ');';
+  EXECUTE sql_query;
   EXECUTE format('GRANT ALL ON public.%I TO anon, authenticated, service_role', p_table_name);
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 GRANT EXECUTE ON FUNCTION create_dynamic_table(TEXT, JSONB) TO anon, authenticated, service_role;
 
-CREATE OR REPLACE FUNCTION get_public_tables() RETURNS TABLE (table_name text) AS $$
+CREATE OR REPLACE FUNCTION get_public_tables()
+RETURNS TABLE (table_name text) AS $$
 BEGIN
-  RETURN QUERY SELECT t.table_name::text FROM information_schema.tables t
-  WHERE t.table_schema='public' AND t.table_type='BASE TABLE' AND t.table_name NOT IN ('spatial_ref_sys');
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+  RETURN QUERY
+  SELECT t.table_name::text FROM information_schema.tables t
+  WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+    AND t.table_name NOT IN ('spatial_ref_sys');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION get_public_tables() TO anon, authenticated, service_role;
 
-CREATE OR REPLACE FUNCTION exec_sql(query text) RETURNS void AS $$ BEGIN EXECUTE query; END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE OR REPLACE FUNCTION exec_sql(query text)
+RETURNS void AS $$ BEGIN EXECUTE query; END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION exec_sql(TEXT) TO anon, authenticated, service_role;
 
 INSERT INTO storage.buckets (id, name, public) VALUES ('files','files',true) ON CONFLICT (id) DO NOTHING;
+
 DROP POLICY IF EXISTS "Public File Read Access" ON storage.objects;
 DROP POLICY IF EXISTS "Anon File Upload Access" ON storage.objects;
 DROP POLICY IF EXISTS "Anon File Update Access" ON storage.objects;
@@ -229,19 +253,108 @@ CREATE POLICY "Anon File Upload Access" ON storage.objects FOR INSERT WITH CHECK
 CREATE POLICY "Anon File Update Access" ON storage.objects FOR UPDATE USING (bucket_id='files');
 CREATE POLICY "Anon File Delete Access" ON storage.objects FOR DELETE USING (bucket_id='files');
 
-CREATE TABLE IF NOT EXISTS nilai (id text primary key, siswa_id text, mapel_kode text, scores jsonb, updated_at timestamptz default now());
-CREATE TABLE IF NOT EXISTS absensi (id text primary key, tanggal date, siswa_id text, status text, updated_at timestamptz default now());
-CREATE TABLE IF NOT EXISTS jurnal (id text primary key, tanggal date, kelas text, mapel text, topik text, catatan text, updated_at timestamptz default now());
+-- ================= TABEL INTI =================
+CREATE TABLE IF NOT EXISTS nilai (
+  id text primary key, siswa_id text, mapel_kode text, scores jsonb,
+  updated_at timestamptz default now()
+);
+CREATE TABLE IF NOT EXISTS absensi (
+  id text primary key, tanggal date, siswa_id text, status text,
+  updated_at timestamptz default now()
+);
+CREATE TABLE IF NOT EXISTS jurnal (
+  id text primary key, tanggal date, kelas text, mapel text, topik text, catatan text,
+  updated_at timestamptz default now()
+);
 ALTER TABLE nilai DISABLE ROW LEVEL SECURITY;
 ALTER TABLE absensi DISABLE ROW LEVEL SECURITY;
 ALTER TABLE jurnal DISABLE ROW LEVEL SECURITY;
 
-CREATE TABLE IF NOT EXISTS skor_game (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), siswa_id TEXT NOT NULL, kelas TEXT, game_id TEXT DEFAULT 'edukasi', skor INTEGER DEFAULT 0, jumlah_benar INTEGER DEFAULT 0, jumlah_salah INTEGER DEFAULT 0, waktu_mulai TIMESTAMPTZ, waktu_selesai TIMESTAMPTZ, durasi_detik INTEGER DEFAULT 0, detail JSONB, created_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE IF NOT EXISTS skor_game (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  siswa_id TEXT NOT NULL, kelas TEXT, game_id TEXT DEFAULT 'edukasi',
+  skor INTEGER DEFAULT 0, jumlah_benar INTEGER DEFAULT 0, jumlah_salah INTEGER DEFAULT 0,
+  waktu_mulai TIMESTAMPTZ, waktu_selesai TIMESTAMPTZ, durasi_detik INTEGER DEFAULT 0,
+  detail JSONB, created_at TIMESTAMPTZ DEFAULT now()
+);
 ALTER TABLE skor_game DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.skor_game TO anon, authenticated, service_role;
 CREATE INDEX IF NOT EXISTS idx_skor_game_siswa ON skor_game(siswa_id);
 CREATE INDEX IF NOT EXISTS idx_skor_game_kelas ON skor_game(kelas);
 CREATE INDEX IF NOT EXISTS idx_skor_game_created ON skor_game(created_at DESC);
+
+-- ================= TABEL BANK SOAL / KUIS / UJIAN =================
+CREATE TABLE IF NOT EXISTS bank_soal (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mapel_kode TEXT, kelas TEXT, jenis TEXT,
+  pertanyaan TEXT, pilihan JSONB, jawaban JSONB,
+  pembahasan TEXT, tingkat TEXT, topik TEXT,
+  skor INTEGER DEFAULT 1, media JSONB,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS paket_soal (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama TEXT, mapel_kode TEXT, kelas TEXT,
+  durasi_menit INTEGER DEFAULT 60,
+  acak_soal BOOLEAN DEFAULT false,
+  acak_pilihan BOOLEAN DEFAULT false,
+  aktif BOOLEAN DEFAULT true,
+  link_materi JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS paket_soal_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  paket_id UUID REFERENCES paket_soal(id) ON DELETE CASCADE,
+  soal_id UUID REFERENCES bank_soal(id) ON DELETE CASCADE,
+  urutan INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS jawaban_siswa (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  paket_id UUID REFERENCES paket_soal(id) ON DELETE CASCADE,
+  siswa_id TEXT,
+  soal_id UUID REFERENCES bank_soal(id),
+  jawaban JSONB, benar BOOLEAN,
+  skor_didapat INTEGER DEFAULT 0,
+  waktu_mulai TIMESTAMPTZ, waktu_selesai TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS hasil_ujian (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  paket_id UUID REFERENCES paket_soal(id),
+  siswa_id TEXT,
+  total_skor INTEGER DEFAULT 0,
+  skor_maks INTEGER DEFAULT 0,
+  nilai NUMERIC(5,2) DEFAULT 0,
+  jumlah_benar INTEGER DEFAULT 0,
+  jumlah_salah INTEGER DEFAULT 0,
+  jumlah_kosong INTEGER DEFAULT 0,
+  waktu_mulai TIMESTAMPTZ, waktu_selesai TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE bank_soal DISABLE ROW LEVEL SECURITY;
+ALTER TABLE paket_soal DISABLE ROW LEVEL SECURITY;
+ALTER TABLE paket_soal_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE jawaban_siswa DISABLE ROW LEVEL SECURITY;
+ALTER TABLE hasil_ujian DISABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON public.bank_soal TO anon, authenticated, service_role;
+GRANT ALL ON public.paket_soal TO anon, authenticated, service_role;
+GRANT ALL ON public.paket_soal_items TO anon, authenticated, service_role;
+GRANT ALL ON public.jawaban_siswa TO anon, authenticated, service_role;
+GRANT ALL ON public.hasil_ujian TO anon, authenticated, service_role;
+
+CREATE INDEX IF NOT EXISTS idx_bank_soal_mapel ON bank_soal(mapel_kode);
+CREATE INDEX IF NOT EXISTS idx_bank_soal_kelas ON bank_soal(kelas);
+CREATE INDEX IF NOT EXISTS idx_paket_soal_mapel ON paket_soal(mapel_kode);
+CREATE INDEX IF NOT EXISTS idx_paket_items_paket ON paket_soal_items(paket_id);
+CREATE INDEX IF NOT EXISTS idx_jawaban_paket ON jawaban_siswa(paket_id);
+CREATE INDEX IF NOT EXISTS idx_hasil_paket ON hasil_ujian(paket_id);
 
 NOTIFY pgrst, 'reload schema';`;
 
