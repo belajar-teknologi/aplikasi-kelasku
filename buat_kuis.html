@@ -2701,11 +2701,11 @@ function buildExamPaperHTMLForPDF() {
     </div>` : "";
 
   /* ==== Konfigurasi kepadatan ==== */
-  const DENSITY_CONF = {
-    longgar:     { gap: 16, fontQ: "12.5px", lineH: 1.6 },
-    normal:      { gap: 12, fontQ: "12px",   lineH: 1.45 },
-    padat:       { gap: 8,  fontQ: "11.5px", lineH: 1.3 },
-    sangatpadat: { gap: 5,  fontQ: "11px",   lineH: 1.18 }
+    const DENSITY_CONF = {
+    longgar:     { gap: 14, fontQ: "12.5px", lineH: 1.55 },
+    normal:      { gap: 10, fontQ: "12px",   lineH: 1.4 },
+    padat:       { gap: 6,  fontQ: "11.5px", lineH: 1.25 },
+    sangatpadat: { gap: 2,  fontQ: "11px",   lineH: 1.12 }
   };
   const D = DENSITY_CONF[dens] || DENSITY_CONF.normal;
 
@@ -2737,13 +2737,28 @@ function buildExamPaperHTMLForPDF() {
   measure.innerHTML = measureHTML;
   document.body.appendChild(measure);
 
-  const headerEl = measure.querySelector('.border-b-4');
-  const infoEl = measure.querySelector('.grid.grid-cols-2.gap-4');
-  const petunjukEl = measure.querySelector('.border.border-slate-300.rounded-xl.p-3.mb-4');
+    // Hitung tinggi header = SELURUH isi pertama (kop + info + petunjuk)
+  // Kita ukur dari elemen pertama sampai sebelum soal pertama
+  const firstQuestion = measure.querySelector('.question-item');
   let headerHeight = 0;
-  if (headerEl) headerHeight += headerEl.offsetHeight + 20;
-  if (infoEl) headerHeight += infoEl.offsetHeight + 16;
-  if (petunjukEl) headerHeight += petunjukEl.offsetHeight + 16;
+  if (firstQuestion) {
+    // Ambil semua elemen sebelum soal pertama
+    const allBefore = [];
+    let node = firstQuestion.previousElementSibling;
+    while (node) {
+      allBefore.unshift(node);
+      node = node.previousElementSibling;
+    }
+    headerHeight = allBefore.reduce((sum, el) => sum + el.offsetHeight, 0) + 30; // +30 margin
+  } else {
+    // Fallback: hitung manual
+    const headerEl = measure.querySelector('.border-b-4');
+    const infoEl = measure.querySelector('.grid.grid-cols-2.gap-4');
+    const petunjukEl = measure.querySelector('.border.border-slate-300.rounded-xl.p-3.mb-4');
+    if (headerEl) headerHeight += headerEl.offsetHeight + 20;
+    if (infoEl) headerHeight += infoEl.offsetHeight + 16;
+    if (petunjukEl) headerHeight += petunjukEl.offsetHeight + 16;
+  }
 
   const renderedItems = measure.querySelectorAll('.section-title-wrapper, .question-item');
   const measuredItems = [];
@@ -2802,7 +2817,9 @@ function buildExamPaperHTMLForPDF() {
 function reflowHalaman(pagesArr, headerHeight, safeMargin, D) {
   let changed = true;
   let iterasi = 0;
-  const MAX_ITER = 50;
+  const MAX_ITER = 100;
+  // Toleransi 15%: paksa masuk selama belum lewat 115% batas
+  const TOLERANSI = 1.15;
   while (changed && iterasi < MAX_ITER) {
     changed = false;
     iterasi++;
@@ -2814,7 +2831,8 @@ function reflowHalaman(pagesArr, headerHeight, safeMargin, D) {
         ? headerHeight + cur.reduce((s, i) => s + i.height, 0)
         : cur.reduce((s, i) => s + i.height, 0);
       const soalBerikut = next[0];
-      if (tinggiSekarang + soalBerikut.height <= safeMargin) {
+      // Paksa muat selama masih dalam toleransi 15%
+      if (tinggiSekarang + soalBerikut.height <= safeMargin * TOLERANSI) {
         cur.push(soalBerikut);
         next.shift();
         changed = true;
