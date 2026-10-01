@@ -375,26 +375,86 @@ async function updateJsonBinDB(db, binId, cred) {
 }
 
 /* ==== LINK MATERI ==== */
+/* ==== LINK MATERI — VERSI HYBRID (Supabase prioritas, JSONBin opsional) ==== */
+
+// kmGetLinks: baca dari cache paket (Supabase) dulu, fallback ke JSONBin
 function kmGetLinks(paketId) {
+  // 1. Coba dari cache paket (__paketCache, diisi saat renderPaketList fetch dari Supabase)
+  try {
+    const paket = (__paketCache || []).find(p => String(p.id) === String(paketId));
+    if (paket && Array.isArray(paket.link_materi) && paket.link_materi.length) {
+      return paket.link_materi.filter(Boolean);
+    }
+  } catch(e) { console.warn("[EduSmart] Gagal baca link dari cache:", e); }
+
+  // 2. Fallback JSONBin (untuk data lama)
   const km = appState.db?.km || [];
   const rec = km.find(r => String(r[1]) === String(paketId));
   return rec ? (Array.isArray(rec[2]) ? rec[2].filter(Boolean) : []) : [];
 }
-function kmSetAllLinks(paketId, links) {
-  if (!appState.db) appState.db = {};
-  appState.db.km = appState.db.km || [];
-  let rec = appState.db.km.find(r => String(r[1]) === String(paketId));
-  if (!rec) {
-    const newId = nextId(appState.db.km);
-    rec = [newId, paketId, []];
-    appState.db.km.push(rec);
+
+// kmSetAllLinks: tulis ke Supabase (WAJIB) + JSONBin (OPSIONAL)
+async function kmSetAllLinks(paketId, links) {
+  const clean = (links || []).map(u => u ? String(u).trim() : null).filter(Boolean);
+
+  // 1. Wajib: simpan ke Supabase (kolom link_materi, tipe jsonb)
+  try {
+    await sbUpsert("paket_soal", [{ id: paketId, link_materi: clean }]);
+    // Update cache lokal
+    if (__paketCache && __paketCache.length) {
+      const p = __paketCache.find(x => String(x.id) === String(paketId));
+      if (p) p.link_materi = clean;
+    }
+  } catch (err) {
+    console.error("[EduSmart] Gagal simpan link ke Supabase:", err);
+    throw err;
   }
-  rec[2] = (links || []).map(u => u ? String(u).trim() : null).filter(Boolean);
-  return rec[2];
+
+  // 2. Opsional: coba simpan ke JSONBin juga (untuk backward compat)
+  try {
+    const cred = getJsonBinCredential();
+    if (cred && appState.db) {
+      appState.db.km = appState.db.km || [];
+      let rec = appState.db.km.find(r => String(r[1]) === String(paketId));
+      if (!rec) {
+        const newId = nextId(appState.db.km);
+        rec = [newId, paketId, []];
+        appState.db.km.push(rec);
+      }
+      rec[2] = clean;
+      await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+    }
+  } catch (err) {
+    console.warn("[EduSmart] JSONBin opsional gagal (diabaikan):", err);
+    // Tidak throw — biarkan flow tetap jalan
+  }
+
+  return clean;
 }
-function kmDeleteRecord(paketId) {
-  if (!appState.db?.km) return;
-  appState.db.km = appState.db.km.filter(r => String(r[1]) !== String(paketId));
+
+// kmDeleteRecord: hapus dari Supabase (reset ke []) + JSONBin (opsional)
+async function kmDeleteRecord(paketId) {
+  // 1. Supabase: reset ke array kosong
+  try {
+    await sbUpsert("paket_soal", [{ id: paketId, link_materi: [] }]);
+    if (__paketCache && __paketCache.length) {
+      const p = __paketCache.find(x => String(x.id) === String(paketId));
+      if (p) p.link_materi = [];
+    }
+  } catch (err) {
+    console.warn("[EduSmart] Gagal reset link di Supabase:", err);
+  }
+
+  // 2. JSONBin (opsional)
+  try {
+    if (appState.db?.km) {
+      appState.db.km = appState.db.km.filter(r => String(r[1]) !== String(paketId));
+      const cred = getJsonBinCredential();
+      if (cred) await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+    }
+  } catch (err) {
+    console.warn("[EduSmart] JSONBin opsional gagal (diabaikan):", err);
+  }
 }
 
 /* ==== GEMINI HELPER ==== */
@@ -445,8 +505,15 @@ function checkAuth() {
   appState.currentUser = user;
   const cfg = getAppConfig();
   if (!cfg?.binId) return { ok: false, msg: "Bin ID JSONBin belum ada. Set di Pengaturan index.html dulu." };
+
+  // ⬇️ JSONBin API Key jadi OPSIONAL (kalau tidak ada, tetap bisa masuk)
   const cred = getJsonBinCredential();
-  if (!cred) return { ok: false, msg: "API Key JSONBin belum diset. Buka Pengaturan di index.html." };
+  if (cred) {
+    console.log("[EduSmart] JSONBin key ditemukan — fitur legacy aktif");
+  } else {
+    console.warn("[EduSmart] JSONBin key tidak ada — pakai Supabase saja untuk link materi");
+  }
+
   const sb = getSupabaseConfig();
   if (!sb) return { ok: false, msg: "Supabase belum dikonfigurasi. Buka Pengaturan di index.html." };
   currentConfig = cfg;
@@ -933,12 +1000,8 @@ async function simpanPaket() {
       if (!paketId) throw new Error("Gagal dapat ID paket baru.");
     }
 
-    const cred = getJsonBinCredential();
-    const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
-    appState.db = freshDb;
-    if (!appState.db.km) appState.db.km = [];
-    kmSetAllLinks(paketId, __tempLinks.filter(Boolean));
-    await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+        // Simpan link materi ke Supabase (WAJIB) + JSONBin (opsional, otomatis di dalam fungsi)
+    await kmSetAllLinks(paketId, __tempLinks.filter(Boolean));
 
     let insertedSoal = 0;
     if (__tempSoalAI.length > 0) {
@@ -1010,14 +1073,9 @@ async function duplikatPaket(id) {
         paket_id: newId, soal_id: it.soal_id, urutan: it.urutan
       })));
     }
-    const links = kmGetLinks(id);
+        const links = kmGetLinks(id);
     if (links.length) {
-      const cred = getJsonBinCredential();
-      const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
-      appState.db = freshDb;
-      if (!appState.db.km) appState.db.km = [];
-      kmSetAllLinks(newId, links);
-      await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+      await kmSetAllLinks(newId, links);
     }
     showLoading(false);
     showToast("✓ Paket diduplikat.", "success");
@@ -1029,15 +1087,8 @@ async function hapusPaket(id) {
   if (!confirm("Hapus paket ini? Soal di bank soal TIDAK dihapus.")) return;
   try {
     showLoading(true, "Menghapus...");
-    await sbDelete("paket_soal", `?id=eq.${id}`);
-    kmDeleteRecord(id);
-    const cred = getJsonBinCredential();
-    try {
-      const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
-      freshDb.km = appState.db.km;
-      appState.db = freshDb;
-      await updateJsonBinDB(appState.db, currentConfig.binId, cred);
-    } catch(e) { console.warn(e); }
+        await sbDelete("paket_soal", `?id=eq.${id}`);
+    await kmDeleteRecord(id);
     showLoading(false);
     showToast("Paket dihapus.", "success");
     refreshPaket();
