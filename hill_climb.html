@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hill Climb Kuis EduSmart</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: 'Fredoka', cursive, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .game-canvas-container {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .nitro-glow {
+      box-shadow: 0 0 25px #3b82f6, inset 0 0 15px #60a5fa;
+    }
+    .shake {
+      animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(4px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+      40%, 60% { transform: translate3d(6px, 0, 0); }
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 3px; }
+  </style>
+</head>
+<body class="p-3 md:p-6 flex flex-col justify-between items-center min-h-screen">
+
+  <!-- Header -->
+  <header class="w-full max-w-5xl flex justify-between items-center mb-4 glass-panel px-6 py-3 rounded-2xl shadow-xl">
+    <div class="flex items-center space-x-3 cursor-pointer" onclick="showScreen('menu-screen')">
+      <div class="w-10 h-10 bg-gradient-to-tr from-amber-400 to-red-500 rounded-xl flex items-center justify-center text-xl shadow-lg">
+        🏎️
+      </div>
+      <div>
+        <h1 class="text-xl md:text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-orange-400 to-red-400">
+          Hill Climb Kuis
+        </h1>
+        <p class="text-xs text-slate-300 font-sans" id="data-status-badge">Menghubungkan Database...</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="openLeaderboardModal()" class="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold rounded-xl text-xs transition border border-amber-500/40 flex items-center gap-1.5">
+        <i class="fa-solid fa-trophy text-amber-400"></i> Leaderboard
+      </button>
+      <button onclick="showScreen('menu-screen')" class="px-3.5 py-2 bg-slate-700/60 hover:bg-slate-700/90 text-slate-200 font-bold rounded-xl text-xs transition border border-slate-600 flex items-center gap-1.5">
+        <i class="fa-solid fa-house"></i> Menu
+      </button>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toast-message" class="hidden fixed top-5 left-1/2 transform -translate-x-1/2 z-[100] bg-slate-900/95 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 transition-all duration-300">
+    <i id="toast-icon" class="fa-solid fa-circle-info text-amber-400 text-xl"></i>
+    <span id="toast-text" class="text-sm font-semibold font-sans">Notifikasi</span>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="w-full max-w-5xl flex-grow flex justify-center items-center my-2">
+    <div id="main-view-container" class="w-full flex justify-center"></div>
+  </main>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex justify-center items-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative max-h-[85vh] flex flex-col">
+      <button onclick="closeLeaderboardModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="text-center mb-4">
+        <h3 class="text-2xl font-extrabold text-amber-400 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-trophy"></i> Papan Skor Hill Climb
+        </h3>
+        <p class="text-xs text-slate-400 font-sans mt-1">Siswa tercepat & pemegang rekaman Ghost Mode</p>
+      </div>
+      <div id="leaderboard-list" class="flex-1 overflow-y-auto space-y-2 pr-1 font-sans text-xs">
+        <p class="text-center text-slate-500 py-6">Memuat data papan skor...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================
+       GLOBAL CONSTANTS & STATE
+       ========================================================= */
+    const STORAGE = {
+      USER: "edusmart_user",
+      APP_CONFIG: "edusmart_app_config",
+      DB_LOCAL: "edusmart_db"
+    };
+
+    let supabaseClient = null;
+    let currentQuestions = [];
+    let ghostData = null; // Stores [{x, y, rot, t}, ...] from fastest record
+    let currentUser = { name: "Pemain", kelas: "Umum", id: "ANON", fotoUrl: "" };
+
+    // Student photo image element for canvas rendering
+    let studentPhotoImg = new Image();
+    studentPhotoImg.crossOrigin = "Anonymous";
+    let isPhotoLoaded = false;
+
+    // Fallback Quiz Data if Supabase bank_soal is empty or offline
+    const FALLBACK_QUESTIONS = [
+      { pertanyaan: "Berapakah hasil dari 15 x 4?", pilihan: ["40", "50", "60", "70"], jawaban: "60" },
+      { pertanyaan: "Ibu kota negara Indonesia adalah...", pilihan: ["Jakarta", "Nusantara", "Bandung", "Surabaya"], jawaban: "Nusantara" },
+      { pertanyaan: "Planet terdekat dengan Matahari adalah...", pilihan: ["Venus", "Mars", "Merkurius", "Bumi"], jawaban: "Merkurius" },
+      { pertanyaan: "Proses tumbuhan membuat makanan sendiri dinamakan...", pilihan: ["Respirasi", "Fotosintesis", "Osmosis", "Adaptasi"], jawaban: "Fotosintesis" },
+      { pertanyaan: "Satuan internasional untuk mengukur gaya adalah...", pilihan: ["Joule", "Watt", "Newton", "Pascal"], jawaban: "Newton" },
+      { pertanyaan: "Pancasila ke-3 berbunyi...", pilihan: ["Ketuhanan Yang Maha Esa", "Persatuan Indonesia", "Keadilan Sosial", "Kemanusiaan yang Adil"], jawaban: "Persatuan Indonesia" }
+    ];
+
+    /* =========================================================
+       HELPERS & NOTIFICATIONS
+       ========================================================= */
+    function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
+    function getLS(k, d = "") { return localStorage.getItem(k) || d; }
+    function setLS(k, v) { localStorage.setItem(k, v); }
+
+    function loadStudentPhoto(url) {
+      if (!url) {
+        // Fallback placeholder avatar if no URL set
+        url = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(currentUser.name || 'Siswa')}`;
+      }
+      studentPhotoImg.src = url;
+      studentPhotoImg.onload = () => { isPhotoLoaded = true; };
+      studentPhotoImg.onerror = () => {
+        // Fallback default avatar
+        studentPhotoImg.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
+      };
+    }
+
+    function esc(v) {
+      return String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast-message');
+      const toastText = document.getElementById('toast-text');
+      const toastIcon = document.getElementById('toast-icon');
+      toastText.textContent = message;
+
+      if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-xl';
+      else if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-xl';
+      else toastIcon.className = 'fa-solid fa-circle-info text-amber-400 text-xl';
+
+      toast.classList.remove('hidden');
+      clearTimeout(window.__toastTimeout);
+      window.__toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    /* =========================================================
+       SUPABASE INITIALIZATION & DATA FETCHING
+       ========================================================= */
+    function initSupabase() {
+      const cachedDb = safeParse(getLS(STORAGE.DB_LOCAL));
+      const cfg = cachedDb?.cfg || {};
+      const sbUrl = cfg.sbUrl || "";
+      const sbKey = cfg.sbKey || "";
+
+      if (sbUrl && sbKey && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+          document.getElementById('data-status-badge').textContent = 'Terhubung Supabase EDUSMART ✓';
+          console.log("[HillClimb] Supabase Connected.");
+          return true;
+        } catch (e) {
+          console.error("Supabase init failed:", e);
+        }
+      }
+      document.getElementById('data-status-badge').textContent = 'Mode Lokal / Demo';
+      return false;
+    }
+
+    async function loadQuizQuestions() {
+      if (supabaseClient) {
+        try {
+          // Fetch questions from bank_soal
+          const { data, error } = await supabaseClient
+            .from('bank_soal')
+            .select('pertanyaan, pilihan, jawaban')
+            .limit(20);
+
+          if (!error && data && data.length > 0) {
+            currentQuestions = data.map(q => ({
+              pertanyaan: q.pertanyaan,
+              pilihan: Array.isArray(q.pilihan) ? q.pilihan : (typeof q.pilihan === 'string' ? safeParse(q.pilihan) || [q.pilihan] : []),
+              jawaban: String(q.jawaban)
+            }));
+            console.log(`[HillClimb] Loaded ${currentQuestions.length} questions from Supabase bank_soal.`);
+            return;
+          }
+        } catch (e) {
+          console.warn("[HillClimb] Failed to load bank_soal from Supabase, fallback active.", e);
+        }
+      }
+      // Fallback
+      currentQuestions = [...FALLBACK_QUESTIONS];
+    }
+
+    async function loadGhostData() {
+      ghostData = null;
+      if (supabaseClient) {
+        try {
+          // Query fastest/highest score ghost replay detail
+          const { data, error } = await supabaseClient
+            .from('skor_game')
+            .select('siswa_id, durasi_detik, detail')
+            .eq('game_id', 'hill_climb')
+            .order('durasi_detik', { ascending: true })
+            .limit(1);
+
+          if (!error && data && data.length > 0 && data[0].detail) {
+            const bestRun = data[0];
+            let parsedDetail = typeof bestRun.detail === 'string' ? safeParse(bestRun.detail) : bestRun.detail;
+            if (parsedDetail && Array.isArray(parsedDetail.ghost)) {
+              ghostData = {
+                playerName: bestRun.siswa_id || "Ghost Runner",
+                points: parsedDetail.ghost
+              };
+              console.log("[HillClimb] Ghost Mode data loaded for runner:", ghostData.playerName);
+            }
+          }
+        } catch (e) {
+          console.warn("[HillClimb] Ghost data fetch warning:", e);
+        }
+      }
+    }
+
+    async function saveGameResult(finalScore, durationSec, recordedGhost) {
+      const payload = {
+        game_id: 'hill_climb',
+        siswa_id: currentUser.name || "Siswa",
+        skor: parseInt(finalScore) || 0,
+        durasi_detik: parseInt(durationSec) || 0,
+        detail: {
+          ghost: recordedGhost,
+          kelas: currentUser.kelas || "-"
+        }
+      };
+
+      // Save locally
+      const localScores = safeParse(getLS("hillclimb_local_scores")) || [];
+      localScores.unshift({ ...payload, created_at: new Date().toISOString() });
+      setLS("hillclimb_local_scores", JSON.stringify(localScores.slice(0, 30)));
+
+      // Save to Supabase
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient.from('skor_game').insert([payload]);
+          if (!error) {
+            showToast("Hasil balapan & Ghost Data tersimpan di server! ☁️", "success");
+            return;
+          }
+        } catch (e) {
+          console.error("Supabase insert error:", e);
+        }
+      }
+      showToast("Hasil balapan tersimpan lokal.", "info");
+    }
+
+    /* =========================================================
+       HILL CLIMB ENGINE & PHYSICS (CANVAS 2D)
+       ========================================================= */
+    let canvas, ctx;
+    let animFrameId = null;
+
+    // Track Configuration
+    const TRACK_LENGTH = 4500; // Total meters/units to finish line
+
+    function getTerrainHeight(x) {
+      if (x < 100) return 320; // Flat start
+      if (x > TRACK_LENGTH) return 320; // Flat end
+      
+      // Procedural hilly terrain using multi-frequency sine waves
+      const wave1 = Math.sin(x * 0.004) * 80;
+      const wave2 = Math.cos(x * 0.009) * 40;
+      const wave3 = Math.sin(x * 0.02) * 15;
+      return 340 + wave1 + wave2 + wave3;
+    }
+
+    function getTerrainSlope(x) {
+      const delta = 2.0;
+      const h1 = getTerrainHeight(x - delta);
+      const h2 = getTerrainHeight(x + delta);
+      return Math.atan2(h2 - h1, delta * 2);
+    }
+
+    /* =========================================================
+       GAME STATE VARIABLES & GAME LOOP
+       ========================================================= */
+    let gameState = "MENU"; // MENU, PLAYING, FINISHED
+    let car = {
+      x: 50,
+      y: 300,
+      vx: 0,
+      vy: 0,
+      angle: 0,
+      wheelRot: 0,
+      speedPower: 0,
+      boostTimer: 0
+    };
+
+    let particles = [];
+    let recordedGhostPoints = [];
+    let gameStartTime = 0;
+    let gameElapsedTime = 0;
+    let questionIndex = 0;
+    let currentQuestion = null;
+    let correctAnswersCount = 0;
+    let wrongAnswersCount = 0;
+
+    function initGame() {
+      car = {
+        x: 50,
+        y: getTerrainHeight(50) - 18,
+        vx: 1.5, // Base cruise speed
+        vy: 0,
+        angle: getTerrainSlope(50),
+        wheelRot: 0,
+        speedPower: 0,
+        boostTimer: 0
+      };
+
+      particles = [];
+      recordedGhostPoints = [];
+      gameStartTime = performance.now();
+      gameElapsedTime = 0;
+      questionIndex = 0;
+      correctAnswersCount = 0;
+      wrongAnswersCount = 0;
+
+      // Shuffle questions
+      currentQuestions.sort(() => Math.random() - 0.5);
+      loadNextQuestion();
+
+      gameState = "PLAYING";
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      gameLoop();
+    }
+
+    function spawnParticles(x, y, count = 5, color = '#f59e0b') {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 4 - car.vx * 0.3,
+          vy: (Math.random() - 0.5) * 4 - 2,
+          size: Math.random() * 5 + 3,
+          color: color,
+          alpha: 1.0,
+          life: 0.03
+        });
+      }
+    }
+
+    function updatePhysics(dt) {
+      if (gameState !== "PLAYING") return;
+
+      gameElapsedTime = (performance.now() - gameStartTime) / 1000;
+
+      // Record Ghost position (~10 FPS sampling)
+      if (recordedGhostPoints.length === 0 || gameElapsedTime - recordedGhostPoints[recordedGhostPoints.length - 1].t >= 0.1) {
+        recordedGhostPoints.push({
+          t: Math.round(gameElapsedTime * 100) / 100,
+          x: Math.round(car.x),
+          y: Math.round(car.y),
+          rot: Math.round(car.angle * 100) / 100
+        });
+      }
+
+      // Calculate Terrain parameters
+      const terrainY = getTerrainHeight(car.x);
+      const slope = getTerrainSlope(car.x);
+
+      // Handle Boost Decay
+      if (car.boostTimer > 0) {
+        car.boostTimer -= dt;
+        car.vx = Math.min(car.vx + 0.25, 12.0); // Nitro acceleration limit
+        spawnParticles(car.x - 20, car.y, 2, '#3b82f6'); // Blue Nitro smoke
+      } else {
+        // Natural slowdown or acceleration back to base cruise speed
+        const targetBaseSpeed = 2.5 + car.speedPower;
+        if (car.vx > targetBaseSpeed) {
+          car.vx -= 0.05;
+        } else if (car.vx < targetBaseSpeed) {
+          car.vx += 0.08;
+        }
+      }
+
+      // Gravity effect based on incline
+      const gravityFactor = Math.sin(slope) * 0.12;
+      car.vx -= gravityFactor;
+      car.vx = Math.max(0.8, car.vx); // Minimum speed so car doesn't get stuck forever
+
+      // Move car along track
+      car.x += car.vx;
+      car.y = terrainY - 16;
+      car.angle = slope;
+      car.wheelRot += car.vx * 0.15;
+
+      // Exhaust Particles
+      if (Math.random() < 0.4) {
+        spawnParticles(car.x - 22, car.y + 5, 1, '#94a3b8');
+      }
+
+      // Check Finish Line
+      if (car.x >= TRACK_LENGTH) {
+        car.x = TRACK_LENGTH;
+        finishRace();
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.life;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function drawTerrain(cameraX) {
+      ctx.save();
+      
+      // 1. SKY GRADIENT (Sunset Mountain Horizon)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      skyGrad.addColorStop(0, '#0284c7');  // Deep Sky Blue
+      skyGrad.addColorStop(0.45, '#38bdf8'); // Soft Blue
+      skyGrad.addColorStop(0.7, '#f97316');  // Warm Orange Sunset
+      skyGrad.addColorStop(1, '#f43f5e');    // Horizon Pink/Rose
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. SUN WITH GLOW ATMOSPHERE
+      const sunX = canvas.width * 0.75;
+      const sunY = 90;
+      const sunGlow = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, 120);
+      sunGlow.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
+      sunGlow.addColorStop(0.3, 'rgba(251, 146, 60, 0.4)');
+      sunGlow.addColorStop(1, 'rgba(251, 146, 60, 0)');
+      ctx.fillStyle = sunGlow;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, 120, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. MOVING PROCEDURAL CLOUDS
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      const cloudSpeed = gameElapsedTime * 12;
+      for (let i = 0; i < 5; i++) {
+        const cloudBaseX = ((i * 240 - cameraX * 0.05 + cloudSpeed) % (canvas.width + 300)) - 150;
+        const cloudBaseY = 40 + (i % 3) * 25;
+        
+        ctx.beginPath();
+        ctx.arc(cloudBaseX, cloudBaseY, 22, 0, Math.PI * 2);
+        ctx.arc(cloudBaseX + 20, cloudBaseY - 12, 28, 0, Math.PI * 2);
+        ctx.arc(cloudBaseX + 45, cloudBaseY, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 4. PARALLAX LAYER 1: Distant Snow-Capped Alpine Mountains (Parallax x0.08)
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+      const mountainStep = 90;
+      for (let screenX = -100; screenX <= canvas.width + 100; screenX += mountainStep) {
+        const worldX = cameraX * 0.08 + screenX;
+        const mountainH = 140 + Math.sin(worldX * 0.005) * 60 + Math.cos(worldX * 0.012) * 30;
+        ctx.lineTo(screenX, mountainH);
+      }
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Snow Caps on Far Mountains
+      ctx.fillStyle = '#f8fafc';
+      for (let screenX = -100; screenX <= canvas.width + 100; screenX += mountainStep) {
+        const worldX = cameraX * 0.08 + screenX;
+        const mountainH = 140 + Math.sin(worldX * 0.005) * 60 + Math.cos(worldX * 0.012) * 30;
+        if (mountainH < 150) { // High peaks get snow
+          ctx.beginPath();
+          ctx.moveTo(screenX, mountainH);
+          ctx.lineTo(screenX - 25, mountainH + 35);
+          ctx.lineTo(screenX + 25, mountainH + 35);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // 5. PARALLAX LAYER 2: Mid Rolling Forest Hills with Pine Trees (Parallax x0.25)
+      ctx.fillStyle = '#1e3a8a'; // Deep indigo/pine hill
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+      for (let screenX = -50; screenX <= canvas.width + 50; screenX += 30) {
+        const worldX = cameraX * 0.25 + screenX;
+        const hillH = 210 + Math.sin(worldX * 0.006) * 45;
+        ctx.lineTo(screenX, hillH);
+      }
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Pine Tree Silhouettes on Mid Hill
+      ctx.fillStyle = '#0f172a';
+      for (let screenX = -40; screenX <= canvas.width + 40; screenX += 45) {
+        const worldX = cameraX * 0.25 + screenX;
+        const hillH = 210 + Math.sin(worldX * 0.006) * 45;
+        // Draw small pine tree
+        ctx.beginPath();
+        ctx.moveTo(screenX, hillH);
+        ctx.lineTo(screenX - 8, hillH + 20);
+        ctx.lineTo(screenX + 8, hillH + 20);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 6. PARALLAX LAYER 3: Near Scenic Hills & Windmills (Parallax x0.5)
+      const nearHillGrad = ctx.createLinearGradient(0, 200, 0, canvas.height);
+      nearHillGrad.addColorStop(0, '#15803d'); // Emerald Green
+      nearHillGrad.addColorStop(1, '#064e3b');
+      ctx.fillStyle = nearHillGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+      for (let screenX = -50; screenX <= canvas.width + 50; screenX += 20) {
+        const worldX = cameraX * 0.5 + screenX;
+        const hillH = 260 + Math.cos(worldX * 0.007) * 35;
+        ctx.lineTo(screenX, hillH);
+      }
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Animated Windmill on Scenic Hill
+      const windmillWorldX = 1200;
+      const windmillScreenX = windmillWorldX - cameraX * 0.5;
+      if (windmillScreenX > -100 && windmillScreenX < canvas.width + 100) {
+        const windmillY = 260 + Math.cos(windmillWorldX * 0.007) * 35;
+        ctx.save();
+        ctx.translate(windmillScreenX, windmillY);
+        // Tower
+        ctx.fillStyle = '#f1f5f9';
+        ctx.beginPath();
+        ctx.moveTo(-6, 0); ctx.lineTo(-3, -50); ctx.lineTo(3, -50); ctx.lineTo(6, 0);
+        ctx.fill();
+        // Roof
+        ctx.fillStyle = '#b91c1c';
+        ctx.beginPath();
+        ctx.arc(0, -50, 5, Math.PI, 0);
+        ctx.fill();
+        // Spinning Blades
+        ctx.translate(0, -50);
+        ctx.rotate(gameElapsedTime * 1.8);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 3;
+        for (let b = 0; b < 4; b++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.beginPath();
+          ctx.moveTo(0, 0); ctx.lineTo(0, -28);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 7. FOREGROUND TERRAIN & TRACK (Interactive Hill Physics)
+      const groundGrad = ctx.createLinearGradient(0, 250, 0, canvas.height);
+      groundGrad.addColorStop(0, '#22c55e'); // Fresh Grass Top
+      groundGrad.addColorStop(0.06, '#15803d');
+      groundGrad.addColorStop(0.18, '#78350f'); // Earthy Dirt/Rock
+      groundGrad.addColorStop(1, '#1e1b4b');
+
+      ctx.fillStyle = groundGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height);
+
+      const startWorldX = cameraX - 100;
+      const endWorldX = cameraX + canvas.width + 100;
+
+      for (let worldX = startWorldX; worldX <= endWorldX; worldX += 10) {
+        const screenX = worldX - cameraX;
+        const screenY = getTerrainHeight(worldX);
+        if (worldX === startWorldX) ctx.moveTo(screenX, screenY);
+        else ctx.lineTo(screenX, screenY);
+      }
+
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Grass Highlight Line on Track
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let worldX = startWorldX; worldX <= endWorldX; worldX += 10) {
+        const screenX = worldX - cameraX;
+        const screenY = getTerrainHeight(worldX);
+        if (worldX === startWorldX) ctx.moveTo(screenX, screenY);
+        else ctx.lineTo(screenX, screenY);
+      }
+      ctx.stroke();
+
+      // Scenic Flowers & Grass Tuft Accents along the Track
+      for (let worldX = Math.floor(startWorldX / 60) * 60; worldX <= endWorldX; worldX += 60) {
+        const screenX = worldX - cameraX;
+        const screenY = getTerrainHeight(worldX);
+        
+        // Flower Dot
+        const flowerColors = ['#facc15', '#f43f5e', '#a855f7', '#38bdf8'];
+        const flowerColor = flowerColors[Math.abs(Math.floor(worldX)) % flowerColors.length];
+        ctx.fillStyle = flowerColor;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY - 3, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Finish Line Marker
+      const finishScreenX = TRACK_LENGTH - cameraX;
+      if (finishScreenX > -50 && finishScreenX < canvas.width + 50) {
+        ctx.save();
+        ctx.translate(finishScreenX, getTerrainHeight(TRACK_LENGTH));
+        
+        // Banner Pole
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(-4, -120, 8, 120);
+        
+        // Checkered Flag
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(0, -120);
+        ctx.lineTo(60, -100);
+        ctx.lineTo(0, -80);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#facc15';
+        ctx.font = 'bold 12px Fredoka, sans-serif';
+        ctx.fillText('FINISH', 8, -94);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawGhostCar(cameraX) {
+      if (!ghostData || !ghostData.points || ghostData.points.length === 0) return;
+
+      // Interpolate ghost position based on current gameElapsedTime
+      const pts = ghostData.points;
+      let p1 = pts[0], p2 = pts[pts.length - 1];
+
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (gameElapsedTime >= pts[i].t && gameElapsedTime <= pts[i + 1].t) {
+          p1 = pts[i];
+          p2 = pts[i + 1];
+          break;
+        }
+      }
+
+      const factor = p2.t === p1.t ? 0 : (gameElapsedTime - p1.t) / (p2.t - p1.t);
+      const ghostX = p1.x + (p2.x - p1.x) * factor;
+      const ghostY = p1.y + (p2.y - p1.y) * factor;
+      const ghostRot = p1.rot + (p2.rot - p1.rot) * factor;
+
+      const screenX = ghostX - cameraX;
+      if (screenX < -60 || screenX > canvas.width + 60) return;
+
+      ctx.save();
+      ctx.translate(screenX, ghostY);
+      ctx.rotate(ghostRot);
+      ctx.globalAlpha = 0.45; // Semi-transparent Ghost effect
+
+      // Ghost Car Silhouette
+      ctx.fillStyle = '#a855f7'; // Purple ghost
+      ctx.beginPath();
+      ctx.roundRect(-24, -18, 48, 18, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#e9d5ff';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText(`👻 ${ghostData.playerName}`, -20, -22);
+
+      ctx.restore();
+    }
+
+    function drawPlayerCar(cameraX) {
+      const screenX = car.x - cameraX;
+      const screenY = car.y;
+
+      ctx.save();
+      ctx.translate(screenX, screenY);
+      ctx.rotate(car.angle);
+
+      // Car Ground Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(0, 12, 36, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nitro Glow Effect around chassis
+      if (car.boostTimer > 0) {
+        ctx.shadowColor = '#3b82f6';
+        ctx.shadowBlur = 20;
+      }
+
+      // --- SUSPENSION SPRINGS ---
+      const wheelOffsets = [-22, 22];
+      wheelOffsets.forEach(wx => {
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(wx, -2);
+        ctx.lineTo(wx, 6);
+        ctx.stroke();
+      });
+
+      // --- OFF-ROAD JEEP BODY ---
+      // Lower Chassis Frame
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.roundRect(-32, -8, 64, 10, 4);
+      ctx.fill();
+
+      // Front Steel Bumper
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.roundRect(28, -6, 8, 12, 3);
+      ctx.fill();
+
+      // Main Red Body Paint
+      const bodyGrad = ctx.createLinearGradient(-30, -26, 30, 0);
+      bodyGrad.addColorStop(0, '#dc2626');
+      bodyGrad.addColorStop(0.5, '#ef4444');
+      bodyGrad.addColorStop(1, '#b91c1c');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.roundRect(-30, -22, 60, 16, [6, 12, 2, 4]);
+      ctx.fill();
+
+      // Side Fender Flares
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(-22, -6, 13, Math.PI, 0);
+      ctx.arc(22, -6, 13, Math.PI, 0);
+      ctx.fill();
+
+      // Roll Cage / Windshield Frame
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-18, -22);
+      ctx.lineTo(-12, -38);
+      ctx.lineTo(12, -38);
+      ctx.lineTo(24, -22);
+      ctx.stroke();
+
+      // Front Headlight Beam
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(29, -16, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Side Decal (Lightning / Star)
+      ctx.fillStyle = '#f59e0b';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('⚡ 01', -10, -10);
+
+      // --- STUDENT PHOTO / DRIVER HEAD ABOVE CAR ---
+      ctx.save();
+      const driverHeadX = 0;
+      const driverHeadY = -38;
+      const avatarRadius = 16;
+
+      // Student Photo Circular Badge Frame
+      ctx.beginPath();
+      ctx.arc(driverHeadX, driverHeadY, avatarRadius + 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b'; // Gold border
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(driverHeadX, driverHeadY, avatarRadius, 0, Math.PI * 2);
+      ctx.clip(); // Clip image inside circle
+
+      if (isPhotoLoaded && studentPhotoImg.complete) {
+        ctx.drawImage(
+          studentPhotoImg,
+          driverHeadX - avatarRadius,
+          driverHeadY - avatarRadius,
+          avatarRadius * 2,
+          avatarRadius * 2
+        );
+      } else {
+        // Fallback Emoji / Initials Driver Head
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(driverHeadX - avatarRadius, driverHeadY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '👨‍🎓', driverHeadX, driverHeadY);
+      }
+      ctx.restore();
+
+      // Driver Helmet / Cap Accent on top of Photo Badge
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(driverHeadX, driverHeadY - 14, 10, Math.PI, 0);
+      ctx.fill();
+
+      // --- RUGGED MONSTER TIRES ---
+      wheelOffsets.forEach(wx => {
+        ctx.save();
+        ctx.translate(wx, 6);
+        ctx.rotate(car.wheelRot);
+
+        const tireRadius = 12;
+
+        // Black Rubber Tire Body
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(0, 0, tireRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Deep Off-Road Tread Teeth
+        ctx.fillStyle = '#1e293b';
+        const numTreads = 8;
+        for (let i = 0; i < numTreads; i++) {
+          const angle = (i * Math.PI * 2) / numTreads;
+          ctx.save();
+          ctx.rotate(angle);
+          ctx.fillRect(-2, -tireRadius - 2, 4, 3);
+          ctx.restore();
+        }
+
+        // Silver Alloy Rim
+        ctx.fillStyle = '#94a3b8';
+        ctx.beginPath();
+        ctx.arc(0, 0, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wheel Spokes
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-5, 0); ctx.lineTo(5, 0);
+        ctx.moveTo(0, -5); ctx.lineTo(0, 5);
+        ctx.stroke();
+
+        ctx.restore();
+      });
+
+      ctx.restore();
+    }
+
+    function drawParticles(cameraX) {
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x - cameraX, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawHUD() {
+      // Distance Progress Bar
+      const progress = Math.min(1.0, car.x / TRACK_LENGTH);
+      const barW = canvas.width * 0.4;
+      const barX = (canvas.width - barW) / 2;
+      const barY = 16;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barW, 16, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.roundRect(barX + 2, barY + 2, (barW - 4) * progress, 12, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Jarak: ${Math.floor(car.x)}m / ${TRACK_LENGTH}m`, canvas.width / 2, barY + 13);
+
+      // Speed & Timer HUD
+      ctx.textAlign = 'left';
+      ctx.fillText(`⏱️ Waktu: ${gameElapsedTime.toFixed(1)}s`, 16, 28);
+      ctx.fillText(`⚡ Kecepatan: ${Math.round(car.vx * 15)} km/h`, 16, 46);
+
+      // Ghost status
+      if (ghostData) {
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#c084fc';
+        ctx.fillText(`👻 Bayangan: ${ghostData.playerName}`, canvas.width - 16, 28);
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(timestamp) {
+      const dt = 0.016; // Fixed timestep (~60FPS)
+
+      updatePhysics(dt);
+
+      // Camera follows car smoothly
+      const cameraX = car.x - canvas.width * 0.3;
+
+      // Draw All Components
+      drawTerrain(cameraX);
+      drawGhostCar(cameraX);
+      drawPlayerCar(cameraX);
+      drawParticles(cameraX);
+      drawHUD();
+
+      if (gameState === "PLAYING") {
+        animFrameId = requestAnimationFrame(gameLoop);
+      }
+    }
+
+    /* =========================================================
+       QUIZ INTEGRATION & BOOST LOGIC
+       ========================================================= */
+    function loadNextQuestion() {
+      if (currentQuestions.length === 0) return;
+      currentQuestion = currentQuestions[questionIndex % currentQuestions.length];
+      renderQuizHUD();
+    }
+
+    function renderQuizHUD() {
+      const qBox = document.getElementById('quiz-box');
+      if (!qBox || !currentQuestion) return;
+
+      const optsHtml = currentQuestion.pilihan.map((opt, idx) => `
+        <button onclick="handleAnswer('${esc(opt)}')" class="w-full py-2.5 px-3 bg-slate-800/80 hover:bg-amber-500 hover:text-slate-950 text-slate-100 font-bold rounded-xl text-xs transition border border-slate-700 hover:border-amber-400 text-left flex items-center gap-2">
+          <span class="w-5 h-5 rounded-lg bg-slate-700 text-amber-300 flex items-center justify-center text-[10px] shrink-0">${String.fromCharCode(65 + idx)}</span>
+          <span class="truncate">${esc(opt)}</span>
+        </button>
+      `).join('');
+
+      qBox.innerHTML = `
+        <div class="space-y-2">
+          <div class="flex justify-between items-center text-[11px] text-amber-400 font-bold">
+            <span><i class="fa-solid fa-circle-question"></i> Pertanyaan Soal</span>
+            <span class="text-slate-400">Jawab benar untuk Nitro Boost!</span>
+          </div>
+          <p class="text-sm font-extrabold text-white leading-snug">${esc(currentQuestion.pertanyaan)}</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+            ${optsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function handleAnswer(selectedOpt) {
+      if (gameState !== "PLAYING") return;
+
+      const isCorrect = String(selectedOpt).trim().toLowerCase() === String(currentQuestion.jawaban).trim().toLowerCase();
+
+      if (isCorrect) {
+        correctAnswersCount++;
+        car.speedPower += 0.4; // Permanently increase base power
+        car.boostTimer = 3.5;  // 3.5 seconds Nitro Boost!
+        spawnParticles(car.x, car.y, 15, '#3b82f6');
+        showToast("⚡ JAWABAN BENAR! NITRO BOOST AKTIF!", "success");
+      } else {
+        wrongAnswersCount++;
+        car.vx = Math.max(1.0, car.vx - 3.5); // Penalty slowdown
+        spawnParticles(car.x, car.y, 10, '#ef4444');
+        const cContainer = document.getElementById('game-canvas-wrapper');
+        if (cContainer) {
+          cContainer.classList.add('shake');
+          setTimeout(() => cContainer.classList.remove('shake'), 350);
+        }
+        showToast(`❌ Salah! Jawaban Benar: ${currentQuestion.jawaban}`, "error");
+      }
+
+      questionIndex++;
+      loadNextQuestion();
+    }
+
+    function finishRace() {
+      gameState = "FINISHED";
+      const totalTimeSec = Math.max(1, Math.round(gameElapsedTime));
+      
+      // Score calculation formula: Speed + Accuracy Bonus
+      const accuracyRate = (correctAnswersCount / Math.max(1, correctAnswersCount + wrongAnswersCount));
+      const score = Math.round((TRACK_LENGTH / totalTimeSec) * 100 + (correctAnswersCount * 250) - (wrongAnswersCount * 50));
+      const finalScore = Math.max(50, score);
+
+      saveGameResult(finalScore, totalTimeSec, recordedGhostPoints);
+      renderFinishedModal(finalScore, totalTimeSec);
+    }
+
+    function renderFinishedModal(score, timeSec) {
+      const c = document.getElementById("main-view-container");
+      c.innerHTML = `
+        <div class="glass-panel max-w-md w-full mx-auto rounded-3xl p-6 text-center border-2 border-amber-400/40 shadow-2xl animate-fade-in">
+          <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl shadow-lg">
+            🏁
+          </div>
+          <h2 class="text-3xl font-black text-amber-300 mb-1">FINISH!</h2>
+          <p class="text-xs text-slate-300 font-sans mb-5">Selamat! Kamu berhasil mencapai garis akhir.</p>
+
+          <div class="grid grid-cols-2 gap-3 mb-6 font-sans">
+            <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700">
+              <span class="text-[10px] text-slate-400 block uppercase font-bold">Skor Akhir</span>
+              <span class="text-2xl font-black text-amber-400">${score}</span>
+            </div>
+            <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700">
+              <span class="text-[10px] text-slate-400 block uppercase font-bold">Waktu Balapan</span>
+              <span class="text-2xl font-black text-emerald-400">${timeSec}s</span>
+            </div>
+            <div class="bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700 col-span-2 text-xs flex justify-around">
+              <span class="text-emerald-400 font-bold">✓ Benar: ${correctAnswersCount}</span>
+              <span class="text-rose-400 font-bold">✗ Salah: ${wrongAnswersCount}</span>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <button onclick="startHillClimbGame()" class="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-slate-950 font-extrabold rounded-xl shadow-lg text-sm transition">
+              <i class="fa-solid fa-rotate-right mr-1"></i> Main Lagi
+            </button>
+            <button onclick="showScreen('menu-screen')" class="px-5 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-sm transition">
+              Menu
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================
+       SCREENS ROUTER & LEADERBOARD UI
+       ========================================================= */
+    function showScreen(screenId) {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+
+      if (screenId === "menu-screen") renderMenuScreen();
+      else if (screenId === "game-screen") renderGameScreen();
+    }
+
+    function renderMenuScreen() {
+      const c = document.getElementById("main-view-container");
+      c.innerHTML = `
+        <div class="w-full max-w-xl glass-panel rounded-3xl p-6 md:p-8 text-center border border-white/20 shadow-2xl">
+          <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 to-red-500 text-white rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl shadow-xl">
+            🏎️
+          </div>
+          <h2 class="text-3xl font-black text-white mb-2">Hill Climb Kuis</h2>
+          <p class="text-xs text-slate-300 font-sans mb-6">
+            Balapan bukit seru! Jawab soal kuis dengan benar untuk mendapatkan Nitro Speed Boost & kalahkan Replay Mobil Bayangan (Ghost Mode).
+          </p>
+
+          <!-- Player Profile Box -->
+          <div class="bg-slate-800/80 rounded-2xl p-4 mb-6 border border-slate-700 text-left font-sans text-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-slate-400">Data Pemain:</span>
+              <span class="text-amber-400 font-bold">${esc(currentUser.name)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Kelas:</span>
+              <span class="text-slate-200 font-bold">${esc(currentUser.kelas)}</span>
+            </div>
+          </div>
+
+          <button onclick="startHillClimbGame()" class="w-full py-4 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 hover:brightness-110 text-slate-950 font-black text-base rounded-2xl shadow-xl transition transform hover:scale-[1.02] flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> MULAI BALAPAN!
+          </button>
+        </div>
+      `;
+    }
+
+    function renderGameScreen() {
+      const c = document.getElementById("main-view-container");
+      c.innerHTML = `
+        <div class="w-full max-w-4xl flex flex-col items-center gap-4">
+          <!-- Canvas Wrapper -->
+          <div id="game-canvas-wrapper" class="game-canvas-container">
+            <canvas id="hill-canvas" width="800" height="450"></canvas>
+          </div>
+
+          <!-- Quiz Panel HUD -->
+          <div id="quiz-box" class="w-full glass-panel rounded-2xl p-4 border border-white/20 shadow-xl">
+            <p class="text-center text-slate-400 text-xs">Memuat pertanyaan kuis...</p>
+          </div>
+        </div>
+      `;
+
+      canvas = document.getElementById('hill-canvas');
+      ctx = canvas.getContext('2d');
+    }
+
+    async function startHillClimbGame() {
+      renderGameScreen();
+      showToast("Memuat soal kuis & data bayangan...", "info");
+      
+      await loadQuizQuestions();
+      await loadGhostData();
+
+      initGame();
+    }
+
+    async function openLeaderboardModal() {
+      document.getElementById("leaderboard-modal").classList.remove("hidden");
+      const listEl = document.getElementById("leaderboard-list");
+      listEl.innerHTML = `<p class="text-center text-slate-500 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat leaderboard...</p>`;
+
+      let scores = [];
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('skor_game')
+            .select('siswa_id, skor, durasi_detik, created_at')
+            .eq('game_id', 'hill_climb')
+            .order('skor', { ascending: false })
+            .limit(15);
+
+          if (!error && data) scores = data;
+        } catch (e) {
+          console.warn("Leaderboard fetch error:", e);
+        }
+      }
+
+      if (scores.length === 0) {
+        const local = safeParse(getLS("hillclimb_local_scores")) || [];
+        scores = local.slice(0, 15);
+      }
+
+      if (scores.length === 0) {
+        listEl.innerHTML = `<p class="text-center text-slate-500 py-6">Belum ada skor tersimpan.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = scores.map((s, idx) => `
+        <div class="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+          <div class="flex items-center gap-3">
+            <span class="w-6 h-6 rounded-lg ${idx === 0 ? 'bg-amber-400 text-slate-950 font-black' : 'bg-slate-700 text-slate-300'} flex items-center justify-center text-xs">
+              ${idx + 1}
+            </span>
+            <div>
+              <p class="font-bold text-slate-100 text-xs">${esc(s.siswa_id || "Siswa")}</p>
+              <p class="text-[10px] text-slate-400">⏱️ ${s.durasi_detik || 0} detik</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-sm font-extrabold text-amber-400">${s.skor || 0} pts</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function closeLeaderboardModal() {
+      document.getElementById("leaderboard-modal").classList.add("hidden");
+    }
+
+    /* =========================================================
+       INITIALIZATION ON LOAD
+       ========================================================= */
+    window.addEventListener("load", async () => {
+      // 1. Check current logged user from EduSmart localStorage
+      const user = safeParse(getLS(STORAGE.USER));
+      if (user) {
+        currentUser = {
+          name: user.name || user.nama || "Pemain",
+          kelas: user.kelas || "Umum",
+          id: user.siswaId || user.id || "ANON",
+          fotoUrl: user.fotoUrl || user.foto || user.avatar || ""
+        };
+      }
+
+      // If user profile has no direct photo, try checking cached JSONBin DB data
+      if (!currentUser.fotoUrl) {
+        const cachedDb = safeParse(getLS(STORAGE.DB_LOCAL));
+        if (cachedDb && cachedDb.siswa && Array.isArray(cachedDb.siswa)) {
+          const matchSiswa = cachedDb.siswa.find(s => s.nama === currentUser.name || s.id === currentUser.id);
+          if (matchSiswa && (matchSiswa.foto || matchSiswa.fotoUrl)) {
+            currentUser.fotoUrl = matchSiswa.foto || matchSiswa.fotoUrl;
+          }
+        }
+      }
+
+      // Load Student Photo
+      loadStudentPhoto(currentUser.fotoUrl);
+
+      // 2. Initialize Supabase
+      initSupabase();
+
+      // 3. Display Menu
+      showScreen("menu-screen");
+    });
+  </script>
+</body>
+</html>
