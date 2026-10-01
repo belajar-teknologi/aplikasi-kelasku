@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Buat Kuis - EduSmart LMS</title>
 <script src="https://cdn.tailwindcss.com" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
@@ -90,7 +91,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 <script>
 /* =========================================================
-   BAGIAN 1/5 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
+   BAGIAN 1/6 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
    ========================================================= */
 
 const STORAGE = {
@@ -124,6 +125,15 @@ const JENIS_SOAL = {
 };
 
 const HURUF_PILIHAN = ["A", "B", "C", "D"];
+
+/* ==== DEFAULT SEKOLAH (fallback bila JSONBin kosong) ==== */
+const DEFAULT_SEKOLAH = {
+  kabupaten1: "PEMERINTAH KABUPATEN MALANG",
+  kabupaten2: "DINAS PENDIDIKAN",
+  nama:       "SD NEGERI 3 NGANTRU",
+  alamat:     "Jalan Sawahan No 1 Desa Ngantru Kecamatan Ngantang Kabupaten Malang",
+  email:      "sdn3ngantru.ngantang@gmail.com"
+};
 
 let appState = { currentUser: null, db: null, activeView: "paket" };
 let currentConfig = null;
@@ -621,7 +631,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderMainContent();
 });
 /* =========================================================
-   BAGIAN 2/5 — PAKET SOAL (LIST + MODAL 2 TAB)
+   BAGIAN 2/6 — PAKET SOAL (LIST + MODAL 2 TAB)
    ========================================================= */
 
 let __paketCache = [];
@@ -676,7 +686,7 @@ async function renderPaketList(c) {
                 <button onclick="editPaket('${p.id}')" class="text-[10px] bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-2 py-1.5 rounded-lg"><i class="fa-solid fa-pen"></i> Edit</button>
                 <button onclick="kelolaSoalPaket('${p.id}')" class="text-[10px] bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-2 py-1.5 rounded-lg"><i class="fa-solid fa-list-check"></i> Soal</button>
                 <button onclick="toggleAktifPaket('${p.id}', ${!!p.aktif})" class="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-2 py-1.5 rounded-lg" title="${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}"><i class="fa-solid fa-power-off"></i></button>
-                <button onclick="duplikatPaket('${p.id}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1.5 rounded-lg" title="Duplikat"><i class="fa-solid fa-copy"></i></button>
+                <button onclick="downloadPaketPDF('${p.id}')" class="text-[10px] bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2 py-1.5 rounded-lg" title="Download PDF"><i class="fa-solid fa-file-pdf"></i></button>
                 <button onclick="exportPaketJSON('${p.id}')" class="text-[10px] bg-teal-100 hover:bg-teal-200 text-teal-700 font-bold px-2 py-1.5 rounded-lg" title="Export JSON"><i class="fa-solid fa-download"></i></button>
                 <button onclick="hapusPaket('${p.id}')" class="text-[10px] bg-red-100 hover:bg-red-200 text-red-700 font-bold px-2 py-1.5 rounded-lg" title="Hapus"><i class="fa-solid fa-trash"></i></button>
               </div>
@@ -831,7 +841,7 @@ function renderPaketInfoTab(mapelAll, kelasList) {
 
       <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-2">
         <div class="font-semibold text-emerald-900 flex items-center gap-1.5"><i class="fa-solid fa-link text-emerald-600"></i> Link Materi (opsional)</div>
-        <p class="text-[10px] text-slate-600">URL YouTube, PDF, Google Drive, dll.</p>
+        <p class="text-[10px] text-slate-600">URL YouTube, PDF, Google Drive, dll. Akan tampil sebagai <b>Sumber Belajar</b> di halaman terakhir PDF.</p>
         <div id="pk-links-list" class="space-y-2"></div>
         <button type="button" onclick="tambahLinkMateri()" class="text-[10px] bg-white hover:bg-slate-50 border border-emerald-300 text-emerald-700 font-bold px-3 py-1.5 rounded-lg"><i class="fa-solid fa-plus"></i> Tambah Link</button>
       </div>
@@ -1116,7 +1126,7 @@ async function updateJsonDBAfterLoad(cred) {
   } catch(e) { console.warn(e); }
 }
 /* =========================================================
-   BAGIAN 3/5 — BANK SOAL (LIST + FORM MANUAL 5 JENIS)
+   BAGIAN 3/6 — BANK SOAL (LIST + FORM MANUAL 5 JENIS)
    ========================================================= */
 
 let __filterBankSoal = { mapel: "", kelas: "", jenis: "" };
@@ -1687,7 +1697,7 @@ async function simpanSoal() {
   }
 }
 /* =========================================================
-   BAGIAN 4/5 — PREVIEW JAWABAN, PREVIEW PAKET, KELOLA SOAL, NORMALISASI AI
+   BAGIAN 4/6 — PREVIEW JAWABAN, PREVIEW PAKET, KELOLA SOAL, NORMALISASI AI
    ========================================================= */
 
 /* ---------------------------------------------------------
@@ -2125,8 +2135,9 @@ function normalisasiSoalAI(raw) {
 
   return out;
 }
+
 /* =========================================================
-   BAGIAN 5/5 — GENERATOR AI, EXPORT, SHORTCUT, LOG
+   BAGIAN 5/6 — GENERATOR AI, EXPORT, SHORTCUT, LOG
    ========================================================= */
 
 /* ---------------------------------------------------------
@@ -2333,7 +2344,7 @@ Jawab HANYA array JSON.`;
 }
 
 /* ---------------------------------------------------------
-   5C. EXPORT PAKET JSON
+   5C. EXPORT PAKET JSON (tetap dipertahankan)
    --------------------------------------------------------- */
 async function exportPaketJSON(id) {
   try {
@@ -2388,22 +2399,1114 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
+/* =========================================================
+   BAGIAN 6/6 — DOWNLOAD PDF PAKET SOAL (A4)
+   ========================================================= */
+
+/* State untuk PDF */
+let __pdfPaket = null;        // data paket yang sedang di-PDF-kan
+let __pdfSoal = [];           // soal-soal dalam paket
+let __pdfLinks = [];          // link materi
+let __pdfSetting = null;      // setting sekolah + margin
+let __pdfMode = 'siswa';      // 'siswa' | 'guru'
+let __pdfEditMode = false;    // apakah sedang dalam mode edit di preview
 
 /* ---------------------------------------------------------
-   5E. BOOT LOG & SAFETY CHECK
+   6A. AMBIL DATA PAKET → BUKA MODAL SETTING
    --------------------------------------------------------- */
-console.log("[EduSmart] buat_kuis.html v4.3 loaded");
-console.log("  • GEMINI_MODELS: gemini-2.5-flash");
+async function downloadPaketPDF(paketId) {
+  if (!paketId) { showToast("Paket tidak valid.", "error"); return; }
+  showLoading(true, "Menyiapkan data paket...");
+  try {
+    const paket = (await sbFetch("paket_soal", `?id=eq.${paketId}&limit=1`))?.[0];
+    if (!paket) throw new Error("Paket tidak ditemukan.");
+
+    const items = await sbFetch("paket_soal_items", `?paket_id=eq.${paketId}&order=urutan.asc`);
+    let soalList = [];
+    if (items.length) {
+      const ids = items.map(it => it.soal_id).filter(Boolean);
+      if (ids.length) {
+        const soals = await sbFetch("bank_soal", `?id=in.(${ids.map(i => `"${i}"`).join(",")})`);
+        soalList = items.map(it => soals.find(s => s.id === it.soal_id)).filter(Boolean);
+      }
+    }
+    if (!soalList.length) {
+      showLoading(false);
+      showToast("Paket ini belum punya soal. Tambahkan soal dulu.", "warning", 5000);
+      return;
+    }
+
+    __pdfPaket = paket;
+    __pdfSoal = soalList.map((s, i) => ({ ...s, __index: i }));
+    __pdfLinks = kmGetLinks(paketId);
+    __pdfMode = 'siswa';
+    __pdfEditMode = false;
+
+    // Default setting dari JSONBin atau fallback DEFAULT_SEKOLAH
+    const a = appState.db?.a || {};
+    __pdfSetting = {
+      kabupaten1: DEFAULT_SEKOLAH.kabupaten1,
+      kabupaten2: DEFAULT_SEKOLAH.kabupaten2,
+      nama:       a.ns || DEFAULT_SEKOLAH.nama,
+      alamat:     DEFAULT_SEKOLAH.alamat,
+      email:      DEFAULT_SEKOLAH.email,
+      logoKiri:   a.lk || "",
+      logoKanan:  a.ls || "",
+      mapel:      paket.mapel_kode || "",
+      kelas:      paket.kelas || "",
+      semester:   "2 (Genap)",
+      tahunAjaran:"2026/2027",
+      durasi:     paket.durasi_menit || 90,
+      marginTop:  20,
+      marginBottom: 15,
+      marginLeft: 20,
+      marginRight: 20
+    };
+
+    showLoading(false);
+    renderPDFSettingModal();
+    openModal();
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal: " + err.message, "error");
+  }
+}
+
+/* ---------------------------------------------------------
+   6B. MODAL SETTING PDF
+   --------------------------------------------------------- */
+function renderPDFSettingModal() {
+  const s = __pdfSetting;
+  const mb = document.getElementById("modal-body");
+  const totalSoal = __pdfSoal.length;
+
+  mb.innerHTML = `
+  <div class="space-y-4 text-xs">
+    <div class="border-b pb-3">
+      <h3 class="font-bold text-base"><i class="fa-solid fa-file-pdf text-rose-600"></i> Download PDF — ${esc(__pdfPaket?.nama || "")}</h3>
+      <p class="text-slate-500 mt-1">${totalSoal} soal · ${esc(__pdfPaket?.mapel_kode || "-")} · Kelas ${esc(__pdfPaket?.kelas || "-")}</p>
+    </div>
+
+    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+      <i class="fa-solid fa-lightbulb"></i> Alur: <b>Atur data di bawah</b> → klik <b>Cetak di Tab Baru</b> → <b>Edit Soal</b> bila perlu → <b>Cetak / Save as PDF</b> (A4, margins None).
+    </div>
+
+    <div class="border-t pt-3 space-y-3">
+      <div class="font-bold text-slate-700 uppercase text-[10px] tracking-wide flex items-center gap-1.5">
+        <i class="fa-solid fa-school text-emerald-600"></i> Identitas Sekolah
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Baris Instansi 1</label>
+          <input id="pdf-kabupaten1" value="${esc(s.kabupaten1)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Baris Instansi 2</label>
+          <input id="pdf-kabupaten2" value="${esc(s.kabupaten2)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Nama Sekolah</label>
+          <input id="pdf-nama-sekolah" value="${esc(s.nama)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Alamat</label>
+          <input id="pdf-alamat" value="${esc(s.alamat)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block font-semibold mb-1">Email</label>
+          <input id="pdf-email" value="${esc(s.email)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold mb-1">Logo Kiri (URL)</label>
+          <input id="pdf-logo-kiri" value="${esc(s.logoKiri)}" placeholder="https://..." class="w-full px-2 py-1.5 border rounded-lg font-mono text-[10px]">
+          ${s.logoKiri ? `<img src="${esc(s.logoKiri)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada logo. Set di JSONBin (a.lk).</div>`}
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Logo Kanan (URL)</label>
+          <input id="pdf-logo-kanan" value="${esc(s.logoKanan)}" placeholder="https://..." class="w-full px-2 py-1.5 border rounded-lg font-mono text-[10px]">
+          ${s.logoKanan ? `<img src="${esc(s.logoKanan)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada logo. Set di JSONBin (a.ls).</div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t pt-3 space-y-3">
+      <div class="font-bold text-slate-700 uppercase text-[10px] tracking-wide flex items-center gap-1.5">
+        <i class="fa-solid fa-file-invoice text-emerald-600"></i> Atribut Lembar Ujian
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block font-semibold mb-1">Mapel</label>
+          <input id="pdf-mapel" value="${esc(s.mapel)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Kelas</label>
+          <input id="pdf-kelas" value="${esc(s.kelas)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Semester</label>
+          <select id="pdf-semester" class="w-full px-3 py-2 border rounded-lg bg-white">
+            <option value="1 (Ganjil)" ${s.semester === "1 (Ganjil)" ? "selected" : ""}>1 (Ganjil)</option>
+            <option value="2 (Genap)" ${s.semester === "2 (Genap)" ? "selected" : ""}>2 (Genap)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Tahun Pelajaran</label>
+          <input id="pdf-tahun" value="${esc(s.tahunAjaran)}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+        <div class="col-span-2">
+          <label class="block font-semibold mb-1">Alokasi Waktu (menit)</label>
+          <input id="pdf-durasi" type="number" value="${s.durasi}" class="w-full px-3 py-2 border rounded-lg">
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t pt-3 space-y-3">
+      <div class="font-bold text-slate-700 uppercase text-[10px] tracking-wide flex items-center gap-1.5">
+        <i class="fa-solid fa-ruler-combined text-emerald-600"></i> Margin A4 (mm)
+      </div>
+      <div class="grid grid-cols-4 gap-2">
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Atas</label>
+          <input id="pdf-mt" type="number" value="${s.marginTop}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Bawah</label>
+          <input id="pdf-mb" type="number" value="${s.marginBottom}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Kiri</label>
+          <input id="pdf-ml" type="number" value="${s.marginLeft}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 mb-0.5">Kanan</label>
+          <input id="pdf-mr" type="number" value="${s.marginRight}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t pt-3 space-y-2">
+      <div class="font-bold text-slate-700 uppercase text-[10px] tracking-wide flex items-center gap-1.5">
+        <i class="fa-solid fa-print text-emerald-600"></i> Mode & Cetak
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" id="pdf-mode-siswa" onclick="setPDFMode('siswa')" class="py-2 px-3 rounded-lg text-xs font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 transition">
+          <i class="fa-solid fa-user-graduate"></i> Mode Siswa
+        </button>
+        <button type="button" id="pdf-mode-guru" onclick="setPDFMode('guru')" class="py-2 px-3 rounded-lg text-xs font-bold border-2 border-slate-200 bg-white text-slate-600 transition">
+          <i class="fa-solid fa-chalkboard-user"></i> Mode Guru (Kunci)
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t">
+      <button onclick="closeModal()" class="px-4 py-2 bg-slate-100 rounded-xl">Batal</button>
+      <button onclick="printPDFDirect()" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold rounded-xl"><i class="fa-solid fa-print"></i> Cetak Langsung</button>
+      <button onclick="openPDFInNewTab()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"><i class="fa-solid fa-up-right-from-square"></i> Cetak di Tab Baru</button>
+    </div>
+  </div>`;
+}
+
+/* Sync form setting ke __pdfSetting */
+function syncPDFSettingFromForm() {
+  const get = id => document.getElementById(id)?.value;
+  __pdfSetting.kabupaten1 = get("pdf-kabupaten1") ?? __pdfSetting.kabupaten1;
+  __pdfSetting.kabupaten2 = get("pdf-kabupaten2") ?? __pdfSetting.kabupaten2;
+  __pdfSetting.nama       = get("pdf-nama-sekolah") ?? __pdfSetting.nama;
+  __pdfSetting.alamat     = get("pdf-alamat") ?? __pdfSetting.alamat;
+  __pdfSetting.email      = get("pdf-email") ?? __pdfSetting.email;
+  __pdfSetting.logoKiri   = get("pdf-logo-kiri") ?? __pdfSetting.logoKiri;
+  __pdfSetting.logoKanan  = get("pdf-logo-kanan") ?? __pdfSetting.logoKanan;
+  __pdfSetting.mapel      = get("pdf-mapel") ?? __pdfSetting.mapel;
+  __pdfSetting.kelas      = get("pdf-kelas") ?? __pdfSetting.kelas;
+  __pdfSetting.semester   = get("pdf-semester") ?? __pdfSetting.semester;
+  __pdfSetting.tahunAjaran= get("pdf-tahun") ?? __pdfSetting.tahunAjaran;
+  __pdfSetting.durasi     = Number(get("pdf-durasi")) || 90;
+  __pdfSetting.marginTop  = Number(get("pdf-mt")) ?? __pdfSetting.marginTop;
+  __pdfSetting.marginBottom = Number(get("pdf-mb")) ?? __pdfSetting.marginBottom;
+  __pdfSetting.marginLeft   = Number(get("pdf-ml")) ?? __pdfSetting.marginLeft;
+  __pdfSetting.marginRight  = Number(get("pdf-mr")) ?? __pdfSetting.marginRight;
+}
+
+function setPDFMode(mode) {
+  __pdfMode = mode;
+  const btnS = document.getElementById("pdf-mode-siswa");
+  const btnG = document.getElementById("pdf-mode-guru");
+  if (!btnS || !btnG) return;
+  if (mode === 'siswa') {
+    btnS.className = "py-2 px-3 rounded-lg text-xs font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 transition";
+    btnG.className = "py-2 px-3 rounded-lg text-xs font-bold border-2 border-slate-200 bg-white text-slate-600 transition";
+  } else {
+    btnG.className = "py-2 px-3 rounded-lg text-xs font-bold border-2 border-emerald-500 bg-emerald-50 text-emerald-700 transition";
+    btnS.className = "py-2 px-3 rounded-lg text-xs font-bold border-2 border-slate-200 bg-white text-slate-600 transition";
+  }
+}
+
+/* ---------------------------------------------------------
+   6C. SHUFFLE DETERMINISTIK untuk kolom kanan MENJODOHKAN
+   --------------------------------------------------------- */
+function hashStringToInt(str) {
+  let h = 0;
+  str = String(str || "0");
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  const rnd = () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+/* Kembalikan array index (0..n-1) urutan kanan yang diacak deterministik per soalId.
+   Contoh output: [2,0,1] artinya kanan ditampilkan dalam urutan asli index 2, 0, 1. */
+function shuffleKananOrder(soalId, n) {
+  if (n < 2) return Array.from({length:n},(_,i)=>i);
+  const seed = hashStringToInt(String(soalId || "x"));
+  return seededShuffle(Array.from({length:n},(_,i)=>i), seed);
+}
+
+/* ---------------------------------------------------------
+   6D. RENDER HTML LEMBAR UJIAN (A4)
+   --------------------------------------------------------- */
+function buildExamPaperHTMLForPDF() {
+  const st = __pdfSetting;
+  const soalList = __pdfSoal;
+
+  const namaSiswa = "..................................................";
+  const logoSrcKiri = st.logoKiri || "";
+  const logoSrcKanan = st.logoKanan || "";
+
+  function buildHeader() {
+    return `
+      <div class="flex items-center justify-between border-b-4 border-double border-slate-800 pb-3 mb-5 gap-4">
+        <div class="w-16 h-16 flex items-center justify-center flex-shrink-0">
+          ${logoSrcKiri ? `<img src="${esc(logoSrcKiri)}" referrerpolicy="no-referrer" class="max-h-16 max-w-full object-contain" onerror="this.style.display='none'">` : ""}
+        </div>
+        <div class="text-center flex-grow">
+          <h2 class="text-xs md:text-sm font-bold tracking-wide uppercase">${esc(st.kabupaten1)}</h2>
+          <h2 class="text-xs md:text-sm font-bold tracking-wide uppercase">${esc(st.kabupaten2)}</h2>
+          <h1 class="text-base md:text-lg font-extrabold tracking-wider uppercase mt-0.5">${esc(st.nama)}</h1>
+          <p class="text-[9px] md:text-[10px] italic text-slate-500 mt-1">Alamat: ${esc(st.alamat)}</p>
+          <p class="text-[9px] md:text-[10px] italic text-slate-500">Pos-el: ${esc(st.email)}</p>
+        </div>
+        <div class="w-16 h-16 flex items-center justify-center flex-shrink-0">
+          ${logoSrcKanan ? `<img src="${esc(logoSrcKanan)}" referrerpolicy="no-referrer" class="max-h-16 max-w-full object-contain" onerror="this.style.display='none'">` : ""}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 text-[10px] md:text-xs font-bold border border-slate-300 p-3 rounded-xl mb-4 bg-slate-50">
+        <div class="space-y-1">
+          <div>NAMA SISWA : <span class="font-normal">${esc(namaSiswa)}</span></div>
+          <div>MATA PELAJARAN : <span class="font-normal uppercase">${esc(st.mapel)}</span></div>
+          <div>KELAS / SEMESTER : <span class="font-normal">${esc(st.kelas)} / ${esc(st.semester)}</span></div>
+        </div>
+        <div class="space-y-1">
+          <div>TAHUN AJARAN : <span class="font-normal">${esc(st.tahunAjaran)}</span></div>
+          <div>ALOKASI WAKTU : <span class="font-normal">${esc(st.durasi)} MENIT</span></div>
+          <div>NILAI / PARAF : <span class="font-normal">..................................................</span></div>
+        </div>
+      </div>
+
+      <div class="border border-slate-300 rounded-xl p-3 mb-4 bg-slate-50/50 text-[10px] md:text-xs">
+        <h4 class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-circle-info text-emerald-600"></i> PETUNJUK UMUM:</h4>
+        <ol class="list-decimal list-inside text-slate-600 space-y-0.5">
+          <li>Berdoalah terlebih dahulu sebelum mengerjakan soal ujian.</li>
+          <li>Tuliskan nama lengkap Anda pada lembar jawab yang telah disediakan.</li>
+          <li>Periksa kembali setiap jawaban Anda sebelum diserahkan kepada guru.</li>
+        </ol>
+      </div>
+    `;
+  }
+
+  function generateQuestionHTML(no, q) {
+    const jaw = q.jawaban || {};
+    const pilihanRaw = q.pilihan || {};
+    const isGuru = __pdfMode === 'guru';
+    const idxQ = q.__index;
+
+    /* ==== Opsi jawaban ==== */
+    let optionsHTML = "";
+
+    if (q.jenis === "PG") {
+      const pilihan = ["A","B","C","D"].map(k => ({ key: k, text: pilihanRaw[k] || "" }));
+      optionsHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5 ml-4 mt-1">
+          ${pilihan.map(p => `
+            <div class="flex items-start gap-2">
+              <span class="shrink-0 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold">${p.key}.</span>
+              <span class="flex-1">${esc(p.text)}</span>
+            </div>
+          `).join("")}
+        </div>`;
+    }
+    else if (q.jenis === "PGK") {
+      const pilihan = ["A","B","C","D"].map(k => ({ key: k, text: pilihanRaw[k] || "" }));
+      optionsHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5 ml-4 mt-1">
+          ${pilihan.map(p => `
+            <div class="flex items-start gap-2">
+              <span class="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-sm border border-slate-500 text-[10px] font-bold"></span>
+              <span class="flex-1"><b>${p.key}.</b> ${esc(p.text)}</span>
+            </div>
+          `).join("")}
+        </div>`;
+    }
+    else if (q.jenis === "MENJODOHKAN") {
+      const kiri = Array.isArray(pilihanRaw.kiri) ? pilihanRaw.kiri : [];
+      const kanan = Array.isArray(pilihanRaw.kanan) ? pilihanRaw.kanan : [];
+      const orderKanan = shuffleKananOrder(q.id, kanan.length); // array index asli
+      const HURUF_KIRI = ["A","B","C","D","E","F","G","H","I","J"];
+      // Kolom kanan diacak; nomor kanan = 1..n berdasarkan urutan tampil
+      const kananDisplay = orderKanan.map((origIdx, displayIdx) => ({
+        nomor: displayIdx + 1,
+        text: kanan[origIdx] || "",
+        origIdx
+      }));
+      // Untuk kunci guru: pasangkan kiri index i ke nomor kanan yang benar
+      const kananAsli = kanan.map((t, i) => ({ nomor: orderKanan.indexOf(i) + 1, text: t }));
+
+      optionsHTML = `
+        <div class="grid grid-cols-2 gap-4 ml-4 mt-2">
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-bold text-slate-500 border-b border-dashed pb-1 mb-1">KIRI (SOAL)</div>
+            ${kiri.map((t, i) => `
+              <div class="flex items-start gap-2 text-[11px]">
+                <span class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border border-slate-400 text-[10px] font-bold">${HURUF_KIRI[i] || "?"}</span>
+                <span class="flex-1 pt-0.5">${esc(t)}</span>
+              </div>
+            `).join("")}
+          </div>
+          <div class="space-y-1.5">
+            <div class="text-[10px] font-bold text-slate-500 border-b border-dashed pb-1 mb-1">KANAN (JAWABAN)</div>
+            ${kananDisplay.map(k => `
+              <div class="flex items-start gap-2 text-[11px]">
+                <span class="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full border border-slate-400 text-[10px] font-bold">${k.nomor}</span>
+                <span class="flex-1 pt-0.5">${esc(k.text)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        ${isGuru ? `
+          <div class="ml-4 mt-2 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+            <b><i class="fa-solid fa-key"></i> Kunci Pasangan:</b>
+            ${kiri.map((_, i) => {
+              const huruf = HURUF_KIRI[i] || "?";
+              // pasangan asli: kiri index i ↔ kanan asli index i → nomor tampil =
+              const nomorTampil = orderKanan.indexOf(i) + 1;
+              return `<span class="inline-block bg-white px-1.5 py-0.5 rounded mr-1 my-0.5 border border-amber-300">${huruf} → ${nomorTampil}</span>`;
+            }).join("")}
+          </div>
+        ` : ``}`;
+    }
+    else if (q.jenis === "ISIAN") {
+      optionsHTML = `
+        <div class="ml-4 mt-1 text-[11px] text-slate-500">
+          Jawaban: <span class="inline-block border-b border-dotted border-slate-400 min-w-[200px]">&nbsp;</span>
+        </div>
+        ${isGuru ? `<div class="ml-4 mt-1 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-1.5"><b>Kunci:</b> ${(Array.isArray(jaw.kunci) ? jaw.kunci : [jaw.kunci || "-"]).map(esc).join(" / ")}</div>` : ``}`;
+    }
+    else if (q.jenis === "URAIAN") {
+      optionsHTML = `
+        <div class="ml-4 mt-1 text-[11px] text-slate-500 space-y-3">
+          <div class="border-b border-dotted border-slate-400 h-4"></div>
+          <div class="border-b border-dotted border-slate-400 h-4"></div>
+          <div class="border-b border-dotted border-slate-400 h-4"></div>
+        </div>
+        ${isGuru ? `<div class="ml-4 mt-2 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-1.5"><b>Kunci / Pedoman:</b> ${esc(jaw.kunci || "-")}</div>` : ``}`;
+    }
+
+    /* ==== Gambar soal ==== */
+    const media = q.media && q.media.url ? `
+      <div class="ml-4 mt-2">
+        <img src="${esc(q.media.url)}" referrerpolicy="no-referrer" class="max-h-52 object-contain border rounded" onerror="this.style.display='none'">
+      </div>` : "";
+
+    /* ==== Edit toolbar (hanya tampil saat mode edit) ==== */
+    const editTools = `
+      <div class="question-edit-tools mt-2 pt-2 border-t border-amber-200 hidden">
+        <div class="text-[10px] text-amber-800 mb-1"><b>✏️ Mode Edit:</b> ubah pertanyaan & opsi di bawah ini (tidak disimpan ke bank soal).</div>
+        <textarea class="edit-input edit-question-input w-full text-[11px] p-2 border rounded" placeholder="Pertanyaan...">${esc(q.pertanyaan || "")}</textarea>
+        ${(q.jenis === "PG" || q.jenis === "PGK") ? `
+          <div class="grid grid-cols-2 gap-1.5 mt-1">
+            ${["A","B","C","D"].map(k => `<textarea class="edit-input edit-option-input text-[10px] p-1.5 border rounded" data-key="${k}" placeholder="Pilihan ${k}...">${esc((pilihanRaw[k] || ""))}</textarea>`).join("")}
+          </div>` : ``}
+      </div>`;
+
+    return `
+      <div class="question-item pl-2 border-l-2 border-emerald-500/20" data-question-index="${idxQ}">
+        <div class="font-medium mb-1.5 flex justify-between items-start gap-2">
+          <div class="flex-1">
+            <span class="view-text">${no}. ${esc(q.pertanyaan || "")}</span>
+          </div>
+          ${q.skor ? `<span class="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-100 whitespace-nowrap">Skor: ${q.skor}</span>` : ""}
+        </div>
+        ${media}
+        ${optionsHTML}
+        ${editTools}
+      </div>`;
+  }
+
+  function buildSectionTitle(roman, title, instruction) {
+    return `
+      <div class="section-title-wrapper mb-3">
+        <h3 class="font-extrabold text-xs md:text-sm border-b pb-1 mb-2 text-slate-900 uppercase">${roman}. ${title}</h3>
+        <p class="italic text-slate-500 mb-3 text-[10px]">${instruction}</p>
+      </div>`;
+  }
+
+  /* Kelompokkan soal per jenis */
+  const pgList    = soalList.filter(q => q.jenis === "PG");
+  const pgkList   = soalList.filter(q => q.jenis === "PGK");
+  const matchList = soalList.filter(q => q.jenis === "MENJODOHKAN");
+  const isianList = soalList.filter(q => q.jenis === "ISIAN");
+  const uraianList= soalList.filter(q => q.jenis === "URAIAN");
+
+  /* Bikin array "allItems" */
+  const allItems = [];
+  let globalNo = 1;
+
+  if (pgList.length) {
+    allItems.push({ type: 'section', html: buildSectionTitle('I', 'Pilihan Ganda', 'Pilihlah salah satu jawaban yang paling tepat dengan tanda silang (X) pada huruf A, B, C, atau D!') });
+    pgList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
+  }
+  if (pgkList.length) {
+    allItems.push({ type: 'section', html: buildSectionTitle('II', 'Pilihan Ganda Kompleks', 'Pilihlah semua jawaban yang benar dengan memberi tanda centang pada kotak yang tersedia!') });
+    pgkList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
+  }
+  if (matchList.length) {
+    allItems.push({ type: 'section', html: buildSectionTitle('III', 'Menjodohkan', 'Hubungkan pernyataan kiri dengan pasangan yang tepat di kanan!') });
+    matchList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
+  }
+  if (isianList.length) {
+    allItems.push({ type: 'section', html: buildSectionTitle('IV', 'Isian Singkat', 'Isilah titik-titik di bawah ini dengan jawaban yang singkat dan tepat!') });
+    isianList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
+  }
+  if (uraianList.length) {
+    allItems.push({ type: 'section', html: buildSectionTitle('V', 'Uraian', 'Jawablah pertanyaan berikut secara lengkap, jelas, dan berurutan!') });
+    uraianList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
+  }
+
+  /* Section Sumber Belajar (link materi) — halaman terakhir */
+  const sumberHTML = __pdfLinks.length ? `
+    <div class="section-title-wrapper mb-3 mt-4">
+      <h3 class="font-extrabold text-xs md:text-sm border-b pb-1 mb-2 text-slate-900 uppercase">
+        SUMBER BELAJAR
+      </h3>
+      <p class="italic text-slate-500 mb-3 text-[10px]">Berikut tautan referensi yang dapat digunakan siswa untuk memperdalam materi:</p>
+      <ol class="list-decimal list-inside text-[11px] text-slate-700 space-y-1">
+        ${__pdfLinks.map((u, i) => `<li class="break-all"><a href="${esc(u)}" target="_blank" class="text-emerald-700 underline">${esc(u)}</a></li>`).join("")}
+      </ol>
+    </div>` : "";
+
+  /* ==== Susun halaman dengan pengukuran ==== */
+  const MM_TO_PX = 3.7795;
+  const PADDING_TOP_MM = st.marginTop;
+  const PADDING_BOTTOM_MM = st.marginBottom;
+  const PAGE_HEIGHT_MM = 297;
+  const CONTENT_HEIGHT_PX = (PAGE_HEIGHT_MM - PADDING_TOP_MM - PADDING_BOTTOM_MM) * MM_TO_PX;
+  const SAFE_MARGIN_PX = CONTENT_HEIGHT_PX * 0.99;
+
+  /* Buat container pengukuran (tidak tampil) */
+  const measure = document.createElement('div');
+  measure.style.position = 'absolute';
+  measure.style.left = '-9999px';
+  measure.style.top = '0';
+  measure.style.width = '210mm';
+  measure.style.padding = `${PADDING_TOP_MM}mm ${st.marginRight}mm ${PADDING_BOTTOM_MM}mm ${st.marginLeft}mm`;
+  measure.style.boxSizing = 'border-box';
+  measure.style.background = 'white';
+  measure.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+  measure.style.fontSize = '12px';
+  measure.style.lineHeight = '1.5';
+  measure.style.color = '#1e293b';
+
+  let measureHTML = buildHeader();
+  measureHTML += `<div class="space-y-3">`;
+  allItems.forEach(item => {
+    if (item.type === 'section') measureHTML += item.html;
+    else measureHTML += generateQuestionHTML(item.no, item.data);
+  });
+  if (sumberHTML) measureHTML += sumberHTML;
+  measureHTML += `</div>`;
+  measure.innerHTML = measureHTML;
+  document.body.appendChild(measure);
+
+  /* Ukur tinggi elemen */
+  const headerEl = measure.querySelector('.border-b-4');
+  const infoEl = measure.querySelector('.grid.grid-cols-2.gap-4');
+  const petunjukEl = measure.querySelector('.border.border-slate-300.rounded-xl.p-3.mb-4');
+  let headerHeight = 0;
+  if (headerEl) headerHeight += headerEl.offsetHeight + 20;
+  if (infoEl) headerHeight += infoEl.offsetHeight + 16;
+  if (petunjukEl) headerHeight += petunjukEl.offsetHeight + 16;
+
+  const renderedItems = measure.querySelectorAll('.section-title-wrapper, .question-item');
+  const measuredItems = [];
+  renderedItems.forEach((el, idx) => {
+    measuredItems.push({
+      element: allItems[idx] || { type: 'extra', html: el.outerHTML },
+      height: el.offsetHeight + 10
+    });
+  });
+
+  document.body.removeChild(measure);
+
+  /* Distribusi ke halaman */
+  const pages = [];
+  let currentPage = [];
+  let currentHeight = headerHeight;
+
+  measuredItems.forEach(item => {
+    if (currentHeight + item.height > SAFE_MARGIN_PX && currentPage.length > 0) {
+      pages.push(currentPage);
+      currentPage = [];
+      currentHeight = 0;
+    }
+    currentPage.push(item);
+    currentHeight += item.height;
+  });
+  if (currentPage.length) pages.push(currentPage);
+  if (!pages.length) pages.push([]);
+
+  /* Optimasi akhir: dorong item ke halaman sebelumnya jika masih muat */
+  let changed = true, iteration = 0;
+  while (changed && iteration < 100) {
+    changed = false; iteration++;
+    for (let p = 0; p < pages.length - 1; p++) {
+      const cur = pages[p], next = pages[p+1];
+      if (!next.length) continue;
+      let curH = (p === 0) ? headerHeight + cur.reduce((s,i)=>s+i.height,0) : cur.reduce((s,i)=>s+i.height,0);
+      const first = next[0];
+      if (curH + first.height <= SAFE_MARGIN_PX) {
+        cur.push(first); next.shift(); changed = true;
+      }
+    }
+    for (let i = pages.length - 1; i >= 0; i--) if (!pages[i].length) pages.splice(i, 1);
+    if (!pages.length) pages.push([]);
+  }
+
+  /* Bangun HTML final per halaman */
+  let finalHTML = '';
+  pages.forEach((pageItems, pageIdx) => {
+    const isFirst = pageIdx === 0;
+    finalHTML += `
+      <div class="a4-page-wrapper">
+        <div class="a4-page-label no-print"><i class="fa-solid fa-file-lines"></i> Halaman ${pageIdx+1} dari ${pages.length}</div>
+        <div class="a4-preview-sheet ${__pdfMode === 'guru' ? 'print-guru' : 'print-siswa'} ${__pdfEditMode ? 'edit-mode' : ''}" data-page="${pageIdx+1}">
+          ${isFirst ? buildHeader() : ''}
+          <div class="space-y-3 text-[11px] md:text-xs text-slate-800">
+    `;
+    pageItems.forEach(item => {
+      if (item.element.type === 'section') finalHTML += item.element.html;
+      else if (item.element.type === 'question') finalHTML += generateQuestionHTML(item.element.no, item.element.data);
+      else finalHTML += item.element.html;
+    });
+    finalHTML += `
+          </div>
+        </div>
+      </div>`;
+  });
+
+  return finalHTML;
+}
+
+/* ---------------------------------------------------------
+   6E. PREVIEW & CETAK — SEMUA DI TAB BARU (html2canvas)
+   --------------------------------------------------------- */
+function openPDFInNewTab() {
+  syncPDFSettingFromForm();
+  if (!__pdfSoal.length) { showToast("Tidak ada soal.", "error"); return; }
+
+  const pageHTML = buildExamPaperHTMLForPDF();
+  const st = __pdfSetting;
+  const soalCount = __pdfSoal.length;
+
+  const newTabHTML = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Cetak Lembar Ujian — ${esc(__pdfPaket?.nama || "Paket")}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; color: #1e293b; }
+
+.toolbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: #0f172a; color: white;
+  padding: 10px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  gap: 12px; flex-wrap: wrap;
+}
+.toolbar-left { display:flex; flex-direction:column; gap:2px; }
+.toolbar-title { font-weight:bold; font-size:14px; }
+.toolbar-info { font-size:11px; opacity:0.85; }
+.toolbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+.margin-controls {
+  display:flex; align-items:center; gap:6px;
+  background: rgba(255,255,255,0.1);
+  padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.15);
+}
+.margin-label { font-size:11px; font-weight:600; opacity:0.9; margin-right:2px; }
+.margin-input-wrap {
+  display:inline-flex; align-items:center; gap:2px;
+  background: white; border-radius:5px; padding:2px 5px; font-size:11px;
+}
+.margin-input-wrap span { color:#0f172a; font-weight:bold; font-size:12px; }
+.margin-input-wrap input {
+  width:36px; border:none; outline:none; font-size:12px; font-weight:bold;
+  color:#0f172a; text-align:center; background:transparent;
+}
+.toolbar-btn-mini {
+  background:#10b981; color:white; border:none;
+  padding:6px 12px; border-radius:5px; font-weight:700; cursor:pointer;
+  font-size:11px; display:inline-flex; align-items:center; gap:4px;
+  margin-left:4px;
+}
+.toolbar-btn-mini:hover { background:#059669; }
+.toolbar-btn-mini:disabled { background:#64748b; cursor:not-allowed; }
+
+.toolbar-btn {
+  background:#10b981; color:white; border:none;
+  padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer;
+  font-size:13px; display:inline-flex; align-items:center; gap:8px;
+}
+.toolbar-btn:hover { background:#059669; }
+.toolbar-btn-secondary {
+  background: rgba(255,255,255,0.15); color:white;
+  border:1px solid rgba(255,255,255,0.3);
+  padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer;
+  font-size:12px; display:inline-flex; align-items:center; gap:6px;
+}
+.toolbar-btn-secondary:hover { background: rgba(255,255,255,0.25); }
+.toolbar-btn-warn {
+  background: #f59e0b; color: white; border:none;
+  padding:10px 16px; border-radius:8px; font-weight:bold; cursor:pointer;
+  font-size:12px; display:inline-flex; align-items:center; gap:6px;
+}
+.toolbar-btn-warn:hover { background: #d97706; }
+.toolbar-btn-warn.active { background: #dc2626; }
+
+.a4-preview-sheet {
+  width: 210mm; min-height: 297mm;
+  padding: ${st.marginTop}mm ${st.marginRight}mm ${st.marginBottom}mm ${st.marginLeft}mm;
+  margin: 80px auto 10px auto;
+  background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  box-sizing: border-box; position: relative;
+}
+.a4-page-wrapper { display:flex; flex-direction:column; align-items:center; margin-bottom:24px; }
+.a4-page-label {
+  background:#1e293b; color:white; font-size:11px; font-weight:bold;
+  padding:4px 14px; border-radius:6px; margin-bottom:8px;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.a4-page-img {
+  width: 210mm; height: auto; display:block;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15); background: white;
+  margin: 80px auto 10px auto;
+}
+.a4-page-img:not(:first-child) { margin-top: 10px; }
+.a4-page-img:last-child { margin-bottom: 20px; }
+
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.95); color: white;
+  display: flex; flex-direction: column; align-items:center; justify-content:center;
+  z-index: 9999; gap: 16px; transition: opacity 0.3s;
+}
+.loading-overlay.hidden { display:none; }
+.loading-spinner {
+  width: 56px; height: 56px; border:4px solid rgba(255,255,255,0.2);
+  border-top-color: #10b981; border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 14px; font-weight: bold; }
+.loading-subtext { font-size: 12px; opacity: 0.8; }
+
+.print-info {
+  max-width: 210mm; margin: 80px auto 10px auto;
+  background: #fef3c7; border-left: 4px solid #f59e0b;
+  padding: 12px 16px; border-radius: 8px;
+  font-size: 12px; color: #78350f;
+}
+.print-info b { color: #92400e; }
+
+.question-item {
+  page-break-inside: avoid; break-inside: avoid;
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.question-item:last-child { border-bottom: none; }
+
+.kunci-jawaban-text { display:none !important; }
+.print-guru .kunci-jawaban-text { display:block !important; }
+.solution-text { display:none !important; }
+.print-guru .solution-text { display:block !important; }
+
+/* ==== Edit mode ==== */
+.edit-mode .question-item {
+  border: 2px solid #fbbf24; border-radius: 8px;
+  padding: 12px; background: #fffbeb;
+}
+.edit-mode .edit-input { display: block; }
+.edit-mode .view-text { display: none; }
+.edit-input { display: none; }
+.view-text { display: block; }
+.edit-mode .question-edit-tools { display: block; }
+.question-edit-tools { display: none; }
+
+@page { size: A4 portrait; margin: 0; }
+
+@media print {
+  html, body { background: white !important; padding: 0 !important; margin: 0 !important; }
+  .toolbar, .print-info, .loading-overlay, .a4-page-label { display: none !important; }
+  .a4-page-img {
+    width: 210mm !important; height: 297mm !important;
+    display: block !important; margin: 0 !important; padding: 0 !important;
+    box-shadow: none !important; background: white !important;
+    page-break-after: always !important; break-after: page !important;
+    object-fit: contain !important;
+  }
+  .a4-page-img:last-child { page-break-after: avoid !important; break-after: auto !important; }
+  .a4-preview-sheet {
+    width: 210mm !important; min-height: 297mm !important;
+    margin: 0 !important; box-shadow: none !important; background: white !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important; break-after: page !important;
+  }
+  .a4-preview-sheet:last-child { page-break-after: avoid !important; break-after: auto !important; }
+  .kunci-jawaban-text { display: none !important; }
+  .print-guru .kunci-jawaban-text { display: block !important; }
+  .solution-text { display: none !important; }
+  .print-guru .solution-text { display: block !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="toolbar-title"><i class="fa-solid fa-file-lines"></i> Lembar Ujian Siap Cetak</div>
+    <div class="toolbar-info">Mode: ${__pdfMode === 'guru' ? 'Guru (dengan kunci)' : 'Siswa'} • A4 210×297 mm • ${soalCount} soal</div>
+  </div>
+  <div class="toolbar-right">
+    <div class="margin-controls">
+      <span class="margin-label">Margin (mm):</span>
+      <label class="margin-input-wrap"><span>↑</span><input type="number" id="marginTopNewTab" value="${st.marginTop}" min="0" max="50" step="1"></label>
+      <label class="margin-input-wrap"><span>↓</span><input type="number" id="marginBottomNewTab" value="${st.marginBottom}" min="0" max="50" step="1"></label>
+      <label class="margin-input-wrap"><span>←</span><input type="number" id="marginLeftNewTab" value="${st.marginLeft}" min="0" max="50" step="1"></label>
+      <label class="margin-input-wrap"><span>→</span><input type="number" id="marginRightNewTab" value="${st.marginRight}" min="0" max="50" step="1"></label>
+      <button class="toolbar-btn-mini" id="btnRerender" onclick="rerenderJpg()">
+        <i class="fa-solid fa-rotate"></i> Render Ulang
+      </button>
+    </div>
+    <button class="toolbar-btn-warn" id="btnToggleEdit" onclick="toggleEditMode()">
+      <i class="fa-solid fa-pen-to-square"></i> Edit Soal
+    </button>
+    <button class="toolbar-btn-secondary" onclick="window.close()">
+      <i class="fa-solid fa-xmark"></i> Tutup
+    </button>
+    <button class="toolbar-btn" onclick="window.print()">
+      <i class="fa-solid fa-print"></i> Cetak / Save as PDF
+    </button>
+  </div>
+</div>
+
+<div class="print-info">
+  💡 <b>Cara pakai:</b> 1) Klik <b>Edit Soal</b> bila perlu ubah pertanyaan/opsi → 2) Klik <b>Selesai Edit</b> → 3) Atur margin bila perlu → <b>Render Ulang</b> → 4) Klik <b>Cetak / Save as PDF</b> → pilih <b>Save as PDF</b>, ukuran <b>A4</b>, margins <b>None</b>.
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Sedang menyiapkan lembar ujian...</div>
+  <div class="loading-subtext">Halaman di-render menjadi gambar agar hasil cetak 100% sama dengan preview</div>
+</div>
+
+<div id="pagesContainer">
+  ${pageHTML}
+</div>
+
+<script>
+let originalPagesHTML = [];
+let renderInProgress = false;
+let newTabEditMode = false;
+
+function getMargins() {
+  return {
+    top: document.getElementById('marginTopNewTab').value || 0,
+    bottom: document.getElementById('marginBottomNewTab').value || 0,
+    left: document.getElementById('marginLeftNewTab').value || 0,
+    right: document.getElementById('marginRightNewTab').value || 0
+  };
+}
+
+async function renderAllPages() {
+  if (renderInProgress) return;
+  renderInProgress = true;
+  const btn = document.getElementById('btnRerender');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rendering...'; }
+
+  try {
+    const pages = document.querySelectorAll('.a4-preview-sheet');
+    if (!pages.length) {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      renderInProgress = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Render Ulang'; }
+      return;
+    }
+
+    if (!originalPagesHTML.length) {
+      document.querySelectorAll('.a4-preview-sheet').forEach(el => {
+        // simpan juga mode print & edit
+        originalPagesHTML.push({
+          html: el.outerHTML,
+          printGuru: el.classList.contains('print-guru'),
+          editMode: el.classList.contains('edit-mode')
+        });
+      });
+    }
+
+    for (let i = 0; i < pages.length; i++) {
+      const pageEl = pages[i];
+      const canvas = await html2canvas(pageEl, {
+        scale: 2, useCORS: true, allowTaint: true, logging: false,
+        backgroundColor: '#ffffff',
+        width: pageEl.offsetWidth, height: pageEl.offsetHeight,
+        windowWidth: pageEl.offsetWidth, windowHeight: pageEl.offsetHeight
+      });
+      const jpg = canvas.toDataURL('image/jpeg', 0.95);
+      const img = document.createElement('img');
+      img.src = jpg;
+      img.className = 'a4-page-img';
+      img.alt = 'Halaman ' + (i+1);
+      // sembunyikan label halaman saat mode print
+      const wrapper = pageEl.closest('.a4-page-wrapper');
+      if (wrapper) {
+        wrapper.innerHTML = '';
+        wrapper.appendChild(img);
+      } else {
+        pageEl.parentNode.replaceChild(img, pageEl);
+      }
+    }
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  } catch (err) {
+    console.error('Render error:', err);
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  } finally {
+    renderInProgress = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Render Ulang'; }
+  }
+}
+
+async function rerenderJpg() {
+  if (renderInProgress) return;
+  const container = document.getElementById('pagesContainer');
+  const margins = getMargins();
+  const newPadding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
+
+  container.innerHTML = '';
+  originalPagesHTML.forEach((entry, idx) => {
+    const temp = document.createElement('div');
+    temp.innerHTML = entry.html;
+    const el = temp.firstElementChild; // .a4-page-wrapper
+    const sheet = el.querySelector('.a4-preview-sheet');
+    if (sheet) {
+      sheet.style.padding = newPadding;
+      if (entry.printGuru) { sheet.classList.add('print-guru'); sheet.classList.remove('print-siswa'); }
+      else { sheet.classList.add('print-siswa'); sheet.classList.remove('print-guru'); }
+      if (entry.editMode) sheet.classList.add('edit-mode');
+    }
+    container.appendChild(el);
+  });
+
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  await new Promise(r => setTimeout(r, 200));
+  await renderAllPages();
+}
+
+function toggleEditMode() {
+  newTabEditMode = !newTabEditMode;
+  const btn = document.getElementById('btnToggleEdit');
+  // Jika sedang dalam bentuk gambar (sudah di-render), restore dulu HTML-nya
+  const hasImg = document.querySelectorAll('.a4-page-img').length > 0;
+
+  if (hasImg) {
+    // Kembalikan ke HTML asli agar bisa diedit
+    const container = document.getElementById('pagesContainer');
+    container.innerHTML = '';
+    originalPagesHTML.forEach(entry => {
+      const temp = document.createElement('div');
+      temp.innerHTML = entry.html;
+      const el = temp.firstElementChild;
+      const sheet = el.querySelector('.a4-preview-sheet');
+      if (sheet) {
+        if (entry.printGuru) { sheet.classList.add('print-guru'); sheet.classList.remove('print-siswa'); }
+        else { sheet.classList.add('print-siswa'); sheet.classList.remove('print-guru'); }
+      }
+      container.appendChild(el);
+    });
+  }
+
+  document.querySelectorAll('.a4-preview-sheet').forEach(el => {
+    el.classList.toggle('edit-mode', newTabEditMode);
+  });
+
+  if (newTabEditMode) {
+    btn.classList.add('active');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Selesai Edit';
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Soal';
+    // Simpan perubahan: update originalPagesHTML dengan HTML saat ini
+    originalPagesHTML = [];
+    document.querySelectorAll('.a4-page-wrapper').forEach(el => {
+      const sheet = el.querySelector('.a4-preview-sheet');
+      originalPagesHTML.push({
+        html: el.outerHTML,
+        printGuru: sheet ? sheet.classList.contains('print-guru') : false,
+        editMode: false
+      });
+    });
+    // Render ulang ke JPG
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    setTimeout(() => renderAllPages(), 250);
+  }
+}
+
+window.addEventListener('load', async function() {
+  await new Promise(r => setTimeout(r, 800));
+  await renderAllPages();
+});
+<\/script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) { showToast("Popup diblokir! Izinkan popup untuk situs ini.", "error"); return; }
+  w.document.open();
+  w.document.write(newTabHTML);
+  w.document.close();
+
+  closeModal();
+  showToast("Tab baru dibuka! Tunggu loading selesai.", "success");
+}
+
+/* ---------------------------------------------------------
+   6F. CETAK LANGSUNG (tanpa tab baru)
+   --------------------------------------------------------- */
+function printPDFDirect() {
+  syncPDFSettingFromForm();
+  if (!__pdfSoal.length) { showToast("Tidak ada soal.", "error"); return; }
+
+  const st = __pdfSetting;
+  const html = buildExamPaperHTMLForPDF();
+
+  /* Buat iframe tersembunyi, isi HTML, lalu print */
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Cetak Lembar Ujian</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  html, body { margin: 0; padding: 0; background: white; font-family: 'Plus Jakarta Sans', sans-serif; }
+  .a4-preview-sheet {
+    width: 210mm; min-height: 297mm;
+    padding: ${st.marginTop}mm ${st.marginRight}mm ${st.marginBottom}mm ${st.marginLeft}mm;
+    box-sizing: border-box; background: white;
+    page-break-after: always; break-after: page;
+    margin: 0;
+  }
+  .a4-preview-sheet:last-child { page-break-after: avoid; break-after: auto; }
+  .question-item { page-break-inside: avoid; break-inside: avoid; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #e2e8f0; }
+  .question-item:last-child { border-bottom: none; }
+  .kunci-jawaban-text { display: none !important; }
+  .print-guru .kunci-jawaban-text { display: block !important; }
+  .solution-text { display: none !important; }
+  .print-guru .solution-text { display: block !important; }
+  .edit-mode .question-edit-tools,
+  .edit-mode .edit-input { display: none !important; }
+  .view-text { display: block !important; }
+</style>
+</head>
+<body>
+${html}
+<\/body>
+</html>`);
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch(e) { console.warn(e); }
+    setTimeout(() => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 1500);
+  }, 700);
+
+  closeModal();
+  showToast("Dialog cetak terbuka. Pilih Save as PDF, A4, margins None.", "info", 5000);
+}
+
+/* ---------------------------------------------------------
+   6G. LOG
+   --------------------------------------------------------- */
+console.log("[EduSmart] Bagian 6 — Download PDF paket siap");
+console.log("  • Logo kabupaten dari appState.db.a.lk");
+console.log("  • Logo sekolah dari appState.db.a.ls");
+console.log("  • Menjodohkan: kolom kanan diacak deterministik per soal");
+console.log("  • Link materi → ditampilkan sebagai SUMBER BELAJAR di halaman terakhir");
+console.log("  • Edit Soal tersedia di tab baru (perubahan tidak disimpan ke bank soal)");
+/* ---------------------------------------------------------
+   5E. BOOT LOG
+   --------------------------------------------------------- */
+console.log("[EduSmart] buat_kuis.html v4.4 loaded");
 console.log("  • Menu sidebar: Paket Soal, Bank Soal (Generator AI di dalam paket)");
 console.log("  • Form PG/PGK: klik kotak huruf A-D untuk set kunci");
 console.log("  • Tab paket: Info Paket + Generate AI (Alt+1 / Alt+2)");
-console.log("  • normalisasiSoalAI(): toleran — terima PGK 1 kunci, kunci teks → huruf, dll");
+console.log("  • Tombol kartu paket: 👁 Preview | ✏️ Edit | ✅ Soal | ⏻ Aktif | 📄 PDF | ⬇ JSON | 🗑 Hapus");
+console.log("  • Download PDF: modal setting → tab baru A4 → Edit Soal → Cetak");
 
 setTimeout(() => {
   const cek = [
     "renderPaketList", "renderBankSoalList", "showBuatPaketModal",
     "showBuatSoalModal", "jalankanGenerateAI", "normalisasiSoalAI",
-    "kelolaSoalPaket", "previewPaket", "renderJawabanPreview"
+    "kelolaSoalPaket", "previewPaket", "renderJawabanPreview",
+    "downloadPaketPDF"
   ];
   const missing = cek.filter(fn => typeof window[fn] !== "function");
   if (missing.length) console.warn("[EduSmart] Fungsi belum terdefinisi:", missing);
