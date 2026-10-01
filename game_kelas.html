@@ -1,1110 +1,1237 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Kelas Lucu & Unik</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts: Fredoka -->
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Supabase JS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            font-family: 'Fredoka', cursive, sans-serif;
-            background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #ec4899 100%);
-            min-height: 100vh;
-        }
-        .bounce-hover:hover {
-            transform: scale(1.05) rotate(-1deg);
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .hole-shadow {
-            box-shadow: inset 0 10px 15px -3px rgba(0, 0, 0, 0.6);
-        }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.4); border-radius: 4px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Kelas Lucu & Unik</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { font-family: 'Fredoka', cursive, sans-serif; background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #ec4899 100%); min-height: 100vh; }
+  .bounce-hover:hover { transform: scale(1.05) rotate(-1deg); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  .hole-shadow { box-shadow: inset 0 10px 15px -3px rgba(0, 0, 0, 0.6); }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.4); border-radius: 4px; }
+  .score-row { animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
 </head>
 <body class="text-slate-800 p-3 md:p-6 flex flex-col justify-between items-center">
 
-    <!-- Top Header -->
-    <header class="w-full max-w-4xl flex justify-between items-center mb-4 bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-lg border-2 border-white/50">
-        <div class="flex items-center space-x-3 cursor-pointer" onclick="showScreen('menu-screen')">
-            <span class="text-3xl">🎓</span>
-            <div>
-                <h1 class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">Game Kelas Super Fun</h1>
-                <p class="text-xs text-gray-500 font-sans" id="data-status-badge">Belum terhubung</p>
-            </div>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="openLeaderboardModal()" class="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-yellow-300">
-                <i class="fa-solid fa-trophy text-yellow-600"></i> Skor
-            </button>
-            <button onclick="disconnectApp()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-red-300" title="Ganti Kode Aplikasi">
-                <i class="fa-solid fa-right-from-bracket"></i> Keluar
-            </button>
-        </div>
-    </header>
-
-    <!-- Custom Notification Toast -->
-    <div id="toast-message" class="hidden fixed top-5 left-1/2 transform -translate-x-1/2 z-[60] bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 transition-all duration-300">
-        <i id="toast-icon" class="fa-solid fa-circle-info text-yellow-400 text-xl"></i>
-        <span id="toast-text" class="text-sm font-semibold">Pesan notifikasi...</span>
+<!-- Header -->
+<header class="w-full max-w-4xl flex justify-between items-center mb-4 bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-lg border-2 border-white/50">
+  <div class="flex items-center space-x-3 cursor-pointer" onclick="showScreen('menu-screen')">
+    <span class="text-3xl">🎓</span>
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">Game Kelas Super Fun</h1>
+      <p class="text-xs text-gray-500 font-sans" id="data-status-badge">Belum terhubung</p>
     </div>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="openLeaderboardModal()" class="px-3 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-yellow-300">
+      <i class="fa-solid fa-trophy text-yellow-600"></i> Skor
+    </button>
+    <a href="./index.html" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-red-300" title="Kembali ke Dashboard">
+      <i class="fa-solid fa-house"></i> Dashboard
+    </a>
+  </div>
+</header>
 
-    <!-- MAIN CONTAINER -->
-    <main class="w-full max-w-4xl flex-grow flex justify-center items-center">
+<!-- Toast -->
+<div id="toast-message" class="hidden fixed top-5 left-1/2 transform -translate-x-1/2 z-[60] bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 transition-all duration-300">
+  <i id="toast-icon" class="fa-solid fa-circle-info text-yellow-400 text-xl"></i>
+  <span id="toast-text" class="text-sm font-semibold">Pesan notifikasi...</span>
+</div>
 
-        <!-- SCREEN 0: KONEKSI / INPUT KODE -->
-        <div id="connect-screen" class="w-full max-w-md">
-            <div class="bg-white/95 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white">
-                <div class="text-center mb-5">
-                    <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
-                        <i class="fa-solid fa-gamepad"></i>
-                    </div>
-                    <h2 class="text-2xl font-black text-gray-800">Game Kelas Super Fun</h2>
-                    <p class="text-xs text-gray-500 font-sans mt-1">Masukkan Kode Aplikasi dari Guru</p>
-                </div>
+<!-- MAIN -->
+<main class="w-full max-w-4xl flex-grow flex justify-center items-start">
+  <div id="main-view-container" class="w-full"></div>
+</main>
 
-                <div class="space-y-4 text-xs">
-                    <div>
-                        <label class="block font-bold text-gray-700 mb-2 text-sm">Kode Aplikasi</label>
-                        <input type="text" id="input-kode-app" placeholder="EDU-5-XXXXXX" 
-                            class="w-full px-4 py-3 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:outline-none font-mono text-center text-base uppercase tracking-wider">
-                    </div>
-                    <button onclick="connectToApp()" id="btn-connect" 
-                        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl shadow-md transition text-sm">
-                        <i class="fa-solid fa-link mr-1"></i> Hubungkan
-                    </button>
-                    
-                    <div id="connect-status" class="hidden text-center p-3 rounded-xl text-xs font-semibold"></div>
+<!-- Leaderboard Modal -->
+<div id="leaderboard-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+  <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl border-4 border-yellow-300 relative max-h-[85vh] flex flex-col">
+    <button onclick="closeLeaderboardModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="text-center mb-4">
+      <h3 class="text-xl font-black text-amber-600 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-trophy text-yellow-500"></i> Papan Skor
+      </h3>
+      <p class="text-xs text-gray-500 font-sans">Riwayat nilai game terbaru di kelas</p>
+    </div>
+    <div id="leaderboard-list" class="flex-1 overflow-y-auto space-y-2 pr-1 font-sans text-xs">
+      <p class="text-center text-gray-400 py-6">Memuat riwayat skor...</p>
+    </div>
+  </div>
+</div>
 
-                    <div class="pt-3 border-t border-gray-100 text-center">
-                        <button onclick="useDemoMode()" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
-                            <i class="fa-solid fa-flask"></i> Coba Mode Demo (tanpa kode)
-                        </button>
-                    </div>
-                </div>
+<script>
+/* =========================================================
+   KONFIGURASI & STATE GLOBAL
+   ========================================================= */
+const STORAGE = {
+  USER: "edusmart_user",
+  APP_CONFIG: "edusmart_app_config",
+  JSONBIN_KEY: "edusmart_jsonbin_api_key",
+  JSONBIN_TYPE: "edusmart_jsonbin_key_type",
+  DB_LOCAL: "edusmart_db"
+};
 
-                <div class="mt-5 p-3 bg-purple-50 border border-purple-100 rounded-xl text-[10px] text-purple-800 font-sans leading-relaxed">
-                    <i class="fa-solid fa-circle-info"></i> Minta <b>Kode Aplikasi</b> kepada guru (contoh format: <span class="font-mono">EDU-5-HFSC4D</span>). Kode ini terhubung ke database siswa di cloud.
-                </div>
-            </div>
+let studentsData = [];        // [{ id, nama, kelas, foto }]
+let appConfig = null;         // { binId, namaSekolah, kelas }
+let fullDb = null;            // data dari JSONBin
+let supabaseClient = null;    // Supabase client
+
+/* =========================================================
+   HELPER DASAR
+   ========================================================= */
+function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
+const getLS = (k, d="") => localStorage.getItem(k) || d;
+const setLS = (k, v) => localStorage.setItem(k, v);
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast-message');
+  const toastText = document.getElementById('toast-text');
+  const toastIcon = document.getElementById('toast-icon');
+  toastText.textContent = message;
+  if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-green-400 text-xl';
+  else if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-red-400 text-xl';
+  else toastIcon.className = 'fa-solid fa-circle-info text-yellow-400 text-xl';
+  toast.classList.remove('hidden');
+  clearTimeout(window.__toastTimeout);
+  window.__toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+/* =========================================================
+   SUPABASE CONFIG DARI JSONBIN (db.cfg)
+   ========================================================= */
+function initSupabaseFromDb(db) {
+  const sbUrl = db?.cfg?.sbUrl || "";
+  const sbKey = db?.cfg?.sbKey || "";
+  if (sbUrl && sbKey && window.supabase) {
+    try {
+      supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+      console.log("[GameKelas] Supabase siap (dari db.cfg)");
+      return true;
+    } catch (e) {
+      console.error("[GameKelas] Supabase init error:", e);
+      supabaseClient = null;
+    }
+  }
+  supabaseClient = null;
+  return false;
+}
+
+/* =========================================================
+   FETCH JSONBIN (API key OPSIONAL)
+   ========================================================= */
+async function fetchJsonBinData(binId, opts = {}) {
+  const apiKey = (opts.apiKey !== undefined ? opts.apiKey : getLS(STORAGE.JSONBIN_KEY)).trim();
+  const keyType = (opts.keyType || getLS(STORAGE.JSONBIN_TYPE, "master")).toLowerCase();
+
+  const headers = {};
+  if (apiKey) {
+    headers[keyType === "access" ? "X-Access-Key" : "X-Master-Key"] = apiKey;
+  }
+
+  const url = `https://api.jsonbin.io/v3/b/${encodeURIComponent(binId)}/latest?meta=false&t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store", headers });
+
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) throw new Error("Akses JSONBin ditolak. Bin Private? Cek API key.");
+    if (res.status === 404) throw new Error("Bin ID tidak ditemukan.");
+    throw new Error(`Gagal ambil data JSONBin (HTTP ${res.status}).`);
+  }
+  const data = await res.json();
+  return data.record || data;
+}
+
+/* =========================================================
+   NORMALISASI DATA SISWA
+   ========================================================= */
+function normalizeStudents(db) {
+  const rawSw = db.sw || db.siswa || db.students || [];
+  if (!Array.isArray(rawSw)) return [];
+  return rawSw.map((s, idx) => {
+    if (Array.isArray(s)) {
+      // Format EduSmart LMS: [id, noAbsen, nis, nama, kelas, jk, username, password, ttl, tgl, alamat, fotoUrl]
+      return {
+        id: s[0] || `S${idx + 1}`,
+        noAbsen: s[1] || idx + 1,
+        nis: s[2] || "",
+        nama: s[3] || `Siswa ${idx + 1}`,
+        kelas: s[4] || "",
+        jk: s[5] || "",
+        foto: s[11] || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s[3] || "S").charAt(0))}`
+      };
+    }
+    return {
+      id: s.id || `S${idx + 1}`,
+      noAbsen: s.noAbsen || idx + 1,
+      nis: s.nis || "",
+      nama: s.nama || s.name || `Siswa ${idx + 1}`,
+      kelas: s.kelas || "",
+      jk: s.jk || "",
+      foto: s.foto || s.fotoUrl || s.photo || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s.nama || "S").charAt(0))}`
+    };
+  }).filter(s => s.nama && !s.nama.toLowerCase().includes("tanpa nama"));
+}
+
+/* =========================================================
+   AUTO-LOGIN DARI LOCALSTORAGE
+   ========================================================= */
+async function tryAutoLogin() {
+  // 1. Cek user
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user || user.role !== "siswa") return { ok: false, alasan: "belum_login" };
+
+  // 2. Cek config (binId)
+  const cfg = safeParse(getLS(STORAGE.APP_CONFIG));
+  if (!cfg?.binId) return { ok: false, alasan: "belum_setup", user };
+
+  // 3. Fetch JSONBin
+  try {
+    const db = await fetchJsonBinData(cfg.binId);
+    const students = normalizeStudents(db);
+    if (students.length < 4) throw new Error(`Data siswa kurang dari 4 (ada ${students.length}). Minimal 4 siswa untuk main game.`);
+
+    // 4. Setup state
+    appConfig = { kode: "AUTO", binId: cfg.binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+    fullDb = db;
+    studentsData = students;
+
+    // 5. Setup Supabase dari db.cfg
+    const sbReady = initSupabaseFromDb(db);
+
+    // 6. Simpan db ke localStorage (untuk cache)
+    setLS(STORAGE.DB_LOCAL, JSON.stringify(db));
+
+    return { ok: true, user, sbReady };
+  } catch (err) {
+    // Fallback ke cache
+    const cached = safeParse(getLS(STORAGE.DB_LOCAL));
+    if (cached) {
+      const students = normalizeStudents(cached);
+      if (students.length >= 4) {
+        fullDb = cached;
+        studentsData = students;
+        appConfig = { kode: "CACHE", binId: cfg.binId, namaSekolah: cached?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+        initSupabaseFromDb(cached);
+        return { ok: true, user, fromCache: true };
+      }
+    }
+    return { ok: false, alasan: "gagal_fetch", user, error: err.message };
+  }
+}
+
+/* =========================================================
+   SCREEN ROUTER
+   ========================================================= */
+function showScreen(screenId) {
+  if (screenId === "menu-screen") renderMenuScreen();
+  else if (screenId === "setup-screen") renderSetupScreen();
+  else if (screenId === "belum-login-screen") renderBelumLoginScreen();
+
+  // Cleanup timer game
+  if (typeof tebakTimerInterval !== 'undefined' && tebakTimerInterval) clearInterval(tebakTimerInterval);
+  if (typeof tepukInterval !== 'undefined' && tepukInterval) clearInterval(tepukInterval);
+  if (typeof tepukTimerInterval !== 'undefined' && tepukTimerInterval) clearInterval(tepukTimerInterval);
+}
+
+/* =========================================================
+   SCREEN: BELUM LOGIN
+   ========================================================= */
+function renderBelumLoginScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white fade-in">
+      <div class="text-center mb-5">
+        <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
+          <i class="fa-solid fa-user-lock"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-800">Perlu Login</h2>
+        <p class="text-xs text-gray-500 font-sans mt-1">Login dulu sebagai siswa di Dashboard</p>
+      </div>
+      <a href="./index.html" class="block w-full text-center bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+        <i class="fa-solid fa-right-to-bracket mr-1"></i> Buka Dashboard
+      </a>
+      <div class="pt-3 mt-3 border-t border-gray-100 text-center">
+        <button onclick="useDemoMode()" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
+          <i class="fa-solid fa-flask"></i> Coba Mode Demo
+        </button>
+      </div>
+    </div>`;
+}
+
+/* =========================================================
+   SCREEN: SETUP (belum ada binId)
+   ========================================================= */
+function renderSetupScreen(pesan, userInfo = null) {
+  const c = document.getElementById("main-view-container");
+  const u = userInfo;
+  c.innerHTML = `
+    <div class="max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white fade-in">
+      <div class="text-center mb-5">
+        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
+          <i class="fa-solid fa-gear"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-800">Setup Game</h2>
+        <p class="text-xs text-gray-500 font-sans mt-1">${esc(pesan || "Hubungkan ke data siswa")}</p>
+      </div>
+
+      ${u ? `
+        <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
+          <div class="font-bold text-emerald-900">✓ Login terdeteksi</div>
+          <div class="text-emerald-700 mt-0.5">${esc(u.name || "Siswa")} · Kelas ${esc(u.kelas || "-")}</div>
+        </div>
+      ` : `
+        <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+          <i class="fa-solid fa-triangle-exclamation"></i> Anda belum login. <a href="./index.html" class="underline font-bold">Login dulu di Dashboard</a>.
+        </div>
+      `}
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-gray-700 mb-1.5 text-sm">Bin ID JSONBin</label>
+          <input type="text" id="setup-bin-id" placeholder="6a1da06ffd5d160533f497c"
+                 class="w-full px-3 py-2.5 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:outline-none font-mono text-xs">
+          <p class="text-[10px] text-slate-500 mt-1">Dapat dari guru (Pengaturan di Dashboard)</p>
         </div>
 
-        <!-- Leaderboard Modal -->
-        <div id="leaderboard-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl border-4 border-yellow-300 relative max-h-[85vh] flex flex-col">
-                <button onclick="closeLeaderboardModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-                <div class="text-center mb-4">
-                    <h3 class="text-xl font-black text-amber-600 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-trophy text-yellow-500"></i> Papan Skor
-                    </h3>
-                    <p class="text-xs text-gray-500 font-sans">Riwayat nilai game terbaru di kelas</p>
-                </div>
-                <div id="leaderboard-list" class="flex-1 overflow-y-auto space-y-2 pr-1 font-sans text-xs">
-                    <p class="text-center text-gray-400 py-6">Memuat riwayat skor...</p>
-                </div>
-            </div>
+        <div>
+          <label class="block font-bold text-gray-700 mb-1.5 text-sm">
+            API Key JSONBin <span class="text-[10px] font-normal text-slate-400">(opsional)</span>
+          </label>
+          <input type="text" id="setup-api-key" placeholder="Kosongkan kalau Bin Public"
+                 class="w-full px-3 py-2.5 rounded-xl border-2 border-purple-200 focus:border-purple-500 focus:outline-none font-mono text-xs">
+          <p class="text-[10px] text-slate-500 mt-1">Bin Private → isi API key. Bin Public → kosongkan.</p>
         </div>
 
-        <!-- SCREEN 1: MENU UTAMA -->
-        <div id="menu-screen" class="hidden w-full space-y-6">
-            <!-- Player Select Selector -->
-            <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50 flex flex-col md:flex-row justify-between items-center gap-3">
-                <div class="flex items-center gap-2 text-gray-700 font-bold text-sm">
-                    <i class="fa-solid fa-user-astronaut text-purple-600 text-xl"></i>
-                    <span>Pemain Saat Ini:</span>
-                </div>
-                <div class="flex items-center gap-2 w-full md:w-auto">
-                    <select id="player-select" class="flex-1 md:w-64 px-3 py-2 rounded-xl border-2 border-purple-200 focus:border-purple-500 text-xs font-sans font-semibold">
-                        <!-- Options injected dynamically -->
-                    </select>
-                    <input type="text" id="player-kelas" readonly class="w-24 px-3 py-2 rounded-xl border-2 border-purple-200 text-xs font-sans text-center bg-slate-50">
-                </div>
-            </div>
+        <button onclick="handleSetupSubmit()" id="setup-submit-btn"
+                class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+          <i class="fa-solid fa-link mr-1"></i> Hubungkan
+        </button>
 
-            <div class="text-center text-white my-2">
-                <h2 class="text-3xl md:text-4xl font-black drop-shadow-md">PILIH MODE GAME! 🎉</h2>
-                <p class="text-purple-100 text-xs md:text-sm mt-1 font-sans" id="app-info-line">Selesaikan tantangan dan simpan skor!</p>
-            </div>
+        <div id="setup-status" class="hidden text-center p-3 rounded-xl text-xs font-semibold"></div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Game 1 Card -->
-                <div onclick="startTebakGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-yellow-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
-                    <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:rotate-12 transition">
-                        <i class="fa-solid fa-eye"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-1">Tebak Muka Zoom</h3>
-                        <p class="text-[11px] text-gray-500 font-sans mb-3">Foto dibuka perlahan, tebak nama temannya!</p>
-                    </div>
-                    <span class="w-full py-2 bg-yellow-400 text-yellow-950 font-bold rounded-xl text-xs shadow-sm">Main Now</span>
-                </div>
+        <div class="pt-3 border-t border-gray-100 text-center">
+          <button onclick="useDemoMode()" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
+            <i class="fa-solid fa-flask"></i> Coba Mode Demo
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
 
-                <!-- Game 2 Card -->
-                <div onclick="startTepukGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-pink-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
-                    <div class="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition">
-                        <i class="fa-solid fa-hand-pointer"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-1">Tepuk Teman!</h3>
-                        <p class="text-[11px] text-gray-500 font-sans mb-3">Whack-a-Mole! Tepuk muka teman sesuai target.</p>
-                    </div>
-                    <span class="w-full py-2 bg-pink-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
-                </div>
+async function handleSetupSubmit() {
+  const binId = (document.getElementById("setup-bin-id").value || "").trim();
+  const apiKey = (document.getElementById("setup-api-key").value || "").trim();
+  const btn = document.getElementById("setup-submit-btn");
+  const statusEl = document.getElementById("setup-status");
 
-                <!-- Game 3 Card: Memory Match -->
-                <div onclick="startMemoryGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-emerald-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
-                    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:-rotate-12 transition">
-                        <i class="fa-solid fa-clone"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-1">Cari Pasangan</h3>
-                        <p class="text-[11px] text-gray-500 font-sans mb-3">Buka pasangan kartu foto & nama yang cocok!</p>
-                    </div>
-                    <span class="w-full py-2 bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
-                </div>
+  if (!binId) { showToast("Bin ID wajib diisi.", "error"); return; }
 
-                <!-- Game 4 Card: Susun Nama -->
-                <div onclick="startSusunGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-indigo-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
-                    <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition">
-                        <i class="fa-solid fa-arrow-down-a-z"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-gray-800 mb-1">Susun Nama</h3>
-                        <p class="text-[11px] text-gray-500 font-sans mb-3">Susun huruf acak sesuai nama foto teman!</p>
-                    </div>
-                    <span class="w-full py-2 bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
-                </div>
-            </div>
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghubungkan...';
+  statusEl.classList.remove("hidden");
+  statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700";
+  statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengambil data siswa...';
 
-            <!-- Student List Preview Drawer -->
-            <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50">
-                <div class="flex justify-between items-center mb-3">
-                    <span class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-users text-purple-600"></i> Siswa Terdaftar (<span id="student-count">0</span>)</span>
-                    <button onclick="toggleStudentList()" class="text-xs text-purple-600 font-bold hover:underline" id="toggle-student-btn">Tampilkan Semua</button>
-                </div>
-                <div id="student-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-20 overflow-hidden transition-all duration-300">
-                    <!-- Student Avatars -->
-                </div>
-            </div>
+  try {
+    // Fetch JSONBin
+    const db = await fetchJsonBinData(binId, { apiKey, keyType: "master" });
+    const students = normalizeStudents(db);
+    if (students.length < 4) throw new Error(`Data siswa kurang dari 4 (ada ${students.length})`);
+
+    // Simpan binId + apiKey
+    setLS(STORAGE.APP_CONFIG, JSON.stringify({ binId }));
+    if (apiKey) {
+      setLS(STORAGE.JSONBIN_KEY, apiKey);
+      setLS(STORAGE.JSONBIN_TYPE, "master");
+    }
+
+    // Setup state
+    fullDb = db;
+    studentsData = students;
+    const user = safeParse(getLS(STORAGE.USER)) || {};
+    appConfig = { kode: "SETUP", binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+
+    // Supabase dari db.cfg
+    const sbReady = initSupabaseFromDb(db);
+
+    setLS(STORAGE.DB_LOCAL, JSON.stringify(db));
+
+    statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-green-50 text-green-700";
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Berhasil! ${students.length} siswa dimuat.`;
+
+    showToast("Berhasil terhubung!", "success");
+    setTimeout(() => showScreen("menu-screen"), 700);
+  } catch (err) {
+    statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-700";
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${esc(err.message)}`;
+    showToast("Gagal: " + err.message, "error");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-link mr-1"></i> Hubungkan';
+  }
+}
+
+/* =========================================================
+   MODE DEMO
+   ========================================================= */
+const MOCK_STUDENTS = [
+  { id: "S1", nama: "Budi Santoso", kelas: "5", foto: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop" },
+  { id: "S2", nama: "Siti Rahma", kelas: "5", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop" },
+  { id: "S3", nama: "Andi Wijaya", kelas: "5", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" },
+  { id: "S4", nama: "Dewi Lestari", kelas: "5", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop" },
+  { id: "S5", nama: "Eko Prasetyo", kelas: "5", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop" },
+  { id: "S6", nama: "Fitri Ani", kelas: "5", foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop" },
+  { id: "S7", nama: "Gading Marten", kelas: "5", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop" },
+  { id: "S8", nama: "Hana Putri", kelas: "5", foto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop" }
+];
+
+function useDemoMode() {
+  appConfig = { kode: "DEMO", binId: "DEMO", namaSekolah: "Demo Mode", kelas: "5" };
+  fullDb = null;
+  studentsData = [...MOCK_STUDENTS];
+  supabaseClient = null;
+  showToast("Mode Demo aktif.", "info");
+  showScreen("menu-screen");
+}
+
+/* =========================================================
+   SCREEN: MENU UTAMA (+ PAPAN SKOR)
+   ========================================================= */
+async function renderMenuScreen() {
+  const c = document.getElementById("main-view-container");
+  const user = safeParse(getLS(STORAGE.USER)) || {};
+  const namaSekolah = appConfig?.namaSekolah || "Sekolah";
+
+  c.innerHTML = `
+    <div class="space-y-5 fade-in w-full max-w-4xl mx-auto">
+
+      <!-- Player info -->
+      <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-2 text-gray-700 font-bold text-sm">
+          <i class="fa-solid fa-user-astronaut text-purple-600 text-xl"></i>
+          <span>Pemain:</span>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <div class="flex-1 md:w-64 px-3 py-2 rounded-xl border-2 border-purple-200 bg-purple-50 text-xs font-sans font-semibold text-purple-800">
+            ${esc(user.name || "Siswa")} ${user.noAbsen ? `(#${user.noAbsen})` : ""}
+          </div>
+          <div class="w-24 px-3 py-2 rounded-xl border-2 border-purple-200 text-xs font-sans text-center bg-slate-50">
+            Kelas ${esc(user.kelas || "-")}
+          </div>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div class="text-center text-white my-2">
+        <h2 class="text-3xl md:text-4xl font-black drop-shadow-md">PILIH MODE GAME! 🎉</h2>
+        <p class="text-purple-100 text-xs md:text-sm mt-1 font-sans" id="app-info-line">
+          ${esc(namaSekolah)} · ${studentsData.length} siswa ${supabaseClient ? '· Skor online ✓' : '· Skor lokal'}
+        </p>
+      </div>
+
+      <!-- Game cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div onclick="startTebakGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-yellow-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+          <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:rotate-12 transition"><i class="fa-solid fa-eye"></i></div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Tebak Muka Zoom</h3>
+            <p class="text-[11px] text-gray-500 font-sans mb-3">Foto dibuka perlahan, tebak nama temannya!</p>
+          </div>
+          <span class="w-full py-2 bg-yellow-400 text-yellow-950 font-bold rounded-xl text-xs shadow-sm">Main Now</span>
         </div>
 
-        <!-- SCREEN 2: GAME TEBAK MUKA -->
-        <div id="game-tebak-screen" class="hidden w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white">
-            <div class="flex justify-between items-center mb-6">
-                <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition">
-                    <i class="fa-solid fa-arrow-left"></i> Menu
-                </button>
-                <div class="flex items-center gap-4">
-                    <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Skor: <span id="tebak-score" class="text-sm">0</span>
-                    </div>
-                    <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Ronde: <span id="tebak-round">1/5</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="relative w-full aspect-square max-w-xs mx-auto rounded-3xl overflow-hidden border-4 border-purple-300 bg-slate-900 shadow-inner flex items-center justify-center">
-                <img id="tebak-img" src="" alt="Siswa" class="w-full h-full object-cover transition-all duration-300">
-                <div id="tebak-blur-overlay" class="absolute inset-0 bg-black/10 backdrop-blur-xl transition-all duration-500 pointer-events-none"></div>
-                <div class="absolute bottom-0 left-0 right-0 h-3 bg-gray-200">
-                    <div id="tebak-timer-bar" class="h-full bg-gradient-to-r from-green-400 to-yellow-400 w-full transition-all duration-100"></div>
-                </div>
-            </div>
-
-            <div class="mt-6 grid grid-cols-2 gap-3" id="tebak-options-container"></div>
+        <div onclick="startTepukGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-pink-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+          <div class="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-hand-pointer"></i></div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Tepuk Teman!</h3>
+            <p class="text-[11px] text-gray-500 font-sans mb-3">Whack-a-Mole! Tepuk muka teman sesuai target.</p>
+          </div>
+          <span class="w-full py-2 bg-pink-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
         </div>
 
-        <!-- SCREEN 3: GAME TEPUK TEMAN -->
-        <div id="game-tepuk-screen" class="hidden w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-pink-200">
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
-                    <i class="fa-solid fa-arrow-left"></i> Menu
-                </button>
-                <div class="flex gap-3">
-                    <div class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Poin: <span id="tepuk-score" class="text-sm">0</span>
-                    </div>
-                    <div class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Waktu: <span id="tepuk-timer" class="text-sm">30</span>s
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-2xl mb-6 shadow-md">
-                <p class="text-xs uppercase tracking-wider font-semibold opacity-90">Target Utama saat ini:</p>
-                <h3 class="text-2xl md:text-3xl font-black text-yellow-300 drop-shadow" id="tepuk-target-name">Cari: ???</h3>
-            </div>
-
-            <div class="grid grid-cols-3 gap-3 md:gap-4 max-w-md mx-auto" id="tepuk-grid"></div>
-            
-            <div class="text-center mt-6">
-                <button id="tepuk-start-btn" onclick="startTepukGameLoop()" class="px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl shadow-lg transition text-sm">
-                    Mulai Main! 🚀
-                </button>
-            </div>
+        <div onclick="startMemoryGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-emerald-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+          <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:-rotate-12 transition"><i class="fa-solid fa-clone"></i></div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Cari Pasangan</h3>
+            <p class="text-[11px] text-gray-500 font-sans mb-3">Buka pasangan kartu foto & nama yang cocok!</p>
+          </div>
+          <span class="w-full py-2 bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
         </div>
 
-        <!-- SCREEN 4: GAME MEMORY MATCH -->
-        <div id="game-memory-screen" class="hidden w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-emerald-200">
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
-                    <i class="fa-solid fa-arrow-left"></i> Menu
-                </button>
-                <div class="flex gap-3">
-                    <div class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Pasangan: <span id="memory-matched-count">0/6</span>
-                    </div>
-                    <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Langkah: <span id="memory-moves">0</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="text-center mb-4 font-sans text-xs text-gray-500">
-                Cocokkan kartu foto siswa dengan kartu namanya!
-            </div>
-
-            <div class="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-md mx-auto" id="memory-grid"></div>
+        <div onclick="startSusunGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-indigo-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+          <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition"><i class="fa-solid fa-arrow-down-a-z"></i></div>
+          <div>
+            <h3 class="text-lg font-bold text-gray-800 mb-1">Susun Nama</h3>
+            <p class="text-[11px] text-gray-500 font-sans mb-3">Susun huruf acak sesuai nama foto teman!</p>
+          </div>
+          <span class="w-full py-2 bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
         </div>
+      </div>
 
-        <!-- SCREEN 5: GAME SUSUN NAMA -->
-        <div id="game-susun-screen" class="hidden w-full max-w-2xl bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-indigo-200">
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
-                    <i class="fa-solid fa-arrow-left"></i> Menu
-                </button>
-                <div class="flex items-center gap-3">
-                    <div class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Skor: <span id="susun-score">0</span>
-                    </div>
-                    <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">
-                        Ronde: <span id="susun-round">1/5</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="w-32 h-32 mx-auto rounded-2xl overflow-hidden border-4 border-indigo-300 shadow-md mb-4">
-                <img id="susun-img" src="" class="w-full h-full object-cover">
-            </div>
-
-            <div class="flex justify-center gap-2 mb-6 min-h-[50px] flex-wrap" id="susun-answer-box"></div>
-            <div class="flex justify-center gap-2 flex-wrap max-w-sm mx-auto mb-4" id="susun-letters-pool"></div>
-
-            <div class="flex justify-center gap-3 mt-4">
-                <button onclick="resetCurrentSusunRound()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-xl">
-                    <i class="fa-solid fa-rotate-left"></i> Reset Huruf
-                </button>
-            </div>
+      <!-- Daftar siswa -->
+      <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50">
+        <div class="flex justify-between items-center mb-3">
+          <span class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-users text-purple-600"></i> Siswa Terdaftar (<span id="student-count">${studentsData.length}</span>)</span>
+          <button onclick="toggleStudentList()" class="text-xs text-purple-600 font-bold hover:underline" id="toggle-student-btn">Tampilkan Semua</button>
         </div>
-
-    </main>
-
-    <script>
-        /* =========================================================
-           KONFIGURASI GLOBAL
-           ========================================================= */
-        const CLOUDINARY_JSON_CLOUD = "mbxbrokn";
-        const CLOUDINARY_RAW_BASE = `https://res.cloudinary.com/${CLOUDINARY_JSON_CLOUD}/raw/upload/`;
-        const STORAGE_KEY = "gamekelas_session";
-
-        let studentsData = [];
-        let currentScreen = 'connect-screen';
-        let supabaseClient = null;
-        let appConfig = null;      // config dari Cloudinary
-        let fullDb = null;         // data dari JSONBin
-        let jsonbinApiKey = "";    // API key JSONBin (opsional untuk read)
-
-        // Mock data kalau tidak ada koneksi
-        const MOCK_STUDENTS = [
-            { id: "S1", nama: "Budi Santoso", foto: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop" },
-            { id: "S2", nama: "Siti Rahma", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop" },
-            { id: "S3", nama: "Andi Wijaya", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" },
-            { id: "S4", nama: "Dewi Lestari", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop" },
-            { id: "S5", nama: "Eko Prasetyo", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop" },
-            { id: "S6", nama: "Fitri Ani", foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop" },
-            { id: "S7", nama: "Gading Marten", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop" },
-            { id: "S8", nama: "Hana Putri", foto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop" }
-        ];
-
-        /* =========================================================
-           TOAST & UTIL
-           ========================================================= */
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast-message');
-            const toastText = document.getElementById('toast-text');
-            const toastIcon = document.getElementById('toast-icon');
-            toastText.textContent = message;
-            if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-green-400 text-xl';
-            else if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-red-400 text-xl';
-            else toastIcon.className = 'fa-solid fa-circle-info text-yellow-400 text-xl';
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 3000);
-        }
-
-        function showScreen(screenId) {
-            document.querySelectorAll('main > div').forEach(div => {
-                if (div.id !== 'leaderboard-modal') div.classList.add('hidden');
-            });
-            const el = document.getElementById(screenId);
-            if (el) el.classList.remove('hidden');
-            currentScreen = screenId;
-            if (typeof tebakTimerInterval !== 'undefined' && tebakTimerInterval) clearInterval(tebakTimerInterval);
-            if (typeof tepukInterval !== 'undefined' && tepukInterval) clearInterval(tepukInterval);
-            if (typeof tepukTimerInterval !== 'undefined' && tepukTimerInterval) clearInterval(tepukTimerInterval);
-        }
-
-        /* =========================================================
-           KONEKSI KE APLIKASI (via Cloudinary config)
-           ========================================================= */
-        async function fetchConfigFromCloudinary(kode) {
-            const url = `${CLOUDINARY_RAW_BASE}edusmart-${encodeURIComponent(kode)}.json`;
-            const res = await fetch(url + `?t=${Date.now()}`, { cache: 'no-store' });
-            if (!res.ok) throw new Error(`Kode "${kode}" tidak ditemukan di server.`);
-            const cfg = await res.json();
-            if (cfg.kodeAplikasi !== kode) throw new Error("Config tidak cocok dengan kode.");
-            if (!cfg.database?.binId) throw new Error("Config tidak punya binId.");
-            return cfg;
-        }
-
-        async function fetchJsonBinData(binId) {
-            const url = `https://api.jsonbin.io/v3/b/${binId}/latest?meta=false`;
-            const res = await fetch(url + `&t=${Date.now()}`, { cache: 'no-store' });
-            if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    throw new Error("Akses JSONBin ditolak. Bin mungkin private.");
-                }
-                throw new Error(`Gagal ambil data (HTTP ${res.status}).`);
-            }
-            const data = await res.json();
-            return data.record || data;
-        }
-
-        function normalizeStudents(db) {
-            const rawSw = db.sw || db.siswa || db.students || [];
-            if (!Array.isArray(rawSw)) return [];
-            // Format siswa dari EduSmart LMS: [id, noAbsen, nis, nama, kelas, jk, username, password, tempatLahir, tglLahir, alamat, fotoUrl]
-            return rawSw.map((s, idx) => {
-                if (Array.isArray(s)) {
-                    return {
-                        id: s[0] || `S${idx + 1}`,
-                        noAbsen: s[1] || idx + 1,
-                        nis: s[2] || "",
-                        nama: s[3] || `Siswa ${idx + 1}`,
-                        kelas: s[4] || "",
-                        jk: s[5] || "",
-                        foto: s[11] || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s[3] || "S").charAt(0))}`
-                    };
-                }
-                // Format objek alternatif
-                return {
-                    id: s.id || `S${idx + 1}`,
-                    noAbsen: s.noAbsen || idx + 1,
-                    nis: s.nis || "",
-                    nama: s.nama || s.name || `Siswa ${idx + 1}`,
-                    kelas: s.kelas || "",
-                    jk: s.jk || "",
-                    foto: s.foto || s.fotoUrl || s.photo || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s.nama || "S").charAt(0))}`
-                };
-            }).filter(s => s.nama && !s.nama.toLowerCase().includes("tanpa nama"));
-        }
-
-        function initSupabaseFromConfig(cfg, db) {
-            const sbUrl = cfg?.supabaseUrl || db?.cfg?.sbUrl || "";
-            const sbKey = cfg?.supabaseKey || db?.cfg?.sbKey || "";
-            if (sbUrl && sbKey && window.supabase) {
-                try {
-                    supabaseClient = window.supabase.createClient(sbUrl, sbKey);
-                    console.log("✓ Supabase client initialized.");
-                    return true;
-                } catch (e) {
-                    console.error("Supabase init error:", e);
-                    supabaseClient = null;
-                }
-            }
-            supabaseClient = null;
-            return false;
-        }
-
-        async function connectToApp() {
-            const kode = document.getElementById('input-kode-app').value.trim().toUpperCase();
-            const statusEl = document.getElementById('connect-status');
-            const btn = document.getElementById('btn-connect');
-
-            if (!kode) { showToast("Kode aplikasi wajib diisi.", "error"); return; }
-            if (kode.length < 8) { showToast("Kode terlalu pendek.", "error"); return; }
-
-            statusEl.classList.remove('hidden');
-            statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700";
-            statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menghubungkan ke "${kode}"...`;
-            btn.disabled = true;
-
-            try {
-                // Step 1: Fetch config dari Cloudinary
-                const cfg = await fetchConfigFromCloudinary(kode);
-                statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengambil data siswa...`;
-
-                // Step 2: Fetch data dari JSONBin
-                const db = await fetchJsonBinData(cfg.database.binId);
-
-                // Step 3: Normalisasi siswa
-                const students = normalizeStudents(db);
-                if (students.length < 4) {
-                    throw new Error(`Data siswa kurang dari 4 (ada ${students.length}). Minimal 4 siswa untuk main game.`);
-                }
-
-                // Step 4: Init Supabase (untuk simpan skor)
-                const sbReady = initSupabaseFromConfig(cfg, db);
-
-                // Step 5: Simpan ke state global
-                appConfig = cfg;
-                fullDb = db;
-                studentsData = students;
-
-                // Step 6: Simpan session ke localStorage
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    kode: kode,
-                    connectedAt: new Date().toISOString(),
-                    namaSekolah: cfg.namaSekolah,
-                    namaGuru: cfg.namaGuru,
-                    kelas: cfg.kelas,
-                    sbReady: sbReady
-                }));
-
-                // Step 7: Update UI
-                updateStudentUI(`${cfg.namaSekolah} (${students.length} Siswa)`);
-                document.getElementById('player-kelas').value = cfg.kelas || "";
-                document.getElementById('app-info-line').textContent = `${cfg.namaSekolah} · Kelas ${cfg.kelas} · ${students.length} siswa${sbReady ? ' · Skor online ✓' : ' · Skor lokal'}`;
-
-                statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-green-50 text-green-700";
-                statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Berhasil! ${students.length} siswa dimuat.`;
-
-                showToast(`Terhubung ke ${cfg.namaSekolah}!`, "success");
-
-                setTimeout(() => {
-                    showScreen('menu-screen');
-                    btn.disabled = false;
-                }, 700);
-
-            } catch (err) {
-                console.error(err);
-                statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-700";
-                statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${err.message}`;
-                showToast("Gagal konek: " + err.message, "error");
-                btn.disabled = false;
-            }
-        }
-
-        function useDemoMode() {
-            appConfig = null;
-            fullDb = null;
-            studentsData = [...MOCK_STUDENTS];
-            supabaseClient = null;
-            updateStudentUI(`Demo Mode (${studentsData.length} Siswa)`);
-            document.getElementById('player-kelas').value = "5";
-            document.getElementById('app-info-line').textContent = "Demo Mode · Skor tidak tersimpan ke server";
-            localStorage.removeItem(STORAGE_KEY);
-            showToast("Mode Demo aktif.", "info");
-            showScreen('menu-screen');
-        }
-
-        function disconnectApp() {
-            if (!confirm("Keluar dari aplikasi? Kamu harus input kode lagi.")) return;
-            localStorage.removeItem(STORAGE_KEY);
-            appConfig = null;
-            fullDb = null;
-            studentsData = [];
-            supabaseClient = null;
-            document.getElementById('input-kode-app').value = "";
-            document.getElementById('connect-status').classList.add('hidden');
-            showScreen('connect-screen');
-            showToast("Berhasil keluar.", "info");
-        }
-
-        /* =========================================================
-           AUTO-RECONNECT SAAT REFRESH
-           ========================================================= */
-        async function autoReconnect() {
-            const session = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-            if (!session?.kode) {
-                showScreen('connect-screen');
-                return;
-            }
-            document.getElementById('input-kode-app').value = session.kode;
-            const statusEl = document.getElementById('connect-status');
-            statusEl.classList.remove('hidden');
-            statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700";
-            statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyambung ulang ke "${session.kode}"...`;
-
-            try {
-                const cfg = await fetchConfigFromCloudinary(session.kode);
-                const db = await fetchJsonBinData(cfg.database.binId);
-                const students = normalizeStudents(db);
-                if (students.length < 4) throw new Error("Data siswa kurang dari 4.");
-
-                const sbReady = initSupabaseFromConfig(cfg, db);
-                appConfig = cfg;
-                fullDb = db;
-                studentsData = students;
-
-                updateStudentUI(`${cfg.namaSekolah} (${students.length} Siswa)`);
-                document.getElementById('player-kelas').value = cfg.kelas || "";
-                document.getElementById('app-info-line').textContent = `${cfg.namaSekolah} · Kelas ${cfg.kelas} · ${students.length} siswa${sbReady ? ' · Skor online ✓' : ' · Skor lokal'}`;
-
-                statusEl.classList.add('hidden');
-                showScreen('menu-screen');
-                showToast(`Selamat datang kembali di ${cfg.namaSekolah}!`, "success");
-            } catch (err) {
-                console.warn("Auto-reconnect gagal:", err);
-                statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700";
-                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Gagal auto-connect. Input ulang kode.`;
-                localStorage.removeItem(STORAGE_KEY);
-            }
-        }
-
-        /* =========================================================
-           UI SISWA
-           ========================================================= */
-        function updateStudentUI(badgeText) {
-            document.getElementById('data-status-badge').textContent = badgeText;
-            document.getElementById('student-count').textContent = studentsData.length;
-
-            const grid = document.getElementById('student-grid');
-            const playerSelect = document.getElementById('player-select');
-            grid.innerHTML = '';
-            playerSelect.innerHTML = '';
-
-            studentsData.forEach(s => {
-                const avatar = document.createElement('div');
-                avatar.className = 'flex flex-col items-center text-center';
-                avatar.innerHTML = `
-                    <img src="${s.foto}" class="w-9 h-9 rounded-full object-cover border-2 border-purple-300 shadow-sm" onerror="this.src='https://placehold.co/100?text=Err'">
-                    <span class="text-[9px] text-gray-600 truncate w-full font-sans mt-0.5">${s.nama}</span>
-                `;
-                grid.appendChild(avatar);
-
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.textContent = `${s.nama}${s.noAbsen ? ' ('+s.noAbsen+')' : ''}`;
-                playerSelect.appendChild(opt);
-            });
-        }
-
-        function toggleStudentList() {
-            const grid = document.getElementById('student-grid');
-            const btn = document.getElementById('toggle-student-btn');
-            if (grid.classList.contains('max-h-20')) {
-                grid.classList.remove('max-h-20');
-                btn.textContent = 'Sembunyikan';
-            } else {
-                grid.classList.add('max-h-20');
-                btn.textContent = 'Tampilkan Semua';
-            }
-        }
-
-        /* =========================================================
-           SIMPAN SKOR KE SUPABASE
-           ========================================================= */
-        async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, waktuMulai, waktuSelesai, detail }) {
-            if (!supabaseClient) {
-                console.log("Supabase tidak aktif. Skor tidak dikirim.");
-                return;
-            }
-            const playerSelect = document.getElementById('player-select');
-            const playerKelas = document.getElementById('player-kelas').value.trim() || appConfig?.kelas || "Unspecified";
-            const siswaId = playerSelect ? playerSelect.value : "ANON";
-            const durasiDetik = Math.max(1, Math.round((waktuSelesai - waktuMulai) / 1000));
-
-            const payload = {
-                siswa_id: String(siswaId),
-                kelas: String(playerKelas),
-                game_id: String(gameId),
-                skor: parseInt(skor) || 0,
-                jumlah_benar: parseInt(jumlahBenar) || 0,
-                jumlah_salah: parseInt(jumlahSalah) || 0,
-                waktu_mulai: waktuMulai.toISOString(),
-                waktu_selesai: waktuSelesai.toISOString(),
-                durasi_detik: durasiDetik,
-                detail: detail || {}
-            };
-
-            try {
-                const { data, error } = await supabaseClient.from('skor_game').insert([payload]);
-                if (error) {
-                    console.error("Supabase insert error:", error);
-                    showToast("Skor gagal ke server (disimpan lokal).", "error");
-                } else {
-                    showToast("Skor tersimpan ke server! ☁️", "success");
-                }
-            } catch (err) {
-                console.error("Exception:", err);
-            }
-        }
-
-        async function fetchLeaderboard() {
-            const listEl = document.getElementById('leaderboard-list');
-            if (!supabaseClient) {
-                listEl.innerHTML = `<p class="text-center text-amber-700 py-6 text-xs">Supabase tidak aktif. Hubungkan dengan kode aplikasi yang valid untuk melihat papan skor online.</p>`;
-                return;
-            }
-            listEl.innerHTML = `<p class="text-center text-gray-400 py-6">Memuat dari Supabase...</p>`;
-            try {
-                const { data, error } = await supabaseClient
-                    .from('skor_game')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(20);
-                if (error) throw error;
-                if (!data || data.length === 0) {
-                    listEl.innerHTML = `<p class="text-center text-gray-400 py-6">Belum ada skor tersimpan.</p>`;
-                    return;
-                }
-                listEl.innerHTML = '';
-                data.forEach(item => {
-                    const studentObj = studentsData.find(s => String(s.id) === String(item.siswa_id));
-                    const namaDisplay = studentObj ? studentObj.nama : `ID: ${item.siswa_id}`;
-                    const timeStr = new Date(item.created_at).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
-                    const row = document.createElement('div');
-                    row.className = 'flex justify-between items-center bg-yellow-50 p-3 rounded-xl border border-yellow-200';
-                    row.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">🎮</span>
-                            <div>
-                                <p class="font-bold text-gray-800">${namaDisplay} <span class="text-[10px] text-purple-600 font-normal">(Kelas ${item.kelas || '-'})</span></p>
-                                <p class="text-[10px] text-gray-500 font-mono">${item.game_id} • ✓${item.jumlah_benar} ✗${item.jumlah_salah} • ${timeStr}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-base font-black text-amber-600">${item.skor}</span>
-                            <p class="text-[10px] text-gray-400">${item.durasi_detik}s</p>
-                        </div>
-                    `;
-                    listEl.appendChild(row);
-                });
-            } catch (err) {
-                console.error(err);
-                listEl.innerHTML = `<p class="text-center text-red-500 py-6 text-xs">Error: ${err.message}</p>`;
-            }
-        }
-
-        function openLeaderboardModal() {
-            document.getElementById('leaderboard-modal').classList.remove('hidden');
-            fetchLeaderboard();
-        }
-        function closeLeaderboardModal() {
-            document.getElementById('leaderboard-modal').classList.add('hidden');
-        }
-
-        /* =========================================================
-           GAME 1: TEBAK MUKA ZOOM
-           ========================================================= */
-        let tebakScore = 0;
-        let tebakRound = 1;
-        const TOTAL_TEBAK_ROUNDS = 5;
-        let currentTargetStudent = null;
-        let tebakTimerInterval = null;
-        let currentBlurLevel = 20;
-        let tebakStartTime = null;
-        let tebakCorrectCount = 0;
-        let tebakWrongCount = 0;
-
-        function startTebakGame() {
-            if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
-            tebakScore = 0; tebakRound = 1;
-            tebakCorrectCount = 0; tebakWrongCount = 0;
-            tebakStartTime = new Date();
-            showScreen('game-tebak-screen');
-            nextTebakRound();
-        }
-
-        function nextTebakRound() {
-            if (tebakRound > TOTAL_TEBAK_ROUNDS) {
-                const endTime = new Date();
-                showToast(`Selesai! Skor: ${tebakScore}`, "success");
-                saveScoreToSupabase({
-                    gameId: 'tebak_muka', skor: tebakScore,
-                    jumlahBenar: tebakCorrectCount, jumlahSalah: tebakWrongCount,
-                    waktuMulai: tebakStartTime, waktuSelesai: endTime,
-                    detail: { total_round: TOTAL_TEBAK_ROUNDS }
-                });
-                setTimeout(() => showScreen('menu-screen'), 2000);
-                return;
-            }
-            document.getElementById('tebak-score').textContent = tebakScore;
-            document.getElementById('tebak-round').textContent = `${tebakRound}/${TOTAL_TEBAK_ROUNDS}`;
-
-            currentTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
-            const imgEl = document.getElementById('tebak-img');
-            const blurOverlay = document.getElementById('tebak-blur-overlay');
-            const timerBar = document.getElementById('tebak-timer-bar');
-
-            imgEl.src = currentTargetStudent.foto;
-            currentBlurLevel = 24;
-            blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
-            timerBar.style.width = '100%';
-
-            const options = [currentTargetStudent];
-            while (options.length < 4) {
-                const r = studentsData[Math.floor(Math.random() * studentsData.length)];
-                if (!options.find(o => o.id === r.id)) options.push(r);
-            }
-            options.sort(() => Math.random() - 0.5);
-
-            const optContainer = document.getElementById('tebak-options-container');
-            optContainer.innerHTML = '';
-            options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = 'w-full py-3 px-4 bg-slate-100 hover:bg-purple-100 border-2 border-slate-200 hover:border-purple-400 text-slate-800 font-bold rounded-2xl transition text-xs text-center shadow-sm';
-                btn.textContent = opt.nama;
-                btn.onclick = () => handleTebakAnswer(opt.id, btn);
-                optContainer.appendChild(btn);
-            });
-
-            if (tebakTimerInterval) clearInterval(tebakTimerInterval);
-            let timeLeft = 100;
-            tebakTimerInterval = setInterval(() => {
-                timeLeft -= 2;
-                timerBar.style.width = `${timeLeft}%`;
-                currentBlurLevel = Math.max(0, currentBlurLevel - 0.5);
-                blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
-                if (timeLeft <= 0) {
-                    clearInterval(tebakTimerInterval);
-                    handleTebakAnswer(null);
-                }
-            }, 100);
-        }
-
-        function handleTebakAnswer(selectedId, btnEl = null) {
-            clearInterval(tebakTimerInterval);
-            document.getElementById('tebak-blur-overlay').style.backdropFilter = 'blur(0px)';
-            const correct = selectedId === currentTargetStudent.id;
-            if (correct) {
-                tebakScore += Math.ceil(currentBlurLevel + 10);
-                tebakCorrectCount++;
-                if (btnEl) { btnEl.classList.remove('bg-slate-100'); btnEl.classList.add('bg-green-500','text-white','border-green-600'); }
-                showToast("Benar! 🎉", "success");
-            } else {
-                tebakWrongCount++;
-                if (btnEl) { btnEl.classList.remove('bg-slate-100'); btnEl.classList.add('bg-red-500','text-white','border-red-600'); }
-                showToast(`Salah! Itu ${currentTargetStudent.nama}`, "error");
-            }
-            tebakRound++;
-            setTimeout(() => nextTebakRound(), 1500);
-        }
-
-        /* =========================================================
-           GAME 2: TEPUK TEMAN
-           ========================================================= */
-        let tepukScore = 0;
-        let tepukTimeLeft = 30;
-        let tepukInterval = null;
-        let tepukTimerInterval = null;
-        let tepukTarget = null;
-        let tepukStartTime = null;
-        let tepukBenar = 0;
-        let tepukSalah = 0;
-
-        function buildTepukGrid() {
-            const grid = document.getElementById('tepuk-grid');
-            grid.innerHTML = '';
-            for (let i = 0; i < 9; i++) {
-                grid.innerHTML += `
-                    <div class="relative w-full aspect-square bg-slate-800 rounded-2xl hole-shadow overflow-hidden flex items-end justify-center">
-                        <div id="hole-${i}" class="absolute bottom-0 w-full h-full transform translate-y-full transition-transform duration-200 cursor-pointer flex flex-col items-center justify-center p-1" onclick="hitHole(${i})">
-                            <img id="hole-img-${i}" src="" class="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-white object-cover shadow-lg hover:scale-110 transition">
-                            <span id="hole-name-${i}" class="bg-black/70 text-white text-[9px] px-2 py-0.5 rounded-full mt-1 font-sans truncate max-w-full">Name</span>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        function startTepukGame() {
-            if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
-            buildTepukGrid();
-            showScreen('game-tepuk-screen');
-            document.getElementById('tepuk-score').textContent = '0';
-            document.getElementById('tepuk-timer').textContent = '30';
-            document.getElementById('tepuk-target-name').textContent = 'Klik Mulai!';
-            document.getElementById('tepuk-start-btn').classList.remove('hidden');
-        }
-
-        function startTepukGameLoop() {
-            tepukScore = 0; tepukBenar = 0; tepukSalah = 0;
-            tepukTimeLeft = 30;
-            tepukStartTime = new Date();
-            document.getElementById('tepuk-score').textContent = tepukScore;
-            document.getElementById('tepuk-start-btn').classList.add('hidden');
-            setNewTepukTarget();
-
-            tepukTimerInterval = setInterval(() => {
-                tepukTimeLeft--;
-                document.getElementById('tepuk-timer').textContent = tepukTimeLeft;
-                if (tepukTimeLeft <= 0) endTepukGame();
-            }, 1000);
-
-            tepukInterval = setInterval(() => popUpStudent(), 900);
-        }
-
-        function setNewTepukTarget() {
-            tepukTarget = studentsData[Math.floor(Math.random() * studentsData.length)];
-            document.getElementById('tepuk-target-name').textContent = `Tepuk: ${tepukTarget.nama}!`;
-        }
-
-        function popUpStudent() {
-            for (let i = 0; i < 9; i++) document.getElementById(`hole-${i}`).classList.add('translate-y-full');
-            const holeIdx = Math.floor(Math.random() * 9);
-            const randomStudent = (Math.random() > 0.4) ? tepukTarget : studentsData[Math.floor(Math.random() * studentsData.length)];
-            const holeEl = document.getElementById(`hole-${holeIdx}`);
-            const imgEl = document.getElementById(`hole-img-${holeIdx}`);
-            const nameEl = document.getElementById(`hole-name-${holeIdx}`);
-            imgEl.src = randomStudent.foto;
-            nameEl.textContent = randomStudent.nama;
-            holeEl.dataset.studentId = randomStudent.id;
-            holeEl.classList.remove('translate-y-full');
-            setTimeout(() => holeEl.classList.add('translate-y-full'), 800);
-        }
-
-        function hitHole(idx) {
-            const holeEl = document.getElementById(`hole-${idx}`);
-            const clickedId = holeEl.dataset.studentId;
-            if (clickedId === tepukTarget.id) {
-                tepukScore += 10; tepukBenar++;
-                document.getElementById('tepuk-score').textContent = tepukScore;
-                holeEl.classList.add('translate-y-full');
-                showToast("+10 Tepukan Tepat!", "success");
-                setNewTepukTarget();
-            } else {
-                tepukScore = Math.max(0, tepukScore - 5); tepukSalah++;
-                document.getElementById('tepuk-score').textContent = tepukScore;
-                showToast("-5 Salah Tepuk!", "error");
-            }
-        }
-
-        function endTepukGame() {
-            clearInterval(tepukInterval);
-            clearInterval(tepukTimerInterval);
-            for (let i = 0; i < 9; i++) document.getElementById(`hole-${i}`).classList.add('translate-y-full');
-            const endTime = new Date();
-            showToast(`Waktu Habis! Skor: ${tepukScore}`, "success");
-            document.getElementById('tepuk-start-btn').classList.remove('hidden');
-            saveScoreToSupabase({
-                gameId: 'tepuk_teman', skor: tepukScore,
-                jumlahBenar: tepukBenar, jumlahSalah: tepukSalah,
-                waktuMulai: tepukStartTime, waktuSelesai: endTime,
-                detail: { target_terakhir: tepukTarget ? tepukTarget.nama : null }
-            });
-        }
-
-        /* =========================================================
-           GAME 3: MEMORY MATCH
-           ========================================================= */
-        let memoryCards = [];
-        let flippedCards = [];
-        let matchedCount = 0;
-        let memoryMoves = 0;
-        let memoryStartTime = null;
-
-        function startMemoryGame() {
-            if (studentsData.length < 6) { showToast("Minimal 6 siswa untuk Memory Match!", "error"); return; }
-            showScreen('game-memory-screen');
-            memoryMoves = 0; matchedCount = 0; flippedCards = [];
-            memoryStartTime = new Date();
-            document.getElementById('memory-moves').textContent = '0';
-            document.getElementById('memory-matched-count').textContent = '0/6';
-
-            const shuffled = [...studentsData].sort(() => Math.random() - 0.5).slice(0, 6);
-            let deck = [];
-            shuffled.forEach((s, idx) => {
-                deck.push({ id: `p_${idx}`, studentId: s.id, type: 'photo', content: s.foto, nama: s.nama });
-                deck.push({ id: `n_${idx}`, studentId: s.id, type: 'name', content: s.nama, nama: s.nama });
-            });
-            deck.sort(() => Math.random() - 0.5);
-            memoryCards = deck;
-
-            const grid = document.getElementById('memory-grid');
-            grid.innerHTML = '';
-            deck.forEach((card, i) => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'w-full aspect-square bg-emerald-500 rounded-2xl flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition transform text-white font-bold p-2 text-center text-xs relative select-none';
-                cardEl.id = `mem-card-${i}`;
-                cardEl.innerHTML = `<span class="text-2xl">❓</span>`;
-                cardEl.onclick = () => handleMemoryCardClick(i);
-                grid.appendChild(cardEl);
-            });
-        }
-
-        function handleMemoryCardClick(index) {
-            if (flippedCards.length >= 2) return;
-            const cardEl = document.getElementById(`mem-card-${index}`);
-            const card = memoryCards[index];
-            if (cardEl.classList.contains('matched')) return;
-            if (flippedCards.some(f => f.index === index)) return;
-
-            cardEl.classList.remove('bg-emerald-500');
-            cardEl.classList.add('bg-white','text-emerald-900','border-2','border-emerald-400');
-            if (card.type === 'photo') cardEl.innerHTML = `<img src="${card.content}" class="w-full h-full object-cover rounded-xl">`;
-            else cardEl.innerHTML = `<span class="font-extrabold text-xs text-purple-700">${card.content}</span>`;
-
-            flippedCards.push({ index, card });
-            if (flippedCards.length === 2) {
-                memoryMoves++;
-                document.getElementById('memory-moves').textContent = memoryMoves;
-                checkMemoryMatch();
-            }
-        }
-
-        function checkMemoryMatch() {
-            const [c1, c2] = flippedCards;
-            if (c1.card.studentId === c2.card.studentId && c1.card.type !== c2.card.type) {
-                matchedCount++;
-                document.getElementById('memory-matched-count').textContent = `${matchedCount}/6`;
-                document.getElementById(`mem-card-${c1.index}`).classList.add('matched','opacity-60');
-                document.getElementById(`mem-card-${c2.index}`).classList.add('matched','opacity-60');
-                showToast("Cocok! 🎉", "success");
-                flippedCards = [];
-                if (matchedCount === 6) {
-                    const endTime = new Date();
-                    const finalScore = Math.max(10, 100 - (memoryMoves - 6) * 10);
-                    showToast(`Hebat! Selesai dalam ${memoryMoves} langkah!`, "success");
-                    saveScoreToSupabase({
-                        gameId: 'memory_match', skor: finalScore,
-                        jumlahBenar: 6, jumlahSalah: memoryMoves - 6,
-                        waktuMulai: memoryStartTime, waktuSelesai: endTime,
-                        detail: { total_moves: memoryMoves }
-                    });
-                    setTimeout(() => showScreen('menu-screen'), 2500);
-                }
-            } else {
-                setTimeout(() => {
-                    [c1, c2].forEach(c => {
-                        const el = document.getElementById(`mem-card-${c.index}`);
-                        el.className = 'w-full aspect-square bg-emerald-500 rounded-2xl flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition transform text-white font-bold p-2 text-center text-xs relative select-none';
-                        el.innerHTML = `<span class="text-2xl">❓</span>`;
-                    });
-                    flippedCards = [];
-                }, 1000);
-            }
-        }
-
-        /* =========================================================
-           GAME 4: SUSUN NAMA
-           ========================================================= */
-        let susunScore = 0;
-        let susunRound = 1;
-        const TOTAL_SUSUN_ROUNDS = 5;
-        let susunTargetStudent = null;
-        let selectedLetters = [];
-        let scrambledLetters = [];
-        let susunStartTime = null;
-        let susunBenar = 0;
-        let susunSalah = 0;
-
-        function startSusunGame() {
-            if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
-            susunScore = 0; susunRound = 1; susunBenar = 0; susunSalah = 0;
-            susunStartTime = new Date();
-            showScreen('game-susun-screen');
-            nextSusunRound();
-        }
-
-        function nextSusunRound() {
-            if (susunRound > TOTAL_SUSUN_ROUNDS) {
-                const endTime = new Date();
-                showToast(`Selesai! Skor: ${susunScore}`, "success");
-                saveScoreToSupabase({
-                    gameId: 'susun_nama', skor: susunScore,
-                    jumlahBenar: susunBenar, jumlahSalah: susunSalah,
-                    waktuMulai: susunStartTime, waktuSelesai: endTime,
-                    detail: { rounds: TOTAL_SUSUN_ROUNDS }
-                });
-                setTimeout(() => showScreen('menu-screen'), 2000);
-                return;
-            }
-            document.getElementById('susun-score').textContent = susunScore;
-            document.getElementById('susun-round').textContent = `${susunRound}/${TOTAL_SUSUN_ROUNDS}`;
-
-            susunTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
-            document.getElementById('susun-img').src = susunTargetStudent.foto;
-
-            const cleanName = susunTargetStudent.nama.replace(/\s+/g, '').toUpperCase();
-            scrambledLetters = cleanName.split('').sort(() => Math.random() - 0.5);
-            selectedLetters = [];
-            renderSusunUI();
-        }
-
-        function renderSusunUI() {
-            const answerBox = document.getElementById('susun-answer-box');
-            const poolBox = document.getElementById('susun-letters-pool');
-            answerBox.innerHTML = '';
-            poolBox.innerHTML = '';
-            const cleanName = susunTargetStudent.nama.replace(/\s+/g, '').toUpperCase();
-
-            for (let i = 0; i < cleanName.length; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'w-10 h-10 rounded-xl border-2 border-indigo-300 bg-indigo-50 flex items-center justify-center font-black text-indigo-800 text-lg shadow-inner';
-                slot.textContent = selectedLetters[i] ? selectedLetters[i].letter : '';
-                answerBox.appendChild(slot);
-            }
-
-            scrambledLetters.forEach((char, idx) => {
-                const isUsed = selectedLetters.some(item => item.idx === idx);
-                const btn = document.createElement('button');
-                btn.className = `w-10 h-10 rounded-xl font-black text-lg shadow-md transition transform ${isUsed ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-105'}`;
-                btn.textContent = char;
-                btn.disabled = isUsed;
-                btn.onclick = () => { selectedLetters.push({ letter: char, idx }); renderSusunUI(); };
-                poolBox.appendChild(btn);
-            });
-
-            if (selectedLetters.length === cleanName.length) {
-                const userWord = selectedLetters.map(i => i.letter).join('');
-                if (userWord === cleanName) {
-                    susunScore += 20; susunBenar++;
-                    showToast("Tepat! 🎉", "success");
-                } else {
-                    susunSalah++;
-                    showToast(`Salah! Yang benar: ${susunTargetStudent.nama}`, "error");
-                }
-                susunRound++;
-                setTimeout(() => nextSusunRound(), 1500);
-            }
-        }
-
-        function resetCurrentSusunRound() {
-            selectedLetters = [];
-            renderSusunUI();
-        }
-
-        /* =========================================================
-           INIT
-           ========================================================= */
-        window.addEventListener('load', () => {
-            console.log("🎮 Game Kelas siap. Auto-reconnect...");
-            autoReconnect();
-
-            // Enter untuk submit di input kode
-            const inputKode = document.getElementById('input-kode-app');
-            if (inputKode) {
-                inputKode.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') connectToApp();
-                });
-                // Auto-uppercase
-                inputKode.addEventListener('input', (e) => {
-                    e.target.value = e.target.value.toUpperCase();
-                });
-            }
-        });
-    </script>
+        <div id="student-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-20 overflow-hidden transition-all duration-300"></div>
+      </div>
+
+      <!-- ⭐ PAPAN SKOR (di bawah daftar pemain) -->
+      <div id="scoreboard-section" class="hidden bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border-2 border-yellow-300">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-trophy text-yellow-500 text-lg"></i>
+            <span class="font-bold text-gray-700 text-sm">Papan Skor</span>
+            <span class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold" id="scoreboard-subtitle">Skor terakhir kamu</span>
+          </div>
+          <button onclick="refreshScoreboard()" class="text-slate-400 hover:text-purple-600 p-1" title="Refresh">
+            <i class="fa-solid fa-rotate text-xs"></i>
+          </button>
+        </div>
+        <div id="scoreboard-list" class="space-y-1.5 font-sans text-xs">
+          <p class="text-center text-gray-400 py-4 text-xs">Belum ada skor.</p>
+        </div>
+      </div>
+    </div>`;
+
+  renderStudentGrid();
+}
+
+function renderStudentGrid() {
+  const grid = document.getElementById("student-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  studentsData.forEach(s => {
+    const avatar = document.createElement("div");
+    avatar.className = "flex flex-col items-center text-center";
+    avatar.innerHTML = `
+      <img src="${esc(s.foto)}" class="w-9 h-9 rounded-full object-cover border-2 border-purple-300 shadow-sm" onerror="this.src='https://placehold.co/100?text=Err'">
+      <span class="text-[9px] text-gray-600 truncate w-full font-sans mt-0.5">${esc(s.nama)}</span>`;
+    grid.appendChild(avatar);
+  });
+}
+
+function toggleStudentList() {
+  const grid = document.getElementById("student-grid");
+  const btn = document.getElementById("toggle-student-btn");
+  if (grid.classList.contains("max-h-20")) {
+    grid.classList.remove("max-h-20");
+    btn.textContent = "Sembunyikan";
+  } else {
+    grid.classList.add("max-h-20");
+    btn.textContent = "Tampilkan Semua";
+  }
+}
+
+/* =========================================================
+   SIMPAN SKOR
+   ========================================================= */
+async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, waktuMulai, waktuSelesai, detail }) {
+  const user = safeParse(getLS(STORAGE.USER)) || {};
+  const siswaId = String(user.siswaId || user.id || "ANON");
+  const kelas = String(user.kelas || appConfig?.kelas || "Unspecified");
+  const durasiDetik = Math.max(1, Math.round((waktuSelesai - waktuMulai) / 1000));
+  const namaSiswa = user.name || "Siswa";
+
+  const payload = {
+    siswa_id: siswaId,
+    kelas: kelas,
+    game_id: String(gameId),
+    skor: parseInt(skor) || 0,
+    jumlah_benar: parseInt(jumlahBenar) || 0,
+    jumlah_salah: parseInt(jumlahSalah) || 0,
+    waktu_mulai: waktuMulai.toISOString(),
+    waktu_selesai: waktuSelesai.toISOString(),
+    durasi_detik: durasiDetik,
+    detail: detail || {}
+  };
+
+  // 1. Simpan lokal (selalu)
+  const localScores = safeParse(getLS("gamekelas_local_scores")) || [];
+  localScores.unshift({
+    ...payload,
+    nama_siswa: namaSiswa,
+    created_at: new Date().toISOString()
+  });
+  setLS("gamekelas_local_scores", JSON.stringify(localScores.slice(0, 50)));
+
+  // 2. Simpan ke Supabase (kalau aktif)
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient.from("skor_game").insert([payload]);
+      if (error) {
+        console.error("Supabase insert error:", error);
+        showToast("Skor tersimpan lokal (gagal ke server).", "warning");
+      } else {
+        showToast("Skor tersimpan ke server! ☁️", "success");
+      }
+    } catch (err) {
+      console.error("Exception:", err);
+      showToast("Skor tersimpan lokal.", "info");
+    }
+  } else {
+    showToast("Skor tersimpan lokal.", "info");
+  }
+
+  // 3. Refresh papan skor (kalau sedang di menu)
+  setTimeout(() => refreshScoreboard(), 500);
+}
+
+/* =========================================================
+   PAPAN SKOR (BAGIAN BARU)
+   ========================================================= */
+async function refreshScoreboard() {
+  const section = document.getElementById("scoreboard-section");
+  const list = document.getElementById("scoreboard-list");
+  if (!section || !list) return;
+
+  // Tampilkan section (kalau belum)
+  section.classList.remove("hidden");
+
+  const user = safeParse(getLS(STORAGE.USER)) || {};
+  const myId = String(user.siswaId || user.id || "");
+
+  list.innerHTML = `<p class="text-center text-gray-400 py-4 text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</p>`;
+
+  try {
+    let scores = [];
+
+    // Coba Supabase dulu
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("skor_game")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!error && data) scores = data;
+      } catch (e) { console.warn("Supabase scoreboard gagal:", e); }
+    }
+
+    // Fallback: dari localStorage
+    if (!scores.length) {
+      const local = safeParse(getLS("gamekelas_local_scores")) || [];
+      scores = local.slice(0, 10);
+    }
+
+    if (!scores.length) {
+      list.innerHTML = `<p class="text-center text-gray-400 py-4 text-xs">Belum ada skor. Main dulu yuk! 🎮</p>`;
+      return;
+    }
+
+    // Cari nama siswa
+    const getName = (sid) => {
+      const s = studentsData.find(x => String(x.id) === String(sid));
+      if (s) return s.nama;
+      if (String(sid) === myId) return user.name || "Kamu";
+      return `Siswa ${sid}`;
+    };
+
+    // Game icon & warna
+    const gameInfo = {
+      "tebak_muka": { icon: "fa-eye", color: "bg-yellow-100 text-yellow-700", label: "Tebak Muka" },
+      "tepuk_teman": { icon: "fa-hand-pointer", color: "bg-pink-100 text-pink-700", label: "Tepuk Teman" },
+      "memory_match": { icon: "fa-clone", color: "bg-emerald-100 text-emerald-700", label: "Memory" },
+      "susun_nama": { icon: "fa-arrow-down-a-z", color: "bg-indigo-100 text-indigo-700", label: "Susun Nama" }
+    };
+
+    list.innerHTML = scores.map((item, i) => {
+      const isMe = String(item.siswa_id) === myId;
+      const info = gameInfo[item.game_id] || { icon: "fa-gamepad", color: "bg-slate-100 text-slate-700", label: item.game_id };
+      const nama = item.nama_siswa || getName(item.siswa_id);
+      const waktu = item.created_at
+        ? new Date(item.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })
+        : "-";
+
+      return `
+        <div class="score-row flex items-center gap-2 p-2.5 rounded-xl ${isMe ? 'bg-amber-100 border-2 border-amber-300' : 'bg-slate-50 border border-slate-200'}">
+          <div class="w-8 h-8 rounded-lg ${info.color} flex items-center justify-center shrink-0">
+            <i class="fa-solid ${info.icon} text-xs"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-[11px] truncate ${isMe ? 'text-amber-900' : 'text-slate-800'}">
+              ${esc(nama)}${isMe ? ' <span class="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full">KAMU</span>' : ''}
+            </div>
+            <div class="text-[10px] text-slate-500 truncate">
+              ${esc(info.label)} · ✓${item.jumlah_benar || 0} ✗${item.jumlah_salah || 0} · ${waktu}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-black text-base ${isMe ? 'text-amber-700' : 'text-purple-700'}">${item.skor || 0}</div>
+            <div class="text-[9px] text-slate-400">${item.durasi_detik || 0}s</div>
+          </div>
+        </div>`;
+    }).join("");
+
+    // Update subtitle
+    const subtitle = document.getElementById("scoreboard-subtitle");
+    if (subtitle) subtitle.textContent = `10 skor terbaru`;
+
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = `<p class="text-center text-red-500 py-4 text-xs">Gagal memuat: ${esc(err.message)}</p>`;
+  }
+}
+
+/* =========================================================
+   LEADERBOARD MODAL (Header)
+   ========================================================= */
+async function openLeaderboardModal() {
+  document.getElementById("leaderboard-modal").classList.remove("hidden");
+  const listEl = document.getElementById("leaderboard-list");
+  listEl.innerHTML = `<p class="text-center text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</p>`;
+
+  try {
+    let scores = [];
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("skor_game")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (!error && data) scores = data;
+      } catch (e) { console.warn("Supabase leaderboard gagal:", e); }
+    }
+    if (!scores.length) {
+      const local = safeParse(getLS("gamekelas_local_scores")) || [];
+      scores = local.slice(0, 20);
+    }
+
+    if (!scores.length) {
+      listEl.innerHTML = `<p class="text-center text-gray-400 py-6 text-xs">Belum ada skor tersimpan.</p>`;
+      return;
+    }
+
+    const getName = (sid, namaSaved) => {
+      if (namaSaved) return namaSaved;
+      const s = studentsData.find(x => String(x.id) === String(sid));
+      return s ? s.nama : `ID: ${sid}`;
+    };
+
+    listEl.innerHTML = scores.map(item => {
+      const nama = getName(item.siswa_id, item.nama_siswa);
+      const waktu = item.created_at
+        ? new Date(item.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })
+        : "-";
+      return `
+        <div class="flex justify-between items-center bg-yellow-50 p-3 rounded-xl border border-yellow-200">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🎮</span>
+            <div>
+              <p class="font-bold text-gray-800 text-xs">${esc(nama)} <span class="text-[10px] text-purple-600 font-normal">(Kelas ${esc(item.kelas || '-')})</span></p>
+              <p class="text-[10px] text-gray-500 font-mono">${esc(item.game_id)} • ✓${item.jumlah_benar || 0} ✗${item.jumlah_salah || 0} • ${waktu}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-base font-black text-amber-600">${item.skor || 0}</span>
+            <p class="text-[10px] text-gray-400">${item.durasi_detik || 0}s</p>
+          </div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    listEl.innerHTML = `<p class="text-center text-red-500 py-6 text-xs">Error: ${esc(err.message)}</p>`;
+  }
+}
+function closeLeaderboardModal() {
+  document.getElementById("leaderboard-modal").classList.add("hidden");
+}
+
+/* =========================================================
+   GAME 1: TEBAK MUKA ZOOM
+   ========================================================= */
+let tebakScore = 0, tebakRound = 1, tebakCorrectCount = 0, tebakWrongCount = 0;
+let currentTargetStudent = null, tebakTimerInterval = null, currentBlurLevel = 20, tebakStartTime = null;
+const TOTAL_TEBAK_ROUNDS = 5;
+
+function startTebakGame() {
+  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  tebakScore = 0; tebakRound = 1; tebakCorrectCount = 0; tebakWrongCount = 0;
+  tebakStartTime = new Date();
+  renderTebakScreen();
+  nextTebakRound();
+}
+
+function renderTebakScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white">
+      <div class="flex justify-between items-center mb-6">
+        <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition">
+          <i class="fa-solid fa-arrow-left"></i> Menu
+        </button>
+        <div class="flex items-center gap-4">
+          <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">Skor: <span id="tebak-score" class="text-sm">0</span></div>
+          <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">Ronde: <span id="tebak-round">1/5</span></div>
+        </div>
+      </div>
+      <div class="relative w-full aspect-square max-w-xs mx-auto rounded-3xl overflow-hidden border-4 border-purple-300 bg-slate-900 shadow-inner flex items-center justify-center">
+        <img id="tebak-img" src="" alt="Siswa" class="w-full h-full object-cover transition-all duration-300">
+        <div id="tebak-blur-overlay" class="absolute inset-0 bg-black/10 backdrop-blur-xl transition-all duration-500 pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-3 bg-gray-200">
+          <div id="tebak-timer-bar" class="h-full bg-gradient-to-r from-green-400 to-yellow-400 w-full transition-all duration-100"></div>
+        </div>
+      </div>
+      <div class="mt-6 grid grid-cols-2 gap-3" id="tebak-options-container"></div>
+    </div>`;
+}
+
+function nextTebakRound() {
+  if (tebakRound > TOTAL_TEBAK_ROUNDS) {
+    const endTime = new Date();
+    showToast(`Selesai! Skor: ${tebakScore}`, "success");
+    saveScoreToSupabase({
+      gameId: 'tebak_muka', skor: tebakScore,
+      jumlahBenar: tebakCorrectCount, jumlahSalah: tebakWrongCount,
+      waktuMulai: tebakStartTime, waktuSelesai: endTime,
+      detail: { total_round: TOTAL_TEBAK_ROUNDS }
+    });
+    setTimeout(() => showScreen('menu-screen'), 1500);
+    return;
+  }
+  document.getElementById('tebak-score').textContent = tebakScore;
+  document.getElementById('tebak-round').textContent = `${tebakRound}/${TOTAL_TEBAK_ROUNDS}`;
+
+  currentTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
+  const imgEl = document.getElementById('tebak-img');
+  const blurOverlay = document.getElementById('tebak-blur-overlay');
+  const timerBar = document.getElementById('tebak-timer-bar');
+
+  imgEl.src = currentTargetStudent.foto;
+  currentBlurLevel = 24;
+  blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
+  timerBar.style.width = '100%';
+
+  const options = [currentTargetStudent];
+  while (options.length < 4) {
+    const r = studentsData[Math.floor(Math.random() * studentsData.length)];
+    if (!options.find(o => o.id === r.id)) options.push(r);
+  }
+  options.sort(() => Math.random() - 0.5);
+
+  const optContainer = document.getElementById('tebak-options-container');
+  optContainer.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'w-full py-3 px-4 bg-slate-100 hover:bg-purple-100 border-2 border-slate-200 hover:border-purple-400 text-slate-800 font-bold rounded-2xl transition text-xs text-center shadow-sm';
+    btn.textContent = opt.nama;
+    btn.onclick = () => handleTebakAnswer(opt.id, btn);
+    optContainer.appendChild(btn);
+  });
+
+  if (tebakTimerInterval) clearInterval(tebakTimerInterval);
+  let timeLeft = 100;
+  tebakTimerInterval = setInterval(() => {
+    timeLeft -= 2;
+    timerBar.style.width = `${timeLeft}%`;
+    currentBlurLevel = Math.max(0, currentBlurLevel - 0.5);
+    blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
+    if (timeLeft <= 0) {
+      clearInterval(tebakTimerInterval);
+      handleTebakAnswer(null);
+    }
+  }, 100);
+}
+
+function handleTebakAnswer(selectedId, btnEl = null) {
+  clearInterval(tebakTimerInterval);
+  document.getElementById('tebak-blur-overlay').style.backdropFilter = 'blur(0px)';
+  const correct = selectedId === currentTargetStudent.id;
+  if (correct) {
+    tebakScore += Math.ceil(currentBlurLevel + 10);
+    tebakCorrectCount++;
+    if (btnEl) { btnEl.classList.remove('bg-slate-100'); btnEl.classList.add('bg-green-500','text-white','border-green-600'); }
+    showToast("Benar! 🎉", "success");
+  } else {
+    tebakWrongCount++;
+    if (btnEl) { btnEl.classList.remove('bg-slate-100'); btnEl.classList.add('bg-red-500','text-white','border-red-600'); }
+    showToast(`Salah! Itu ${currentTargetStudent.nama}`, "error");
+  }
+  tebakRound++;
+  setTimeout(() => nextTebakRound(), 1500);
+}
+
+/* =========================================================
+   GAME 2: TEPUK TEMAN
+   ========================================================= */
+let tepukScore = 0, tepukTimeLeft = 30, tepukInterval = null, tepukTimerInterval = null;
+let tepukTarget = null, tepukStartTime = null, tepukBenar = 0, tepukSalah = 0;
+
+function startTepukGame() {
+  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  renderTepukScreen();
+  buildTepukGrid();
+  document.getElementById('tepuk-score').textContent = '0';
+  document.getElementById('tepuk-timer').textContent = '30';
+  document.getElementById('tepuk-target-name').textContent = 'Klik Mulai!';
+  document.getElementById('tepuk-start-btn').classList.remove('hidden');
+}
+
+function renderTepukScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-pink-200">
+      <div class="flex justify-between items-center mb-4">
+        <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
+          <i class="fa-solid fa-arrow-left"></i> Menu
+        </button>
+        <div class="flex gap-3">
+          <div class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-bold">Poin: <span id="tepuk-score" class="text-sm">0</span></div>
+          <div class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">Waktu: <span id="tepuk-timer" class="text-sm">30</span>s</div>
+        </div>
+      </div>
+      <div class="text-center bg-gradient-to-r from-pink-500 to-rose-500 text-white p-3 rounded-2xl mb-6 shadow-md">
+        <p class="text-xs uppercase tracking-wider font-semibold opacity-90">Target Utama saat ini:</p>
+        <h3 class="text-2xl md:text-3xl font-black text-yellow-300 drop-shadow" id="tepuk-target-name">Cari: ???</h3>
+      </div>
+      <div class="grid grid-cols-3 gap-3 md:gap-4 max-w-md mx-auto" id="tepuk-grid"></div>
+      <div class="text-center mt-6">
+        <button id="tepuk-start-btn" onclick="startTepukGameLoop()" class="px-6 py-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl shadow-lg transition text-sm">
+          Mulai Main! 🚀
+        </button>
+      </div>
+    </div>`;
+}
+
+function buildTepukGrid() {
+  const grid = document.getElementById('tepuk-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    grid.innerHTML += `
+      <div class="relative w-full aspect-square bg-slate-800 rounded-2xl hole-shadow overflow-hidden flex items-end justify-center">
+        <div id="hole-${i}" class="absolute bottom-0 w-full h-full transform translate-y-full transition-transform duration-200 cursor-pointer flex flex-col items-center justify-center p-1" onclick="hitHole(${i})">
+          <img id="hole-img-${i}" src="" class="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-white object-cover shadow-lg hover:scale-110 transition">
+          <span id="hole-name-${i}" class="bg-black/70 text-white text-[9px] px-2 py-0.5 rounded-full mt-1 font-sans truncate max-w-full">Name</span>
+        </div>
+      </div>`;
+  }
+}
+
+function startTepukGameLoop() {
+  tepukScore = 0; tepukBenar = 0; tepukSalah = 0; tepukTimeLeft = 30;
+  tepukStartTime = new Date();
+  document.getElementById('tepuk-score').textContent = tepukScore;
+  document.getElementById('tepuk-start-btn').classList.add('hidden');
+  setNewTepukTarget();
+
+  tepukTimerInterval = setInterval(() => {
+    tepukTimeLeft--;
+    document.getElementById('tepuk-timer').textContent = tepukTimeLeft;
+    if (tepukTimeLeft <= 0) endTepukGame();
+  }, 1000);
+
+  tepukInterval = setInterval(() => popUpStudent(), 900);
+}
+
+function setNewTepukTarget() {
+  tepukTarget = studentsData[Math.floor(Math.random() * studentsData.length)];
+  document.getElementById('tepuk-target-name').textContent = `Tepuk: ${tepukTarget.nama}!`;
+}
+
+function popUpStudent() {
+  for (let i = 0; i < 9; i++) document.getElementById(`hole-${i}`).classList.add('translate-y-full');
+  const holeIdx = Math.floor(Math.random() * 9);
+  const randomStudent = (Math.random() > 0.4) ? tepukTarget : studentsData[Math.floor(Math.random() * studentsData.length)];
+  const holeEl = document.getElementById(`hole-${holeIdx}`);
+  const imgEl = document.getElementById(`hole-img-${holeIdx}`);
+  const nameEl = document.getElementById(`hole-name-${holeIdx}`);
+  imgEl.src = randomStudent.foto;
+  nameEl.textContent = randomStudent.nama;
+  holeEl.dataset.studentId = randomStudent.id;
+  holeEl.classList.remove('translate-y-full');
+  setTimeout(() => holeEl.classList.add('translate-y-full'), 800);
+}
+
+function hitHole(idx) {
+  const holeEl = document.getElementById(`hole-${idx}`);
+  const clickedId = holeEl.dataset.studentId;
+  if (clickedId === tepukTarget.id) {
+    tepukScore += 10; tepukBenar++;
+    document.getElementById('tepuk-score').textContent = tepukScore;
+    holeEl.classList.add('translate-y-full');
+    showToast("+10 Tepukan Tepat!", "success");
+    setNewTepukTarget();
+  } else {
+    tepukScore = Math.max(0, tepukScore - 5); tepukSalah++;
+    document.getElementById('tepuk-score').textContent = tepukScore;
+    showToast("-5 Salah Tepuk!", "error");
+  }
+}
+
+function endTepukGame() {
+  clearInterval(tepukInterval);
+  clearInterval(tepukTimerInterval);
+  for (let i = 0; i < 9; i++) document.getElementById(`hole-${i}`).classList.add('translate-y-full');
+  const endTime = new Date();
+  showToast(`Waktu Habis! Skor: ${tepukScore}`, "success");
+  document.getElementById('tepuk-start-btn').classList.remove('hidden');
+  saveScoreToSupabase({
+    gameId: 'tepuk_teman', skor: tepukScore,
+    jumlahBenar: tepukBenar, jumlahSalah: tepukSalah,
+    waktuMulai: tepukStartTime, waktuSelesai: endTime,
+    detail: { target_terakhir: tepukTarget ? tepukTarget.nama : null }
+  });
+}
+
+/* =========================================================
+   GAME 3: MEMORY MATCH
+   ========================================================= */
+let memoryCards = [], flippedCards = [], matchedCount = 0, memoryMoves = 0, memoryStartTime = null;
+
+function startMemoryGame() {
+  if (studentsData.length < 6) { showToast("Minimal 6 siswa!", "error"); return; }
+  renderMemoryScreen();
+  memoryMoves = 0; matchedCount = 0; flippedCards = [];
+  memoryStartTime = new Date();
+  document.getElementById('memory-moves').textContent = '0';
+  document.getElementById('memory-matched-count').textContent = '0/6';
+
+  const shuffled = [...studentsData].sort(() => Math.random() - 0.5).slice(0, 6);
+  let deck = [];
+  shuffled.forEach((s, idx) => {
+    deck.push({ id: `p_${idx}`, studentId: s.id, type: 'photo', content: s.foto, nama: s.nama });
+    deck.push({ id: `n_${idx}`, studentId: s.id, type: 'name', content: s.nama, nama: s.nama });
+  });
+  deck.sort(() => Math.random() - 0.5);
+  memoryCards = deck;
+
+  const grid = document.getElementById('memory-grid');
+  grid.innerHTML = '';
+  deck.forEach((card, i) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = 'w-full aspect-square bg-emerald-500 rounded-2xl flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition transform text-white font-bold p-2 text-center text-xs relative select-none';
+    cardEl.id = `mem-card-${i}`;
+    cardEl.innerHTML = `<span class="text-2xl">❓</span>`;
+    cardEl.onclick = () => handleMemoryCardClick(i);
+    grid.appendChild(cardEl);
+  });
+}
+
+function renderMemoryScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-emerald-200">
+      <div class="flex justify-between items-center mb-4">
+        <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
+          <i class="fa-solid fa-arrow-left"></i> Menu
+        </button>
+        <div class="flex gap-3">
+          <div class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">Pasangan: <span id="memory-matched-count">0/6</span></div>
+          <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">Langkah: <span id="memory-moves">0</span></div>
+        </div>
+      </div>
+      <div class="text-center mb-4 font-sans text-xs text-gray-500">Cocokkan kartu foto siswa dengan kartu namanya!</div>
+      <div class="grid grid-cols-3 sm:grid-cols-4 gap-3 max-w-md mx-auto" id="memory-grid"></div>
+    </div>`;
+}
+
+function handleMemoryCardClick(index) {
+  if (flippedCards.length >= 2) return;
+  const cardEl = document.getElementById(`mem-card-${index}`);
+  const card = memoryCards[index];
+  if (cardEl.classList.contains('matched')) return;
+  if (flippedCards.some(f => f.index === index)) return;
+
+  cardEl.classList.remove('bg-emerald-500');
+  cardEl.classList.add('bg-white','text-emerald-900','border-2','border-emerald-400');
+  if (card.type === 'photo') cardEl.innerHTML = `<img src="${card.content}" class="w-full h-full object-cover rounded-xl">`;
+  else cardEl.innerHTML = `<span class="font-extrabold text-xs text-purple-700">${card.content}</span>`;
+
+  flippedCards.push({ index, card });
+  if (flippedCards.length === 2) {
+    memoryMoves++;
+    document.getElementById('memory-moves').textContent = memoryMoves;
+    checkMemoryMatch();
+  }
+}
+
+function checkMemoryMatch() {
+  const [c1, c2] = flippedCards;
+  if (c1.card.studentId === c2.card.studentId && c1.card.type !== c2.card.type) {
+    matchedCount++;
+    document.getElementById('memory-matched-count').textContent = `${matchedCount}/6`;
+    document.getElementById(`mem-card-${c1.index}`).classList.add('matched','opacity-60');
+    document.getElementById(`mem-card-${c2.index}`).classList.add('matched','opacity-60');
+    showToast("Cocok! 🎉", "success");
+    flippedCards = [];
+    if (matchedCount === 6) {
+      const endTime = new Date();
+      const finalScore = Math.max(10, 100 - (memoryMoves - 6) * 10);
+      showToast(`Hebat! Selesai dalam ${memoryMoves} langkah!`, "success");
+      saveScoreToSupabase({
+        gameId: 'memory_match', skor: finalScore,
+        jumlahBenar: 6, jumlahSalah: memoryMoves - 6,
+        waktuMulai: memoryStartTime, waktuSelesai: endTime,
+        detail: { total_moves: memoryMoves }
+      });
+      setTimeout(() => showScreen('menu-screen'), 2000);
+    }
+  } else {
+    setTimeout(() => {
+      [c1, c2].forEach(c => {
+        const el = document.getElementById(`mem-card-${c.index}`);
+        el.className = 'w-full aspect-square bg-emerald-500 rounded-2xl flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition transform text-white font-bold p-2 text-center text-xs relative select-none';
+        el.innerHTML = `<span class="text-2xl">❓</span>`;
+      });
+      flippedCards = [];
+    }, 1000);
+  }
+}
+
+/* =========================================================
+   GAME 4: SUSUN NAMA
+   ========================================================= */
+let susunScore = 0, susunRound = 1, susunTargetStudent = null;
+let selectedLetters = [], scrambledLetters = [], susunStartTime = null, susunBenar = 0, susunSalah = 0;
+const TOTAL_SUSUN_ROUNDS = 5;
+
+function startSusunGame() {
+  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  susunScore = 0; susunRound = 1; susunBenar = 0; susunSalah = 0;
+  susunStartTime = new Date();
+  renderSusunScreen();
+  nextSusunRound();
+}
+
+function renderSusunScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-indigo-200">
+      <div class="flex justify-between items-center mb-4">
+        <button onclick="showScreen('menu-screen')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold">
+          <i class="fa-solid fa-arrow-left"></i> Menu
+        </button>
+        <div class="flex items-center gap-3">
+          <div class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold">Skor: <span id="susun-score">0</span></div>
+          <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">Ronde: <span id="susun-round">1/5</span></div>
+        </div>
+      </div>
+      <div class="w-32 h-32 mx-auto rounded-2xl overflow-hidden border-4 border-indigo-300 shadow-md mb-4">
+        <img id="susun-img" src="" class="w-full h-full object-cover">
+      </div>
+      <div class="flex justify-center gap-2 mb-6 min-h-[50px] flex-wrap" id="susun-answer-box"></div>
+      <div class="flex justify-center gap-2 flex-wrap max-w-sm mx-auto mb-4" id="susun-letters-pool"></div>
+      <div class="flex justify-center gap-3 mt-4">
+        <button onclick="resetCurrentSusunRound()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-xl">
+          <i class="fa-solid fa-rotate-left"></i> Reset Huruf
+        </button>
+      </div>
+    </div>`;
+}
+
+function nextSusunRound() {
+  if (susunRound > TOTAL_SUSUN_ROUNDS) {
+    const endTime = new Date();
+    showToast(`Selesai! Skor: ${susunScore}`, "success");
+    saveScoreToSupabase({
+      gameId: 'susun_nama', skor: susunScore,
+      jumlahBenar: susunBenar, jumlahSalah: susunSalah,
+      waktuMulai: susunStartTime, waktuSelesai: endTime,
+      detail: { rounds: TOTAL_SUSUN_ROUNDS }
+    });
+    setTimeout(() => showScreen('menu-screen'), 2000);
+    return;
+  }
+  document.getElementById('susun-score').textContent = susunScore;
+  document.getElementById('susun-round').textContent = `${susunRound}/${TOTAL_SUSUN_ROUNDS}`;
+
+  susunTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
+  document.getElementById('susun-img').src = susunTargetStudent.foto;
+
+  const cleanName = susunTargetStudent.nama.replace(/\s+/g, '').toUpperCase();
+  scrambledLetters = cleanName.split('').sort(() => Math.random() - 0.5);
+  selectedLetters = [];
+  renderSusunUI();
+}
+
+function renderSusunUI() {
+  const answerBox = document.getElementById('susun-answer-box');
+  const poolBox = document.getElementById('susun-letters-pool');
+  answerBox.innerHTML = '';
+  poolBox.innerHTML = '';
+  const cleanName = susunTargetStudent.nama.replace(/\s+/g, '').toUpperCase();
+
+  for (let i = 0; i < cleanName.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'w-10 h-10 rounded-xl border-2 border-indigo-300 bg-indigo-50 flex items-center justify-center font-black text-indigo-800 text-lg shadow-inner';
+    slot.textContent = selectedLetters[i] ? selectedLetters[i].letter : '';
+    answerBox.appendChild(slot);
+  }
+
+  scrambledLetters.forEach((char, idx) => {
+    const isUsed = selectedLetters.some(item => item.idx === idx);
+    const btn = document.createElement('button');
+    btn.className = `w-10 h-10 rounded-xl font-black text-lg shadow-md transition transform ${isUsed ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-105'}`;
+    btn.textContent = char;
+    btn.disabled = isUsed;
+    btn.onclick = () => { selectedLetters.push({ letter: char, idx }); renderSusunUI(); };
+    poolBox.appendChild(btn);
+  });
+
+  if (selectedLetters.length === cleanName.length) {
+    const userWord = selectedLetters.map(i => i.letter).join('');
+    if (userWord === cleanName) {
+      susunScore += 20; susunBenar++;
+      showToast("Tepat! 🎉", "success");
+    } else {
+      susunSalah++;
+      showToast(`Salah! Yang benar: ${susunTargetStudent.nama}`, "error");
+    }
+    susunRound++;
+    setTimeout(() => nextSusunRound(), 1500);
+  }
+}
+
+function resetCurrentSusunRound() {
+  selectedLetters = [];
+  renderSusunUI();
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+window.addEventListener("load", async () => {
+  console.log("🎮 Game Kelas siap. Cek session...");
+
+  const hasil = await tryAutoLogin();
+
+  if (hasil.ok) {
+    showToast(`Halo ${hasil.user.name}! 🎮`, "success");
+    showScreen("menu-screen");
+
+    // ⭐ Tampilkan papan skor setelah 500ms (refresh skor)
+    setTimeout(() => {
+      refreshScoreboard();
+    }, 500);
+    return;
+  }
+
+  if (hasil.alasan === "belum_setup") {
+    renderSetupScreen("Butuh Bin ID JSONBin dari guru", hasil.user);
+    return;
+  }
+
+  if (hasil.alasan === "gagal_fetch") {
+    renderSetupScreen(`Gagal: ${hasil.error}`, hasil.user);
+    return;
+  }
+
+  // Belum login
+  renderBelumLoginScreen();
+});
+</script>
 </body>
 </html>
