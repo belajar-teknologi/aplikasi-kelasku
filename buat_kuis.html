@@ -91,7 +91,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 <script>
 /* =========================================================
-   BAGIAN 1/6 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
+   BAGIAN 1/7 — KONSTANTA, STATE, HELPER, CONFIG, UPLOAD, INIT
    ========================================================= */
 
 const STORAGE = {
@@ -106,7 +106,6 @@ const STORAGE = {
 
 const SUPABASE_BUCKET = "edusmart-profile";
 
-/* ✅ Model valid (sudah terbukti jalan di API key Anda) */
 const GEMINI_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.6-flash",
@@ -126,7 +125,6 @@ const JENIS_SOAL = {
 
 const HURUF_PILIHAN = ["A", "B", "C", "D"];
 
-/* ==== DEFAULT SEKOLAH (fallback bila JSONBin kosong) ==== */
 const DEFAULT_SEKOLAH = {
   kabupaten1: "PEMERINTAH KABUPATEN MALANG",
   kabupaten2: "DINAS PENDIDIKAN",
@@ -138,7 +136,6 @@ const DEFAULT_SEKOLAH = {
 let appState = { currentUser: null, db: null, activeView: "paket" };
 let currentConfig = null;
 
-/* ==== HELPER DASAR ==== */
 function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
 const getLS = (k, d="") => localStorage.getItem(k) || d;
 const setLS = (k, v) => localStorage.setItem(k, v);
@@ -153,7 +150,6 @@ function nextId(arr) {
   arr.forEach(r => { const id = Number(r[0]) || 0; if (id > max) max = id; });
   return max + 1;
 }
-function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function formatRelative(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -162,9 +158,6 @@ function formatRelative(iso) {
   if (diff < 3600) return Math.floor(diff/60) + " mnt";
   if (diff < 86400) return Math.floor(diff/3600) + " jam";
   return Math.floor(diff/86400) + " hr";
-}
-function uid(prefix = "id") {
-  return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
 }
 
 /* ==== UI HELPER ==== */
@@ -211,18 +204,6 @@ function setSyncBadge(on, text) {
   } else {
     el.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm";
     el.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-900"></span><span>${esc(text || "SIAP")}</span>`;
-  }
-}
-function copyToClipboard(text, successMsg = "Tersalin!") {
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(() => showToast(successMsg, "success"));
-  } else {
-    const ta = document.createElement("textarea");
-    ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px";
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); showToast(successMsg, "success"); }
-    catch(e) { showToast("Gagal copy", "error"); }
-    document.body.removeChild(ta);
   }
 }
 
@@ -289,18 +270,6 @@ async function sbDelete(table, query = "") {
   });
   if (!res.ok) { const t = await res.text(); throw new Error(`Delete ${table} gagal: ${t.slice(0,200)}`); }
   return true;
-}
-async function sbRpc(namaRpc, params = {}) {
-  const sb = getSupabaseConfig();
-  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
-  const res = await fetch(`${sb.url}/rest/v1/rpc/${namaRpc}`, {
-    method: "POST", headers: sbHeaders(), body: JSON.stringify(params)
-  });
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch(e) { data = text; }
-  if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
-  return data;
 }
 
 /* ==== UPLOAD FILE ==== */
@@ -431,26 +400,8 @@ function kmDeleteRecord(paketId) {
 /* ==== GEMINI HELPER ==== */
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-function getGeminiErrorMessage(status, body, model) {
-  let detail = "";
-  try {
-    const j = body ? JSON.parse(body) : null;
-    detail = j?.error?.message || j?.error?.status || "";
-  } catch (e) {
-    detail = String(body || "").replace(/\s+/g, " ").slice(0, 220);
-  }
-  if (status === 429) return `Gemini terlalu banyak menerima permintaan (429). Coba lagi beberapa saat lagi.${detail ? " " + detail : ""}`;
-  if ([500, 502, 503, 504].includes(status)) return `Layanan Gemini sedang tidak tersedia sementara (HTTP ${status}) pada model ${model}.${detail ? " " + detail : ""}`;
-  if (status === 400) return `Permintaan ke Gemini tidak valid (400).${detail ? " " + detail : ""}`;
-  if (status === 401) return "API Key Gemini tidak valid (401).";
-  if (status === 403) return `API Key Gemini ditolak (403).${detail ? " " + detail : ""}`;
-  if (status === 404) return `Model ${model} tidak ditemukan atau tidak didukung (404).`;
-  return `Gemini mengembalikan HTTP ${status}.${detail ? " " + detail : ""}`;
-}
-
-async function fetchGeminiWithRetry(prompt, systemPrompt, apiKey, schema = null) {
+async function fetchGeminiWithRetry(prompt, systemPrompt, apiKey) {
   let lastError = null;
-  const maxAttemptsPerModel = 4;
   for (const model of GEMINI_MODELS) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
     const payload = {
@@ -458,52 +409,29 @@ async function fetchGeminiWithRetry(prompt, systemPrompt, apiKey, schema = null)
       systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
       generationConfig: { responseMimeType: "application/json", temperature: 0.7 }
     };
-    for (let attempt = 1; attempt <= maxAttemptsPerModel; attempt++) {
+    for (let attempt = 1; attempt <= 4; attempt++) {
       try {
-        console.log(`[EduSmart][Gemini] ${model} percobaan ${attempt}/${maxAttemptsPerModel}`);
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+        console.log(`[EduSmart][Gemini] ${model} percobaan ${attempt}/4`);
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const bodyText = await res.text();
-        if (res.ok) {
-          let data;
-          try { data = bodyText ? JSON.parse(bodyText) : null; }
-          catch (e) { throw new Error("Respons Gemini bukan JSON yang valid."); }
-          console.log(`[EduSmart][Gemini] berhasil dengan ${model}`);
-          return data;
+        if (res.ok) return JSON.parse(bodyText);
+        if ([400, 401, 403].includes(res.status)) {
+          let msg = "Permintaan Gemini gagal.";
+          try { msg = JSON.parse(bodyText)?.error?.message || msg; } catch(e){}
+          throw new Error(msg);
         }
-        const msg = getGeminiErrorMessage(res.status, bodyText, model);
-        lastError = new Error(msg);
-        if ([400, 401, 403, 404].includes(res.status)) {
-          if (res.status === 404) break;
-          throw lastError;
-        }
-        if ([429, 500, 502, 503, 504].includes(res.status) && attempt < maxAttemptsPerModel) {
-          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
-          console.warn(`[EduSmart][Gemini] ${msg} → retry ${delay} ms`);
-          await sleep(delay);
-          continue;
-        }
-        throw lastError;
+        if (res.status === 404) break;
+        if (attempt < 4) { await sleep(Math.min(8000, 1200 * Math.pow(2, attempt-1))); continue; }
+        throw new Error(`Gemini HTTP ${res.status}`);
       } catch (err) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        const text = lastError.message || "";
-        const retryableNetwork = /Failed to fetch|NetworkError|network|timeout|timed out/i.test(text);
-        if (retryableNetwork && attempt < maxAttemptsPerModel) {
-          const delay = Math.min(8000, 1200 * Math.pow(2, attempt - 1));
-          console.warn(`[EduSmart][Gemini] ${text} → retry ${delay} ms`);
-          await sleep(delay);
-          continue;
-        }
-        throw lastError;
+        lastError = err;
+        if (attempt >= 4) break;
+        await sleep(1500);
       }
     }
   }
   throw lastError || new Error("Gagal menghubungi Gemini.");
 }
-
 function extractGeminiText(result) {
   const parts = result?.candidates?.[0]?.content?.parts;
   if (!Array.isArray(parts)) return "";
@@ -534,7 +462,6 @@ function renderMainContent() {
   if (router[v]) router[v](c);
   else renderPaketList(c);
 }
-
 function renderSidebarNav() {
   const nav = document.getElementById("sidebar-nav-list");
   if (!nav) return;
@@ -563,7 +490,6 @@ function switchView(id) {
   renderSidebarNav();
   renderMainContent();
 }
-
 function updateHeaderUI() {
   const user = appState.currentUser;
   if (!user) return;
@@ -593,7 +519,6 @@ function updateHeaderUI() {
   }
 }
 
-/* ==== INIT ==== */
 document.addEventListener("DOMContentLoaded", async () => {
   const auth = checkAuth();
   if (!auth.ok) {
@@ -631,7 +556,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderMainContent();
 });
 /* =========================================================
-   BAGIAN 2/6 — PAKET SOAL (LIST + MODAL 2 TAB)
+   BAGIAN 2/7 — PAKET SOAL (LIST + MODAL 2 TAB)
    ========================================================= */
 
 let __paketCache = [];
@@ -722,7 +647,6 @@ function showBuatPaketModal(editId = null, defaultTab = "info") {
     if (p) paket = p;
   }
   window.__paketTemp = paket;
-
   renderPaketModal();
   openModal();
 }
@@ -1080,14 +1004,12 @@ async function duplikatPaket(id) {
     }]);
     const newId = res?.[0]?.id;
     if (!newId) throw new Error("Gagal buat paket baru.");
-
     const items = await sbFetch("paket_soal_items", `?paket_id=eq.${id}`);
     if (items.length) {
       await sbInsert("paket_soal_items", items.map(it => ({
         paket_id: newId, soal_id: it.soal_id, urutan: it.urutan
       })));
     }
-
     const links = kmGetLinks(id);
     if (links.length) {
       const cred = getJsonBinCredential();
@@ -1097,7 +1019,6 @@ async function duplikatPaket(id) {
       kmSetAllLinks(newId, links);
       await updateJsonBinDB(appState.db, currentConfig.binId, cred);
     }
-
     showLoading(false);
     showToast("✓ Paket diduplikat.", "success");
     refreshPaket();
@@ -1111,22 +1032,19 @@ async function hapusPaket(id) {
     await sbDelete("paket_soal", `?id=eq.${id}`);
     kmDeleteRecord(id);
     const cred = getJsonBinCredential();
-    await updateJsonDBAfterLoad(cred);
+    try {
+      const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
+      freshDb.km = appState.db.km;
+      appState.db = freshDb;
+      await updateJsonBinDB(appState.db, currentConfig.binId, cred);
+    } catch(e) { console.warn(e); }
     showLoading(false);
     showToast("Paket dihapus.", "success");
     refreshPaket();
   } catch (err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
 }
-async function updateJsonDBAfterLoad(cred) {
-  try {
-    const freshDb = await loadJsonBinDB(currentConfig.binId, cred);
-    freshDb.km = appState.db.km;
-    appState.db = freshDb;
-    await updateJsonBinDB(appState.db, currentConfig.binId, cred);
-  } catch(e) { console.warn(e); }
-}
 /* =========================================================
-   BAGIAN 3/6 — BANK SOAL (LIST + FORM MANUAL 5 JENIS)
+   BAGIAN 3/7 — BANK SOAL (LIST + FORM MANUAL 5 JENIS)
    ========================================================= */
 
 let __filterBankSoal = { mapel: "", kelas: "", jenis: "" };
@@ -1360,7 +1278,7 @@ function renderSoalModal() {
 
     <div class="p-3 bg-pink-50 border border-pink-100 rounded-xl space-y-2">
       <div class="font-semibold text-pink-900 flex items-center gap-1.5"><i class="fa-solid fa-image text-pink-600"></i> Gambar Soal (opsional)</div>
-      <p class="text-[10px] text-slate-600">Upload gambar pendukung (maks 5 MB). Tersimpan di Cloudinary.</p>
+      <p class="text-[10px] text-slate-600">Upload gambar pendukung (maks 5 MB). Tersimpan di Cloudinary / Supabase.</p>
       ${mediaHtml}
       <label class="inline-block bg-white hover:bg-slate-50 border border-pink-300 text-pink-700 text-[10px] font-bold px-3 py-1.5 rounded-lg cursor-pointer">
         <i class="fa-solid fa-upload"></i> ${s.media ? 'Ganti Gambar' : 'Upload Gambar'}
@@ -1400,9 +1318,7 @@ function syncFormKeTemp() {
   __tempSoal.kelas = get("so-kelas") ?? __tempSoal.kelas;
 }
 
-/* =========================================================
-   UPLOAD MEDIA SOAL
-   ========================================================= */
+/* ==== UPLOAD MEDIA SOAL ==== */
 async function uploadMediaSoal(e) {
   const f = e.target.files[0];
   if (!f) return;
@@ -1427,7 +1343,7 @@ function hapusMediaSoal() {
 }
 
 /* =========================================================
-   RENDER FORM PER JENIS — KOTAK HURUF A-D YANG JELAS
+   RENDER FORM PER JENIS
    ========================================================= */
 function renderJenisForm() {
   const el = document.getElementById("so-jenis-form");
@@ -1435,7 +1351,6 @@ function renderJenisForm() {
   const s = __tempSoal;
   const j = s.jenis;
 
-  /* --- PG (radio 1 kunci) --- */
   if (j === "PG") {
     const kunci = s.jawaban.kunci || "";
     el.innerHTML = `
@@ -1456,8 +1371,6 @@ function renderJenisForm() {
         </div>
       </div>`;
   }
-
-  /* --- PGK (checkbox multi kunci) --- */
   else if (j === "PGK") {
     const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [];
     el.innerHTML = `
@@ -1482,8 +1395,6 @@ function renderJenisForm() {
         </div>
       </div>`;
   }
-
-  /* --- ISIAN --- */
   else if (j === "ISIAN") {
     const kunciArr = Array.isArray(s.jawaban.kunci) ? s.jawaban.kunci : [s.jawaban.kunci || ""];
     el.innerHTML = `
@@ -1500,8 +1411,6 @@ function renderJenisForm() {
         <button type="button" onclick="tambahIsian()" class="text-[10px] bg-white border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-100">+ Tambah Alternatif</button>
       </div>`;
   }
-
-  /* --- MENJODOHKAN --- */
   else if (j === "MENJODOHKAN") {
     el.innerHTML = `
       <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
@@ -1521,8 +1430,6 @@ function renderJenisForm() {
       </div>`;
     renderJodohList();
   }
-
-  /* --- URAIAN --- */
   else if (j === "URAIAN") {
     el.innerHTML = `
       <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
@@ -1545,7 +1452,6 @@ function toggleKunciPGK(k) {
   syncFormKeTemp();
   renderJenisForm();
 }
-
 function updateIsian(i, v) {
   const arr = Array.isArray(__tempSoal.jawaban.kunci) ? [...__tempSoal.jawaban.kunci] : [__tempSoal.jawaban.kunci || ""];
   arr[i] = v;
@@ -1566,7 +1472,6 @@ function hapusIsian(i) {
   syncFormKeTemp();
   renderJenisForm();
 }
-
 function renderJodohList() {
   const el = document.getElementById("jodoh-list");
   if (!el) return;
@@ -1599,9 +1504,7 @@ function hapusJodoh(i) {
   renderJodohList();
 }
 
-/* =========================================================
-   SIMPAN SOAL → bank_soal
-   ========================================================= */
+/* ==== SIMPAN SOAL ==== */
 async function simpanSoal() {
   const pertanyaan = document.getElementById("so-pertanyaan").value.trim();
   if (!pertanyaan) { showToast("Pertanyaan wajib.", "error"); return; }
@@ -1614,7 +1517,7 @@ async function simpanSoal() {
   const j = __tempSoal.jenis;
 
   if (j === "PG") {
-    if (!__tempSoal.jawaban.kunci) { showToast("Pilih kunci jawaban — klik huruf A/B/C/D.", "error"); return; }
+    if (!__tempSoal.jawaban.kunci) { showToast("Pilih kunci jawaban.", "error"); return; }
     if (!__tempSoal.pilihan.A || !__tempSoal.pilihan.B || !__tempSoal.pilihan.C || !__tempSoal.pilihan.D) {
       showToast("Isi semua pilihan A-D.", "error"); return;
     }
@@ -1652,10 +1555,7 @@ async function simpanSoal() {
     skor: 1
   };
   if (j === "PG" || j === "PGK") {
-    payload.pilihan = {
-      A: __tempSoal.pilihan.A, B: __tempSoal.pilihan.B,
-      C: __tempSoal.pilihan.C, D: __tempSoal.pilihan.D
-    };
+    payload.pilihan = { A: __tempSoal.pilihan.A, B: __tempSoal.pilihan.B, C: __tempSoal.pilihan.C, D: __tempSoal.pilihan.D };
     payload.jawaban = { kunci: __tempSoal.jawaban.kunci };
   } else if (j === "ISIAN") {
     payload.jawaban = { kunci: __tempSoal.jawaban.kunci };
@@ -1680,6 +1580,14 @@ async function simpanSoal() {
     showToast("✓ Soal tersimpan.", "success");
     closeModal();
 
+    // Kalau dipanggil dari Kelola Soal → balik ke Kelola Soal
+    if (window.__returnToKelolaPaket) {
+      const pid = window.__returnToKelolaPaket;
+      window.__returnToKelolaPaket = null;
+      setTimeout(() => kelolaSoalPaket(pid), 150);
+      return;
+    }
+    // Kalau dipanggil dari "Buat Soal Baru" di Kelola Soal
     if (window.__paketIdTambahan && newSoalId) {
       try {
         await toggleSoalDiPaket(window.__paketIdTambahan, newSoalId, true);
@@ -1697,28 +1605,24 @@ async function simpanSoal() {
   }
 }
 /* =========================================================
-   BAGIAN 4/6 — PREVIEW JAWABAN, PREVIEW PAKET, KELOLA SOAL, NORMALISASI AI
+   BAGIAN 4/7 — PREVIEW JAWABAN, PREVIEW PAKET, KELOLA SOAL, NORMALISASI AI
    ========================================================= */
 
-/* ---------------------------------------------------------
-   4A. HELPER PREVIEW JAWABAN — 5 JENIS LENGKAP
-   --------------------------------------------------------- */
+/* ---------- 4A. PREVIEW JAWABAN 5 JENIS ---------- */
 function renderJawabanPreview(s) {
   const j = s.jenis;
   const pilihan = s.pilihan || {};
   const jawaban = s.jawaban || {};
 
-  /* --- PG --- */
   if (j === "PG") {
     const kunci = String(jawaban.kunci || "").toUpperCase();
     return `
       <div class="grid grid-cols-2 gap-1 text-[10px]">
         ${HURUF_PILIHAN.map(k => {
           const isKunci = kunci === k;
-          const teks = pilihan[k] || "";
           return `<div class="prev-opsi ${isKunci ? 'kunci' : ''}">
             <span class="font-bold">${k}.</span>
-            <span class="flex-1">${esc(teks)}</span>
+            <span class="flex-1">${esc(pilihan[k] || "")}</span>
             ${isKunci ? `<span class="tanda">✓</span>` : ""}
           </div>`;
         }).join("")}
@@ -1728,17 +1632,15 @@ function renderJawabanPreview(s) {
       </div>`;
   }
 
-  /* --- PGK --- */
   if (j === "PGK") {
     const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci.map(x => String(x).toUpperCase()) : [];
     return `
       <div class="grid grid-cols-2 gap-1 text-[10px]">
         ${HURUF_PILIHAN.map(k => {
           const isKunci = kunciArr.includes(k);
-          const teks = pilihan[k] || "";
           return `<div class="prev-opsi ${isKunci ? 'kunci' : ''}">
             <span class="font-bold">${k}.</span>
-            <span class="flex-1">${esc(teks)}</span>
+            <span class="flex-1">${esc(pilihan[k] || "")}</span>
             ${isKunci ? `<span class="tanda">✓</span>` : ""}
           </div>`;
         }).join("")}
@@ -1748,7 +1650,6 @@ function renderJawabanPreview(s) {
       </div>`;
   }
 
-  /* --- ISIAN --- */
   if (j === "ISIAN") {
     const kunciArr = Array.isArray(jawaban.kunci) ? jawaban.kunci : [jawaban.kunci || ""];
     const bersih = kunciArr.map(x => String(x).trim()).filter(Boolean);
@@ -1757,7 +1658,6 @@ function renderJawabanPreview(s) {
     </div>`;
   }
 
-  /* --- MENJODOHKAN --- */
   if (j === "MENJODOHKAN") {
     const kiri = Array.isArray(pilihan.kiri) ? pilihan.kiri : [];
     const kanan = Array.isArray(pilihan.kanan) ? pilihan.kanan : [];
@@ -1775,27 +1675,22 @@ function renderJawabanPreview(s) {
       </div>`;
   }
 
-  /* --- URAIAN --- */
   if (j === "URAIAN") {
-    const kunci = String(jawaban.kunci || "");
     return `
       <div class="text-[10px] text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200">
-        <b><i class="fa-solid fa-key"></i> Kunci:</b> ${esc(kunci || "-")}
+        <b><i class="fa-solid fa-key"></i> Kunci:</b> ${esc(jawaban.kunci || "-")}
       </div>`;
   }
 
   return "";
 }
 
-/* ---------------------------------------------------------
-   4B. PREVIEW PAKET
-   --------------------------------------------------------- */
+/* ---------- 4B. PREVIEW PAKET ---------- */
 async function previewPaket(id) {
   showLoading(true, "Memuat paket...");
   try {
     const paket = (await sbFetch("paket_soal", `?id=eq.${id}&limit=1`))?.[0];
     if (!paket) throw new Error("Paket tidak ditemukan.");
-
     const items = await sbFetch("paket_soal_items", `?paket_id=eq.${id}&order=urutan.asc`);
     let soalList = [];
     if (items.length) {
@@ -1822,30 +1717,11 @@ async function previewPaket(id) {
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div class="bg-slate-50 border rounded-lg p-2">
-          <div class="text-[10px] text-slate-500">Mapel</div>
-          <div class="font-bold">${esc(paket.mapel_kode || "-")}</div>
-        </div>
-        <div class="bg-slate-50 border rounded-lg p-2">
-          <div class="text-[10px] text-slate-500">Kelas</div>
-          <div class="font-bold">${esc(paket.kelas || "-")}</div>
-        </div>
-        <div class="bg-slate-50 border rounded-lg p-2">
-          <div class="text-[10px] text-slate-500">Durasi</div>
-          <div class="font-bold">${paket.durasi_menit || 0} mnt</div>
-        </div>
-        <div class="bg-slate-50 border rounded-lg p-2">
-          <div class="text-[10px] text-slate-500">Jumlah Soal</div>
-          <div class="font-bold">${soalList.length}</div>
-        </div>
+        <div class="bg-slate-50 border rounded-lg p-2"><div class="text-[10px] text-slate-500">Mapel</div><div class="font-bold">${esc(paket.mapel_kode || "-")}</div></div>
+        <div class="bg-slate-50 border rounded-lg p-2"><div class="text-[10px] text-slate-500">Kelas</div><div class="font-bold">${esc(paket.kelas || "-")}</div></div>
+        <div class="bg-slate-50 border rounded-lg p-2"><div class="text-[10px] text-slate-500">Durasi</div><div class="font-bold">${paket.durasi_menit || 0} mnt</div></div>
+        <div class="bg-slate-50 border rounded-lg p-2"><div class="text-[10px] text-slate-500">Jumlah Soal</div><div class="font-bold">${soalList.length}</div></div>
       </div>
-
-      ${(paket.acak_soal || paket.acak_pilihan) ? `
-        <div class="flex flex-wrap gap-2 text-[10px]">
-          ${paket.acak_soal ? `<span class="bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded-full"><i class="fa-solid fa-shuffle"></i> Acak urutan soal</span>` : ""}
-          ${paket.acak_pilihan ? `<span class="bg-pink-100 text-pink-700 font-bold px-2 py-1 rounded-full"><i class="fa-solid fa-shuffle"></i> Acak pilihan A-D</span>` : ""}
-        </div>
-      ` : ""}
 
       ${links.length ? `
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
@@ -1891,9 +1767,7 @@ async function previewPaket(id) {
   }
 }
 
-/* ---------------------------------------------------------
-   4C. KELOLA SOAL DALAM PAKET
-   --------------------------------------------------------- */
+/* ---------- 4C. KELOLA SOAL DALAM PAKET (dengan tombol Edit) ---------- */
 async function kelolaSoalPaket(paketId) {
   if (!paketId) { showToast("Paket tidak valid.", "error"); return; }
   window.__paketIdSaatIni = paketId;
@@ -1915,7 +1789,7 @@ async function kelolaSoalPaket(paketId) {
       </div>
 
       <div class="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] text-indigo-800">
-        <i class="fa-solid fa-info-circle"></i> Centang soal untuk menambahkan ke paket. Kunci jawaban ditampilkan agar mudah diverifikasi.
+        <i class="fa-solid fa-info-circle"></i> Centang soal untuk menambah ke paket. Klik <b>✏️ Edit</b> untuk ubah soal atau tambah gambar (permanen, tersimpan ke bank soal).
       </div>
 
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -1931,6 +1805,7 @@ async function kelolaSoalPaket(paketId) {
         ${allSoal.length ? allSoal.map(s => {
           const checked = soalInPaketIds.includes(s.id);
           const j = JENIS_SOAL[s.jenis] || JENIS_SOAL.PG;
+          const punyaMedia = s.media && s.media.url;
           const previewKunci = (() => {
             const jaw = s.jawaban || {};
             if (s.jenis === "PG") return `Kunci: <b class="text-emerald-700">${jaw.kunci || "-"}</b>`;
@@ -1940,20 +1815,24 @@ async function kelolaSoalPaket(paketId) {
             return `<span class="text-slate-500 italic">Koreksi manual</span>`;
           })();
           return `
-          <label class="flex items-start gap-2 p-2.5 bg-white border rounded-xl cursor-pointer hover:bg-slate-50 kp-item"
-                 data-search="${esc(((s.pertanyaan||"") + " " + (s.mapel_kode||"") + " " + (s.topik||"")).toLowerCase())}"
-                 data-jenis="${esc(s.jenis || '')}">
-            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleSoalDiPaket('${paketId}', '${s.id}', this.checked)" class="mt-1 accent-indigo-600 w-4 h-4">
+          <div class="flex items-start gap-2 p-2.5 bg-white border rounded-xl hover:bg-slate-50 kp-item"
+               data-search="${esc(((s.pertanyaan||"") + " " + (s.mapel_kode||"") + " " + (s.topik||"")).toLowerCase())}"
+               data-jenis="${esc(s.jenis || '')}">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleSoalDiPaket('${paketId}', '${s.id}', this.checked)" class="mt-1 accent-indigo-600 w-4 h-4 cursor-pointer">
             <div class="flex-1 min-w-0">
               <div class="flex flex-wrap gap-1 mb-1">
                 <span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">${esc(j.label)}</span>
                 ${s.mapel_kode ? `<span class="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">${esc(s.mapel_kode)}</span>` : ""}
                 ${s.kelas ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Kls ${esc(s.kelas)}</span>` : ""}
+                ${punyaMedia ? `<span class="text-[9px] font-bold bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded"><i class="fa-solid fa-image"></i> Foto</span>` : ""}
               </div>
               <div class="text-[11px] font-semibold text-slate-700 leading-tight">${esc((s.pertanyaan || "").slice(0, 150))}${(s.pertanyaan || "").length > 150 ? "..." : ""}</div>
               <div class="text-[10px] mt-1">${previewKunci}</div>
             </div>
-          </label>`;
+            <button onclick="event.preventDefault();editSoalDariKelola('${s.id}', '${paketId}')" class="text-indigo-600 hover:text-indigo-800 p-1.5 rounded-lg hover:bg-indigo-50 shrink-0" title="Edit Soal">
+              <i class="fa-solid fa-pen text-xs"></i>
+            </button>
+          </div>`;
         }).join("") : `<div class="text-center text-slate-400 py-6 text-xs">Bank soal masih kosong. Klik "Buat Soal Baru" untuk mulai.</div>`}
       </div>
 
@@ -2011,13 +1890,18 @@ function tambahSoalKePaketBaru(paketId) {
   showBuatSoalModal(null);
 }
 
-/* =========================================================
-   4D. ⭐ NORMALISASI SOAL AI — VERSI TOLERAN
-   ========================================================= */
+/* Edit soal dari Kelola → buka form Edit → setelah simpan balik ke Kelola */
+function editSoalDariKelola(soalId, paketId) {
+  window.__returnToKelolaPaket = paketId;
+  window.__paketIdSaatIni = paketId;
+  closeModal();
+  setTimeout(() => showBuatSoalModal(soalId), 100);
+}
+
+/* ---------- 4D. NORMALISASI SOAL AI ---------- */
 function normalisasiSoalAI(raw) {
   if (!raw || typeof raw !== "object") return null;
 
-  // --- Normalisasi jenis ---
   let jenisRaw = String(raw.jenis || raw.type || "").toUpperCase().trim();
   if (jenisRaw.includes("PILIHAN") && jenisRaw.includes("GANDA") && !jenisRaw.includes("KOMPLEKS")) jenisRaw = "PG";
   if (jenisRaw === "PG" || jenisRaw === "MULTIPLE CHOICE") jenisRaw = "PG";
@@ -2026,23 +1910,15 @@ function normalisasiSoalAI(raw) {
   if (jenisRaw.includes("ISIAN") || jenisRaw.includes("SHORT") || jenisRaw === "FILL") jenisRaw = "ISIAN";
   if (jenisRaw.includes("URAIAN") || jenisRaw.includes("ESSAY") || jenisRaw === "ESAI") jenisRaw = "URAIAN";
 
-  // --- Pertanyaan ---
   const pertanyaan = String(raw.pertanyaan || raw.question || raw.soal || raw.text || "").trim();
   if (!pertanyaan) return null;
 
   const pembahasan = String(raw.pembahasan || raw.explanation || raw.penjelasan || "").trim();
   const out = {
-    jenis: jenisRaw,
-    pertanyaan,
-    pembahasan,
-    tingkat: "sedang",
-    skor: 1,
-    pilihan: null,
-    jawaban: {},
-    media: null
+    jenis: jenisRaw, pertanyaan, pembahasan,
+    tingkat: "sedang", skor: 1, pilihan: null, jawaban: {}, media: null
   };
 
-  // --- Helper: normalisasi pilihan jadi {A,B,C,D} ---
   const normPilihan = (src) => {
     if (!src) return null;
     if (src.pilihan && typeof src.pilihan === "object" && !Array.isArray(src.pilihan)) src = src.pilihan;
@@ -2064,13 +1940,11 @@ function normalisasiSoalAI(raw) {
     return Object.keys(m).length ? m : null;
   };
 
-  // --- Ambil rawKunci dari berbagai bentuk ---
   let rawKunci = raw.jawaban ?? raw.answer ?? raw.kunci ?? raw.correct ?? null;
   if (rawKunci && typeof rawKunci === "object" && !Array.isArray(rawKunci)) {
     rawKunci = rawKunci.kunci ?? rawKunci.answer ?? rawKunci.jawaban ?? rawKunci.correct ?? null;
   }
 
-  // --- Helper: cari huruf dari teks pilihan ---
   const findHurufDariTeks = (teks, pilihan) => {
     if (!pilihan) return null;
     const t = String(teks).trim().toUpperCase();
@@ -2087,7 +1961,6 @@ function normalisasiSoalAI(raw) {
     if (!/^[A-D]$/.test(k)) k = findHurufDariTeks(rawKunci, out.pilihan);
     if (!k || !out.pilihan[k]) return null;
     out.jawaban = { kunci: k };
-
   } else if (jenisRaw === "PGK") {
     out.pilihan = normPilihan(raw.pilihan || raw.options || raw.opsi || raw.choices);
     if (!out.pilihan || !out.pilihan.A || !out.pilihan.B) return null;
@@ -2100,13 +1973,11 @@ function normalisasiSoalAI(raw) {
     clean = [...new Set(clean)].sort();
     if (clean.length === 0) return null;
     out.jawaban = { kunci: clean };
-
   } else if (jenisRaw === "ISIAN") {
     const arr = Array.isArray(rawKunci) ? rawKunci : [rawKunci];
     const clean = arr.map(x => String(x ?? "").trim()).filter(Boolean);
     if (!clean.length) return null;
     out.jawaban = { kunci: clean };
-
   } else if (jenisRaw === "MENJODOHKAN") {
     let pil = raw.pilihan || raw.pairs || {};
     if (pil.pilihan && typeof pil.pilihan === "object" && !Array.isArray(pil.pilihan)) pil = pil.pilihan;
@@ -2123,26 +1994,21 @@ function normalisasiSoalAI(raw) {
     else if (Array.isArray(raw.pasangan)) pasangan = raw.pasangan;
     if (!pasangan) pasangan = cKiri.map((_, i) => [i, i]);
     out.jawaban = { pasangan };
-
   } else if (jenisRaw === "URAIAN") {
     const k = String(rawKunci || "").trim();
     if (!k) return null;
     out.jawaban = { kunci: k };
-
   } else {
     return null;
   }
 
   return out;
 }
-
 /* =========================================================
-   BAGIAN 5/6 — GENERATOR AI, EXPORT, SHORTCUT, LOG
+   BAGIAN 5/7 — GENERATOR AI, EXPORT, SHORTCUT
    ========================================================= */
 
-/* ---------------------------------------------------------
-   5A. MODAL API KEY GEMINI
-   --------------------------------------------------------- */
+/* ---------- 5A. MODAL API KEY GEMINI ---------- */
 function showGeminiModal() {
   const key = getGeminiKey();
   const mb = document.getElementById("modal-body");
@@ -2186,9 +2052,7 @@ function simpanGeminiKey() {
   else if (appState.activeView === "paket") renderPaketList(document.getElementById("main-view-container"));
 }
 
-/* ---------------------------------------------------------
-   5B. GENERATOR AI
-   --------------------------------------------------------- */
+/* ---------- 5B. GENERATOR AI ---------- */
 async function jalankanGenerateAI() {
   const apiKey = getGeminiKey();
   if (!apiKey) { showToast("API Key Gemini belum diset.", "error"); return; }
@@ -2221,17 +2085,16 @@ async function jalankanGenerateAI() {
   if (loaderText) loaderText.textContent = `Menghubungi Gemini... (${total} soal)`;
 
   const systemPrompt = "Anda asisten pembuatan soal SD Indonesia. WAJIB balas dengan JSON ARRAY saja. Jangan pakai markdown, jangan pakai penjelasan tambahan.";
-
   const userPrompt = `Buat soal mata pelajaran "${mapel}" kelas "${kelas}" topik "${topik}".
 
-Jumlah soal yang diminta:
-- PG (Pilihan Ganda): ${numPG}
-- PGK (PG Kompleks): ${numPGK}
+Jumlah soal:
+- PG: ${numPG}
+- PGK: ${numPGK}
 - MENJODOHKAN: ${numJodoh}
 - ISIAN: ${numIsian}
 - URAIAN: ${numUraian}
 
-Balas HANYA array JSON. Setiap elemen objek. Contoh PERSIS format:
+Balas HANYA array JSON. Contoh PERSIS:
 
 [
   {
@@ -2272,46 +2135,40 @@ Balas HANYA array JSON. Setiap elemen objek. Contoh PERSIS format:
 ]
 
 ATURAN WAJIB:
-1. Setiap soal WAJIB punya key: "jenis", "pertanyaan", "jawaban" (pembahasan & pilihan opsional sesuai jenis).
-2. PG & PGK: "pilihan" WAJIB object dengan key "A","B","C","D" (huruf besar).
-3. PG: "jawaban.kunci" = 1 huruf saja, contoh: "A"
-4. PGK: "jawaban.kunci" = ARRAY minimal 2 huruf, contoh: ["A","C"]
-5. MENJODOHKAN: "pilihan.kiri" & "pilihan.kanan" WAJIB array string dengan panjang SAMA, minimal 3.
-6. MENJODOHKAN: "jawaban.pasangan" = [[0,0],[1,1],[2,2],...]
-7. ISIAN: "pilihan" = null, "jawaban.kunci" = array string alternatif, contoh: ["jawaban1","jawaban2"]
-8. URAIAN: "pilihan" = null, "jawaban.kunci" = string panjang
-9. Jangan pakai teks di luar JSON. Jangan bungkus dengan markdown.
+1. Setiap soal punya: "jenis", "pertanyaan", "jawaban".
+2. PG & PGK: "pilihan" WAJIB object dengan key "A","B","C","D".
+3. PG: "jawaban.kunci" = 1 huruf.
+4. PGK: "jawaban.kunci" = ARRAY minimal 2 huruf.
+5. MENJODOHKAN: "pilihan.kiri" & "pilihan.kanan" array string panjang sama, minimal 3.
+6. MENJODOHKAN: "jawaban.pasangan" = [[0,0],[1,1],[2,2],...].
+7. ISIAN: "pilihan" = null, "jawaban.kunci" = array string.
+8. URAIAN: "pilihan" = null, "jawaban.kunci" = string panjang.
+9. Jangan pakai teks di luar JSON.
 
 Jawab HANYA array JSON.`;
 
-  const schema = null;
-
   try {
-    const result = await fetchGeminiWithRetry(userPrompt, systemPrompt, apiKey, schema);
+    const result = await fetchGeminiWithRetry(userPrompt, systemPrompt, apiKey);
     console.log("[EduSmart][Gemini] Response:", result);
 
     const finishReason = result?.candidates?.[0]?.finishReason || "";
     const jsonText = extractGeminiText(result);
     if (!jsonText) {
       const blockReason = result?.promptFeedback?.blockReason;
-      if (blockReason) throw new Error(`Gemini memblokir permintaan (${blockReason}). Coba ubah topik atau redaksi.`);
-      if (finishReason && finishReason !== "STOP") throw new Error(`Gemini menghentikan generasi (${finishReason}). Coba generate ulang.`);
+      if (blockReason) throw new Error(`Gemini memblokir permintaan (${blockReason}).`);
+      if (finishReason && finishReason !== "STOP") throw new Error(`Gemini menghentikan generasi (${finishReason}).`);
       throw new Error("Respons kosong dari Gemini.");
     }
 
     let soalArr;
-    const cleanedJson = jsonText
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
+    const cleanedJson = jsonText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
     try { soalArr = JSON.parse(cleanedJson); }
     catch (e) {
       const m = cleanedJson.match(/\[[\s\S]*\]/);
       if (m) {
         try { soalArr = JSON.parse(m[0]); }
-        catch(e2) { throw new Error("Gemini mengembalikan JSON yang tidak valid."); }
-      }
-      else throw new Error("Gemini tidak mengembalikan array JSON.");
+        catch(e2) { throw new Error("Gemini mengembalikan JSON tidak valid."); }
+      } else throw new Error("Gemini tidak mengembalikan array JSON.");
     }
     if (!Array.isArray(soalArr) || !soalArr.length) throw new Error("AI tidak mengembalikan array.");
 
@@ -2319,11 +2176,10 @@ Jawab HANYA array JSON.`;
     const skipped = soalArr.length - normalized.length;
 
     if (!normalized.length) {
-      throw new Error("Gemini berhasil merespons, tetapi struktur soal tidak cocok dengan format EduSmart. Coba generate ulang; detail respons dapat dilihat di Console.");
+      throw new Error("Gemini merespons, tetapi struktur soal tidak cocok. Coba generate ulang.");
     }
 
     __tempSoalAI = [...__tempSoalAI, ...normalized];
-
     if (loader) loader.classList.add("hidden");
     if (btn) btn.disabled = false;
 
@@ -2331,7 +2187,6 @@ Jawab HANYA array JSON.`;
     else showToast(`✓ Berhasil generate ${normalized.length} soal.`, "success");
 
     renderPaketModal();
-
   } catch (err) {
     if (loader) loader.classList.add("hidden");
     if (out) {
@@ -2343,9 +2198,7 @@ Jawab HANYA array JSON.`;
   }
 }
 
-/* ---------------------------------------------------------
-   5C. EXPORT PAKET JSON (tetap dipertahankan)
-   --------------------------------------------------------- */
+/* ---------- 5C. EXPORT PAKET JSON ---------- */
 async function exportPaketJSON(id) {
   try {
     showLoading(true, "Menyiapkan export...");
@@ -2354,13 +2207,7 @@ async function exportPaketJSON(id) {
     const ids = items.map(it => it.soal_id).filter(Boolean);
     const soals = ids.length ? await sbFetch("bank_soal", `?id=in.(${ids.map(i => `"${i}"`).join(",")})`) : [];
     const links = kmGetLinks(id);
-    const data = {
-      paket,
-      soal: soals,
-      links,
-      exportedAt: new Date().toISOString(),
-      exportedBy: appState.currentUser?.name || "guru"
-    };
+    const data = { paket, soal: soals, links, exportedAt: new Date().toISOString(), exportedBy: appState.currentUser?.name || "guru" };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2376,9 +2223,7 @@ async function exportPaketJSON(id) {
   }
 }
 
-/* ---------------------------------------------------------
-   5D. KEYBOARD SHORTCUT
-   --------------------------------------------------------- */
+/* ---------- 5D. KEYBOARD SHORTCUT ---------- */
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
@@ -2400,20 +2245,17 @@ document.addEventListener("keydown", (e) => {
   }
 });
 /* =========================================================
-   BAGIAN 6/6 — DOWNLOAD PDF PAKET SOAL (A4)
+   BAGIAN 6/7 — DOWNLOAD PDF PAKET SOAL (A4) + KEPADATAN
    ========================================================= */
 
-/* State untuk PDF */
-let __pdfPaket = null;        // data paket yang sedang di-PDF-kan
-let __pdfSoal = [];           // soal-soal dalam paket
-let __pdfLinks = [];          // link materi
-let __pdfSetting = null;      // setting sekolah + margin
-let __pdfMode = 'siswa';      // 'siswa' | 'guru'
-let __pdfEditMode = false;    // apakah sedang dalam mode edit di preview
+let __pdfPaket = null;
+let __pdfSoal = [];
+let __pdfLinks = [];
+let __pdfSetting = null;
+let __pdfMode = 'siswa';
+let __pdfEditMode = false;
 
-/* ---------------------------------------------------------
-   6A. AMBIL DATA PAKET → BUKA MODAL SETTING
-   --------------------------------------------------------- */
+/* ---------- 6A. AMBIL DATA PAKET → MODAL SETTING ---------- */
 async function downloadPaketPDF(paketId) {
   if (!paketId) { showToast("Paket tidak valid.", "error"); return; }
   showLoading(true, "Menyiapkan data paket...");
@@ -2442,7 +2284,6 @@ async function downloadPaketPDF(paketId) {
     __pdfMode = 'siswa';
     __pdfEditMode = false;
 
-    // Default setting dari JSONBin atau fallback DEFAULT_SEKOLAH
     const a = appState.db?.a || {};
     __pdfSetting = {
       kabupaten1: DEFAULT_SEKOLAH.kabupaten1,
@@ -2460,7 +2301,8 @@ async function downloadPaketPDF(paketId) {
       marginTop:  20,
       marginBottom: 15,
       marginLeft: 20,
-      marginRight: 20
+      marginRight: 20,
+      density:    "normal"
     };
 
     showLoading(false);
@@ -2472,13 +2314,12 @@ async function downloadPaketPDF(paketId) {
   }
 }
 
-/* ---------------------------------------------------------
-   6B. MODAL SETTING PDF
-   --------------------------------------------------------- */
+/* ---------- 6B. MODAL SETTING PDF ---------- */
 function renderPDFSettingModal() {
   const s = __pdfSetting;
   const mb = document.getElementById("modal-body");
   const totalSoal = __pdfSoal.length;
+  const dens = s.density || "normal";
 
   mb.innerHTML = `
   <div class="space-y-4 text-xs">
@@ -2496,38 +2337,23 @@ function renderPDFSettingModal() {
         <i class="fa-solid fa-school text-emerald-600"></i> Identitas Sekolah
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="sm:col-span-2">
-          <label class="block font-semibold mb-1">Baris Instansi 1</label>
-          <input id="pdf-kabupaten1" value="${esc(s.kabupaten1)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block font-semibold mb-1">Baris Instansi 2</label>
-          <input id="pdf-kabupaten2" value="${esc(s.kabupaten2)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block font-semibold mb-1">Nama Sekolah</label>
-          <input id="pdf-nama-sekolah" value="${esc(s.nama)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block font-semibold mb-1">Alamat</label>
-          <input id="pdf-alamat" value="${esc(s.alamat)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div class="sm:col-span-2">
-          <label class="block font-semibold mb-1">Email</label>
-          <input id="pdf-email" value="${esc(s.email)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
+        <div class="sm:col-span-2"><label class="block font-semibold mb-1">Baris Instansi 1</label><input id="pdf-kabupaten1" value="${esc(s.kabupaten1)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div class="sm:col-span-2"><label class="block font-semibold mb-1">Baris Instansi 2</label><input id="pdf-kabupaten2" value="${esc(s.kabupaten2)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div class="sm:col-span-2"><label class="block font-semibold mb-1">Nama Sekolah</label><input id="pdf-nama-sekolah" value="${esc(s.nama)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div class="sm:col-span-2"><label class="block font-semibold mb-1">Alamat</label><input id="pdf-alamat" value="${esc(s.alamat)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div class="sm:col-span-2"><label class="block font-semibold mb-1">Email</label><input id="pdf-email" value="${esc(s.email)}" class="w-full px-3 py-2 border rounded-lg"></div>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block font-semibold mb-1">Logo Kiri (URL)</label>
           <input id="pdf-logo-kiri" value="${esc(s.logoKiri)}" placeholder="https://..." class="w-full px-2 py-1.5 border rounded-lg font-mono text-[10px]">
-          ${s.logoKiri ? `<img src="${esc(s.logoKiri)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada logo. Set di JSONBin (a.lk).</div>`}
+          ${s.logoKiri ? `<img src="${esc(s.logoKiri)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada. Set di JSONBin (a.lk).</div>`}
         </div>
         <div>
           <label class="block font-semibold mb-1">Logo Kanan (URL)</label>
           <input id="pdf-logo-kanan" value="${esc(s.logoKanan)}" placeholder="https://..." class="w-full px-2 py-1.5 border rounded-lg font-mono text-[10px]">
-          ${s.logoKanan ? `<img src="${esc(s.logoKanan)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada logo. Set di JSONBin (a.ls).</div>`}
+          ${s.logoKanan ? `<img src="${esc(s.logoKanan)}" referrerpolicy="no-referrer" class="mt-1 h-10 object-contain" onerror="this.style.display='none'">` : `<div class="text-[10px] text-slate-400 mt-1 italic">Belum ada. Set di JSONBin (a.ls).</div>`}
         </div>
       </div>
     </div>
@@ -2537,14 +2363,8 @@ function renderPDFSettingModal() {
         <i class="fa-solid fa-file-invoice text-emerald-600"></i> Atribut Lembar Ujian
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-semibold mb-1">Mapel</label>
-          <input id="pdf-mapel" value="${esc(s.mapel)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div>
-          <label class="block font-semibold mb-1">Kelas</label>
-          <input id="pdf-kelas" value="${esc(s.kelas)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
+        <div><label class="block font-semibold mb-1">Mapel</label><input id="pdf-mapel" value="${esc(s.mapel)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="block font-semibold mb-1">Kelas</label><input id="pdf-kelas" value="${esc(s.kelas)}" class="w-full px-3 py-2 border rounded-lg"></div>
         <div>
           <label class="block font-semibold mb-1">Semester</label>
           <select id="pdf-semester" class="w-full px-3 py-2 border rounded-lg bg-white">
@@ -2552,14 +2372,8 @@ function renderPDFSettingModal() {
             <option value="2 (Genap)" ${s.semester === "2 (Genap)" ? "selected" : ""}>2 (Genap)</option>
           </select>
         </div>
-        <div>
-          <label class="block font-semibold mb-1">Tahun Pelajaran</label>
-          <input id="pdf-tahun" value="${esc(s.tahunAjaran)}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-        <div class="col-span-2">
-          <label class="block font-semibold mb-1">Alokasi Waktu (menit)</label>
-          <input id="pdf-durasi" type="number" value="${s.durasi}" class="w-full px-3 py-2 border rounded-lg">
-        </div>
+        <div><label class="block font-semibold mb-1">Tahun Pelajaran</label><input id="pdf-tahun" value="${esc(s.tahunAjaran)}" class="w-full px-3 py-2 border rounded-lg"></div>
+        <div class="col-span-2"><label class="block font-semibold mb-1">Alokasi Waktu (menit)</label><input id="pdf-durasi" type="number" value="${s.durasi}" class="w-full px-3 py-2 border rounded-lg"></div>
       </div>
     </div>
 
@@ -2568,23 +2382,25 @@ function renderPDFSettingModal() {
         <i class="fa-solid fa-ruler-combined text-emerald-600"></i> Margin A4 (mm)
       </div>
       <div class="grid grid-cols-4 gap-2">
-        <div>
-          <label class="block text-[10px] text-slate-500 mb-0.5">Atas</label>
-          <input id="pdf-mt" type="number" value="${s.marginTop}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
-        </div>
-        <div>
-          <label class="block text-[10px] text-slate-500 mb-0.5">Bawah</label>
-          <input id="pdf-mb" type="number" value="${s.marginBottom}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
-        </div>
-        <div>
-          <label class="block text-[10px] text-slate-500 mb-0.5">Kiri</label>
-          <input id="pdf-ml" type="number" value="${s.marginLeft}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
-        </div>
-        <div>
-          <label class="block text-[10px] text-slate-500 mb-0.5">Kanan</label>
-          <input id="pdf-mr" type="number" value="${s.marginRight}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg">
-        </div>
+        <div><label class="block text-[10px] text-slate-500 mb-0.5">Atas</label><input id="pdf-mt" type="number" value="${s.marginTop}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg"></div>
+        <div><label class="block text-[10px] text-slate-500 mb-0.5">Bawah</label><input id="pdf-mb" type="number" value="${s.marginBottom}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg"></div>
+        <div><label class="block text-[10px] text-slate-500 mb-0.5">Kiri</label><input id="pdf-ml" type="number" value="${s.marginLeft}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg"></div>
+        <div><label class="block text-[10px] text-slate-500 mb-0.5">Kanan</label><input id="pdf-mr" type="number" value="${s.marginRight}" min="0" max="50" class="w-full px-2 py-1.5 border rounded-lg"></div>
       </div>
+    </div>
+
+    <div class="border-t pt-3 space-y-2">
+      <div class="font-bold text-slate-700 uppercase text-[10px] tracking-wide flex items-center gap-1.5">
+        <i class="fa-solid fa-compress text-emerald-600"></i> Kepadatan Halaman (Hemat Kertas)
+      </div>
+      <div class="grid grid-cols-4 gap-2">
+        ${['longgar','normal','padat','sangatpadat'].map(d => `
+          <button type="button" id="pdf-dens-${d}" onclick="setPDFDensity('${d}')" class="py-2 px-2 rounded-lg text-[10px] font-bold border-2 transition ${dens === d ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}">
+            ${d === 'longgar' ? '🟢 Longgar' : d === 'normal' ? '🟡 Normal' : d === 'padat' ? '🟠 Padat' : '🔴 S.Padat'}
+          </button>
+        `).join("")}
+      </div>
+      <p class="text-[10px] text-slate-500 italic">Kepadatan juga bisa diubah lagi di tab baru.</p>
     </div>
 
     <div class="border-t pt-3 space-y-2">
@@ -2609,7 +2425,16 @@ function renderPDFSettingModal() {
   </div>`;
 }
 
-/* Sync form setting ke __pdfSetting */
+function setPDFDensity(d) {
+  __pdfSetting.density = d;
+  ['longgar','normal','padat','sangatpadat'].forEach(k => {
+    const b = document.getElementById("pdf-dens-" + k);
+    if (!b) return;
+    if (k === d) b.className = "py-2 px-2 rounded-lg text-[10px] font-bold border-2 transition border-emerald-500 bg-emerald-50 text-emerald-700";
+    else b.className = "py-2 px-2 rounded-lg text-[10px] font-bold border-2 transition border-slate-200 bg-white text-slate-600";
+  });
+}
+
 function syncPDFSettingFromForm() {
   const get = id => document.getElementById(id)?.value;
   __pdfSetting.kabupaten1 = get("pdf-kabupaten1") ?? __pdfSetting.kabupaten1;
@@ -2628,6 +2453,7 @@ function syncPDFSettingFromForm() {
   __pdfSetting.marginBottom = Number(get("pdf-mb")) ?? __pdfSetting.marginBottom;
   __pdfSetting.marginLeft   = Number(get("pdf-ml")) ?? __pdfSetting.marginLeft;
   __pdfSetting.marginRight  = Number(get("pdf-mr")) ?? __pdfSetting.marginRight;
+  if (!__pdfSetting.density) __pdfSetting.density = "normal";
 }
 
 function setPDFMode(mode) {
@@ -2644,45 +2470,34 @@ function setPDFMode(mode) {
   }
 }
 
-/* ---------------------------------------------------------
-   6C. SHUFFLE DETERMINISTIK untuk kolom kanan MENJODOHKAN
-   --------------------------------------------------------- */
+/* ---------- 6C. SHUFFLE KANAN MENJODOHKAN ---------- */
 function hashStringToInt(str) {
   let h = 0;
   str = String(str || "0");
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i);
-    h |= 0;
-  }
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
   return Math.abs(h);
 }
 function seededShuffle(arr, seed) {
   const a = [...arr];
   let s = seed >>> 0;
-  const rnd = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 4294967296;
-  };
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
-/* Kembalikan array index (0..n-1) urutan kanan yang diacak deterministik per soalId.
-   Contoh output: [2,0,1] artinya kanan ditampilkan dalam urutan asli index 2, 0, 1. */
 function shuffleKananOrder(soalId, n) {
   if (n < 2) return Array.from({length:n},(_,i)=>i);
   const seed = hashStringToInt(String(soalId || "x"));
   return seededShuffle(Array.from({length:n},(_,i)=>i), seed);
 }
 
-/* ---------------------------------------------------------
-   6D. RENDER HTML LEMBAR UJIAN (A4)
-   --------------------------------------------------------- */
+/* ---------- 6D. RENDER HTML LEMBAR UJIAN (A4) ---------- */
 function buildExamPaperHTMLForPDF() {
   const st = __pdfSetting;
   const soalList = __pdfSoal;
+  const dens = st.density || "normal";
 
   const namaSiswa = "..................................................";
   const logoSrcKiri = st.logoKiri || "";
@@ -2736,7 +2551,6 @@ function buildExamPaperHTMLForPDF() {
     const isGuru = __pdfMode === 'guru';
     const idxQ = q.__index;
 
-    /* ==== Opsi jawaban ==== */
     let optionsHTML = "";
 
     if (q.jenis === "PG") {
@@ -2766,16 +2580,11 @@ function buildExamPaperHTMLForPDF() {
     else if (q.jenis === "MENJODOHKAN") {
       const kiri = Array.isArray(pilihanRaw.kiri) ? pilihanRaw.kiri : [];
       const kanan = Array.isArray(pilihanRaw.kanan) ? pilihanRaw.kanan : [];
-      const orderKanan = shuffleKananOrder(q.id, kanan.length); // array index asli
+      const orderKanan = shuffleKananOrder(q.id, kanan.length);
       const HURUF_KIRI = ["A","B","C","D","E","F","G","H","I","J"];
-      // Kolom kanan diacak; nomor kanan = 1..n berdasarkan urutan tampil
       const kananDisplay = orderKanan.map((origIdx, displayIdx) => ({
-        nomor: displayIdx + 1,
-        text: kanan[origIdx] || "",
-        origIdx
+        nomor: displayIdx + 1, text: kanan[origIdx] || "", origIdx
       }));
-      // Untuk kunci guru: pasangkan kiri index i ke nomor kanan yang benar
-      const kananAsli = kanan.map((t, i) => ({ nomor: orderKanan.indexOf(i) + 1, text: t }));
 
       optionsHTML = `
         <div class="grid grid-cols-2 gap-4 ml-4 mt-2">
@@ -2803,7 +2612,6 @@ function buildExamPaperHTMLForPDF() {
             <b><i class="fa-solid fa-key"></i> Kunci Pasangan:</b>
             ${kiri.map((_, i) => {
               const huruf = HURUF_KIRI[i] || "?";
-              // pasangan asli: kiri index i ↔ kanan asli index i → nomor tampil =
               const nomorTampil = orderKanan.indexOf(i) + 1;
               return `<span class="inline-block bg-white px-1.5 py-0.5 rounded mr-1 my-0.5 border border-amber-300">${huruf} → ${nomorTampil}</span>`;
             }).join("")}
@@ -2827,22 +2635,10 @@ function buildExamPaperHTMLForPDF() {
         ${isGuru ? `<div class="ml-4 mt-2 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-1.5"><b>Kunci / Pedoman:</b> ${esc(jaw.kunci || "-")}</div>` : ``}`;
     }
 
-    /* ==== Gambar soal ==== */
     const media = q.media && q.media.url ? `
       <div class="ml-4 mt-2">
         <img src="${esc(q.media.url)}" referrerpolicy="no-referrer" class="max-h-52 object-contain border rounded" onerror="this.style.display='none'">
       </div>` : "";
-
-    /* ==== Edit toolbar (hanya tampil saat mode edit) ==== */
-    const editTools = `
-      <div class="question-edit-tools mt-2 pt-2 border-t border-amber-200 hidden">
-        <div class="text-[10px] text-amber-800 mb-1"><b>✏️ Mode Edit:</b> ubah pertanyaan & opsi di bawah ini (tidak disimpan ke bank soal).</div>
-        <textarea class="edit-input edit-question-input w-full text-[11px] p-2 border rounded" placeholder="Pertanyaan...">${esc(q.pertanyaan || "")}</textarea>
-        ${(q.jenis === "PG" || q.jenis === "PGK") ? `
-          <div class="grid grid-cols-2 gap-1.5 mt-1">
-            ${["A","B","C","D"].map(k => `<textarea class="edit-input edit-option-input text-[10px] p-1.5 border rounded" data-key="${k}" placeholder="Pilihan ${k}...">${esc((pilihanRaw[k] || ""))}</textarea>`).join("")}
-          </div>` : ``}
-      </div>`;
 
     return `
       <div class="question-item pl-2 border-l-2 border-emerald-500/20" data-question-index="${idxQ}">
@@ -2854,7 +2650,6 @@ function buildExamPaperHTMLForPDF() {
         </div>
         ${media}
         ${optionsHTML}
-        ${editTools}
       </div>`;
   }
 
@@ -2866,14 +2661,12 @@ function buildExamPaperHTMLForPDF() {
       </div>`;
   }
 
-  /* Kelompokkan soal per jenis */
   const pgList    = soalList.filter(q => q.jenis === "PG");
   const pgkList   = soalList.filter(q => q.jenis === "PGK");
   const matchList = soalList.filter(q => q.jenis === "MENJODOHKAN");
   const isianList = soalList.filter(q => q.jenis === "ISIAN");
   const uraianList= soalList.filter(q => q.jenis === "URAIAN");
 
-  /* Bikin array "allItems" */
   const allItems = [];
   let globalNo = 1;
 
@@ -2898,42 +2691,43 @@ function buildExamPaperHTMLForPDF() {
     uraianList.forEach(q => allItems.push({ type: 'question', data: q, no: globalNo++ }));
   }
 
-  /* Section Sumber Belajar (link materi) — halaman terakhir */
   const sumberHTML = __pdfLinks.length ? `
     <div class="section-title-wrapper mb-3 mt-4">
-      <h3 class="font-extrabold text-xs md:text-sm border-b pb-1 mb-2 text-slate-900 uppercase">
-        SUMBER BELAJAR
-      </h3>
+      <h3 class="font-extrabold text-xs md:text-sm border-b pb-1 mb-2 text-slate-900 uppercase">SUMBER BELAJAR</h3>
       <p class="italic text-slate-500 mb-3 text-[10px]">Berikut tautan referensi yang dapat digunakan siswa untuk memperdalam materi:</p>
       <ol class="list-decimal list-inside text-[11px] text-slate-700 space-y-1">
         ${__pdfLinks.map((u, i) => `<li class="break-all"><a href="${esc(u)}" target="_blank" class="text-emerald-700 underline">${esc(u)}</a></li>`).join("")}
       </ol>
     </div>` : "";
 
-  /* ==== Susun halaman dengan pengukuran ==== */
-  const MM_TO_PX = 3.7795;
-  const PADDING_TOP_MM = st.marginTop;
-  const PADDING_BOTTOM_MM = st.marginBottom;
-  const PAGE_HEIGHT_MM = 297;
-  const CONTENT_HEIGHT_PX = (PAGE_HEIGHT_MM - PADDING_TOP_MM - PADDING_BOTTOM_MM) * MM_TO_PX;
-  const SAFE_MARGIN_PX = CONTENT_HEIGHT_PX * 0.99;
+  /* ==== Konfigurasi kepadatan ==== */
+  const DENSITY_CONF = {
+    longgar:     { gap: 16, fontQ: "12.5px", lineH: 1.6 },
+    normal:      { gap: 12, fontQ: "12px",   lineH: 1.45 },
+    padat:       { gap: 8,  fontQ: "11.5px", lineH: 1.3 },
+    sangatpadat: { gap: 5,  fontQ: "11px",   lineH: 1.18 }
+  };
+  const D = DENSITY_CONF[dens] || DENSITY_CONF.normal;
 
-  /* Buat container pengukuran (tidak tampil) */
+  const MM_TO_PX = 3.7795;
+  const CONTENT_HEIGHT_PX = (297 - st.marginTop - st.marginBottom) * MM_TO_PX;
+  const SAFE_MARGIN_PX = CONTENT_HEIGHT_PX * 0.98;
+
   const measure = document.createElement('div');
   measure.style.position = 'absolute';
   measure.style.left = '-9999px';
   measure.style.top = '0';
   measure.style.width = '210mm';
-  measure.style.padding = `${PADDING_TOP_MM}mm ${st.marginRight}mm ${PADDING_BOTTOM_MM}mm ${st.marginLeft}mm`;
+  measure.style.padding = `${st.marginTop}mm ${st.marginRight}mm ${st.marginBottom}mm ${st.marginLeft}mm`;
   measure.style.boxSizing = 'border-box';
   measure.style.background = 'white';
   measure.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
-  measure.style.fontSize = '12px';
-  measure.style.lineHeight = '1.5';
+  measure.style.fontSize = D.fontQ;
+  measure.style.lineHeight = D.lineH;
   measure.style.color = '#1e293b';
 
   let measureHTML = buildHeader();
-  measureHTML += `<div class="space-y-3">`;
+  measureHTML += `<div class="pdf-body" style="display:flex; flex-direction:column; gap:${D.gap}px;">`;
   allItems.forEach(item => {
     if (item.type === 'section') measureHTML += item.html;
     else measureHTML += generateQuestionHTML(item.no, item.data);
@@ -2943,7 +2737,6 @@ function buildExamPaperHTMLForPDF() {
   measure.innerHTML = measureHTML;
   document.body.appendChild(measure);
 
-  /* Ukur tinggi elemen */
   const headerEl = measure.querySelector('.border-b-4');
   const infoEl = measure.querySelector('.grid.grid-cols-2.gap-4');
   const petunjukEl = measure.querySelector('.border.border-slate-300.rounded-xl.p-3.mb-4');
@@ -2957,13 +2750,12 @@ function buildExamPaperHTMLForPDF() {
   renderedItems.forEach((el, idx) => {
     measuredItems.push({
       element: allItems[idx] || { type: 'extra', html: el.outerHTML },
-      height: el.offsetHeight + 10
+      height: el.offsetHeight + D.gap
     });
   });
 
   document.body.removeChild(measure);
 
-  /* Distribusi ke halaman */
   const pages = [];
   let currentPage = [];
   let currentHeight = headerHeight;
@@ -2980,7 +2772,6 @@ function buildExamPaperHTMLForPDF() {
   if (currentPage.length) pages.push(currentPage);
   if (!pages.length) pages.push([]);
 
-  /* Optimasi akhir: dorong item ke halaman sebelumnya jika masih muat */
   let changed = true, iteration = 0;
   while (changed && iteration < 100) {
     changed = false; iteration++;
@@ -2997,16 +2788,15 @@ function buildExamPaperHTMLForPDF() {
     if (!pages.length) pages.push([]);
   }
 
-  /* Bangun HTML final per halaman */
   let finalHTML = '';
   pages.forEach((pageItems, pageIdx) => {
     const isFirst = pageIdx === 0;
     finalHTML += `
       <div class="a4-page-wrapper">
         <div class="a4-page-label no-print"><i class="fa-solid fa-file-lines"></i> Halaman ${pageIdx+1} dari ${pages.length}</div>
-        <div class="a4-preview-sheet ${__pdfMode === 'guru' ? 'print-guru' : 'print-siswa'} ${__pdfEditMode ? 'edit-mode' : ''}" data-page="${pageIdx+1}">
+        <div class="a4-preview-sheet density-${dens} ${__pdfMode === 'guru' ? 'print-guru' : 'print-siswa'} ${__pdfEditMode ? 'edit-mode' : ''}" data-page="${pageIdx+1}" style="font-size:${D.fontQ}; line-height:${D.lineH};">
           ${isFirst ? buildHeader() : ''}
-          <div class="space-y-3 text-[11px] md:text-xs text-slate-800">
+          <div class="pdf-body" style="display:flex; flex-direction:column; gap:${D.gap}px; font-size:${D.fontQ}; line-height:${D.lineH};">
     `;
     pageItems.forEach(item => {
       if (item.element.type === 'section') finalHTML += item.element.html;
@@ -3022,9 +2812,7 @@ function buildExamPaperHTMLForPDF() {
   return finalHTML;
 }
 
-/* ---------------------------------------------------------
-   6E. PREVIEW & CETAK — SEMUA DI TAB BARU (html2canvas)
-   --------------------------------------------------------- */
+/* ---------- 6E. BUKA TAB BARU ---------- */
 function openPDFInNewTab() {
   syncPDFSettingFromForm();
   if (!__pdfSoal.length) { showToast("Tidak ada soal.", "error"); return; }
@@ -3074,6 +2862,21 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; 
   width:36px; border:none; outline:none; font-size:12px; font-weight:bold;
   color:#0f172a; text-align:center; background:transparent;
 }
+
+.density-bar {
+  display:flex; align-items:center; gap:4px;
+  background: rgba(255,255,255,0.1);
+  padding:4px 6px; border-radius:8px; border:1px solid rgba(255,255,255,0.15);
+}
+.density-label { font-size:11px; font-weight:600; opacity:0.9; margin-right:2px; }
+.dens-btn {
+  font-size:10px; font-weight:700; padding:5px 8px; border-radius:5px;
+  border:1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05);
+  color: white; cursor:pointer; transition: all .15s;
+}
+.dens-btn:hover { background: rgba(255,255,255,0.15); }
+.dens-btn.active { background: #10b981; border-color: #059669; color:white; }
+
 .toolbar-btn-mini {
   background:#10b981; color:white; border:none;
   padding:6px 12px; border-radius:5px; font-weight:700; cursor:pointer;
@@ -3149,23 +2952,21 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; 
 }
 .print-info b { color: #92400e; }
 
-.question-item {
-  page-break-inside: avoid; break-inside: avoid;
-  margin-bottom: 10px; padding-bottom: 6px;
-  border-bottom: 1px dashed #e2e8f0;
-}
-.question-item:last-child { border-bottom: none; }
-
+.question-item { page-break-inside: avoid; break-inside: avoid; }
 .kunci-jawaban-text { display:none !important; }
 .print-guru .kunci-jawaban-text { display:block !important; }
 .solution-text { display:none !important; }
 .print-guru .solution-text { display:block !important; }
 
+/* ==== Density classes (di tab baru ini override) ==== */
+.density-longgar     { }
+.density-longgar     .question-item { margin-bottom: 14px; }
+.density-normal      .question-item { margin-bottom: 10px; }
+.density-padat       .question-item { margin-bottom: 6px; }
+.density-sangatpadat .question-item { margin-bottom: 3px; }
+
 /* ==== Edit mode ==== */
-.edit-mode .question-item {
-  border: 2px solid #fbbf24; border-radius: 8px;
-  padding: 12px; background: #fffbeb;
-}
+.edit-mode .question-item { border: 2px solid #fbbf24; border-radius: 8px; padding: 12px; background: #fffbeb; }
 .edit-mode .edit-input { display: block; }
 .edit-mode .view-text { display: none; }
 .edit-input { display: none; }
@@ -3205,19 +3006,28 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; 
 <div class="toolbar">
   <div class="toolbar-left">
     <div class="toolbar-title"><i class="fa-solid fa-file-lines"></i> Lembar Ujian Siap Cetak</div>
-    <div class="toolbar-info">Mode: ${__pdfMode === 'guru' ? 'Guru (dengan kunci)' : 'Siswa'} • A4 210×297 mm • ${soalCount} soal</div>
+    <div class="toolbar-info">Mode: ${__pdfMode === 'guru' ? 'Guru (kunci)' : 'Siswa'} • A4 • ${soalCount} soal</div>
   </div>
   <div class="toolbar-right">
     <div class="margin-controls">
-      <span class="margin-label">Margin (mm):</span>
-      <label class="margin-input-wrap"><span>↑</span><input type="number" id="marginTopNewTab" value="${st.marginTop}" min="0" max="50" step="1"></label>
-      <label class="margin-input-wrap"><span>↓</span><input type="number" id="marginBottomNewTab" value="${st.marginBottom}" min="0" max="50" step="1"></label>
-      <label class="margin-input-wrap"><span>←</span><input type="number" id="marginLeftNewTab" value="${st.marginLeft}" min="0" max="50" step="1"></label>
-      <label class="margin-input-wrap"><span>→</span><input type="number" id="marginRightNewTab" value="${st.marginRight}" min="0" max="50" step="1"></label>
+      <span class="margin-label">Margin:</span>
+      <label class="margin-input-wrap"><span>↑</span><input type="number" id="marginTopNewTab" value="${st.marginTop}" min="0" max="50"></label>
+      <label class="margin-input-wrap"><span>↓</span><input type="number" id="marginBottomNewTab" value="${st.marginBottom}" min="0" max="50"></label>
+      <label class="margin-input-wrap"><span>←</span><input type="number" id="marginLeftNewTab" value="${st.marginLeft}" min="0" max="50"></label>
+      <label class="margin-input-wrap"><span>→</span><input type="number" id="marginRightNewTab" value="${st.marginRight}" min="0" max="50"></label>
       <button class="toolbar-btn-mini" id="btnRerender" onclick="rerenderJpg()">
         <i class="fa-solid fa-rotate"></i> Render Ulang
       </button>
     </div>
+
+    <div class="density-bar">
+      <span class="density-label">Kepadatan:</span>
+      <button class="dens-btn ${st.density==='longgar'?'active':''}" data-dens="longgar" onclick="setDensityNewTab('longgar')">🟢 Longgar</button>
+      <button class="dens-btn ${st.density==='normal'?'active':''}" data-dens="normal" onclick="setDensityNewTab('normal')">🟡 Normal</button>
+      <button class="dens-btn ${st.density==='padat'?'active':''}" data-dens="padat" onclick="setDensityNewTab('padat')">🟠 Padat</button>
+      <button class="dens-btn ${st.density==='sangatpadat'?'active':''}" data-dens="sangatpadat" onclick="setDensityNewTab('sangatpadat')">🔴 S.Padat</button>
+    </div>
+
     <button class="toolbar-btn-warn" id="btnToggleEdit" onclick="toggleEditMode()">
       <i class="fa-solid fa-pen-to-square"></i> Edit Soal
     </button>
@@ -3231,7 +3041,7 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; 
 </div>
 
 <div class="print-info">
-  💡 <b>Cara pakai:</b> 1) Klik <b>Edit Soal</b> bila perlu ubah pertanyaan/opsi → 2) Klik <b>Selesai Edit</b> → 3) Atur margin bila perlu → <b>Render Ulang</b> → 4) Klik <b>Cetak / Save as PDF</b> → pilih <b>Save as PDF</b>, ukuran <b>A4</b>, margins <b>None</b>.
+  💡 <b>Cara pakai:</b> 1) <b>Edit Soal</b> bila perlu → 2) <b>Selesai Edit</b> → 3) Atur margin & <b>Kepadatan</b> → <b>Render Ulang</b> → 4) <b>Cetak / Save as PDF</b> (A4, margins None).
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -3248,6 +3058,7 @@ html, body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; 
 let originalPagesHTML = [];
 let renderInProgress = false;
 let newTabEditMode = false;
+let currentDensity = '${st.density || "normal"}';
 
 function getMargins() {
   return {
@@ -3272,18 +3083,16 @@ async function renderAllPages() {
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Render Ulang'; }
       return;
     }
-
     if (!originalPagesHTML.length) {
       document.querySelectorAll('.a4-preview-sheet').forEach(el => {
-        // simpan juga mode print & edit
         originalPagesHTML.push({
           html: el.outerHTML,
           printGuru: el.classList.contains('print-guru'),
-          editMode: el.classList.contains('edit-mode')
+          editMode: el.classList.contains('edit-mode'),
+          density: currentDensity
         });
       });
     }
-
     for (let i = 0; i < pages.length; i++) {
       const pageEl = pages[i];
       const canvas = await html2canvas(pageEl, {
@@ -3297,14 +3106,9 @@ async function renderAllPages() {
       img.src = jpg;
       img.className = 'a4-page-img';
       img.alt = 'Halaman ' + (i+1);
-      // sembunyikan label halaman saat mode print
       const wrapper = pageEl.closest('.a4-page-wrapper');
-      if (wrapper) {
-        wrapper.innerHTML = '';
-        wrapper.appendChild(img);
-      } else {
-        pageEl.parentNode.replaceChild(img, pageEl);
-      }
+      if (wrapper) { wrapper.innerHTML = ''; wrapper.appendChild(img); }
+      else pageEl.parentNode.replaceChild(img, pageEl);
     }
     document.getElementById('loadingOverlay').classList.add('hidden');
   } catch (err) {
@@ -3323,10 +3127,10 @@ async function rerenderJpg() {
   const newPadding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
 
   container.innerHTML = '';
-  originalPagesHTML.forEach((entry, idx) => {
+  originalPagesHTML.forEach(entry => {
     const temp = document.createElement('div');
     temp.innerHTML = entry.html;
-    const el = temp.firstElementChild; // .a4-page-wrapper
+    const el = temp.firstElementChild;
     const sheet = el.querySelector('.a4-preview-sheet');
     if (sheet) {
       sheet.style.padding = newPadding;
@@ -3342,14 +3146,39 @@ async function rerenderJpg() {
   await renderAllPages();
 }
 
+function setDensityNewTab(d) {
+  currentDensity = d;
+  document.querySelectorAll('.dens-btn').forEach(b => b.classList.toggle('active', b.dataset.dens === d));
+
+  // Terapkan kelas density ke semua sheet yang ada (HTML)
+  document.querySelectorAll('.a4-preview-sheet').forEach(sheet => {
+    sheet.classList.remove('density-longgar','density-normal','density-padat','density-sangatpadat');
+    sheet.classList.add('density-' + d);
+  });
+
+  // Update originalPagesHTML dengan density baru
+  originalPagesHTML = [];
+  document.querySelectorAll('.a4-page-wrapper').forEach(el => {
+    const sheet = el.querySelector('.a4-preview-sheet');
+    originalPagesHTML.push({
+      html: el.outerHTML,
+      printGuru: sheet ? sheet.classList.contains('print-guru') : false,
+      editMode: sheet ? sheet.classList.contains('edit-mode') : false,
+      density: d
+    });
+  });
+
+  // Re-render supaya hasil terlihat
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  setTimeout(() => renderAllPages(), 200);
+}
+
 function toggleEditMode() {
   newTabEditMode = !newTabEditMode;
   const btn = document.getElementById('btnToggleEdit');
-  // Jika sedang dalam bentuk gambar (sudah di-render), restore dulu HTML-nya
   const hasImg = document.querySelectorAll('.a4-page-img').length > 0;
 
   if (hasImg) {
-    // Kembalikan ke HTML asli agar bisa diedit
     const container = document.getElementById('pagesContainer');
     container.innerHTML = '';
     originalPagesHTML.forEach(entry => {
@@ -3376,17 +3205,16 @@ function toggleEditMode() {
   } else {
     btn.classList.remove('active');
     btn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Soal';
-    // Simpan perubahan: update originalPagesHTML dengan HTML saat ini
     originalPagesHTML = [];
     document.querySelectorAll('.a4-page-wrapper').forEach(el => {
       const sheet = el.querySelector('.a4-preview-sheet');
       originalPagesHTML.push({
         html: el.outerHTML,
         printGuru: sheet ? sheet.classList.contains('print-guru') : false,
-        editMode: false
+        editMode: false,
+        density: currentDensity
       });
     });
-    // Render ulang ke JPG
     document.getElementById('loadingOverlay').classList.remove('hidden');
     setTimeout(() => renderAllPages(), 250);
   }
@@ -3410,17 +3238,22 @@ window.addEventListener('load', async function() {
   showToast("Tab baru dibuka! Tunggu loading selesai.", "success");
 }
 
-/* ---------------------------------------------------------
-   6F. CETAK LANGSUNG (tanpa tab baru)
-   --------------------------------------------------------- */
+/* ---------- 6F. CETAK LANGSUNG ---------- */
 function printPDFDirect() {
   syncPDFSettingFromForm();
   if (!__pdfSoal.length) { showToast("Tidak ada soal.", "error"); return; }
 
   const st = __pdfSetting;
   const html = buildExamPaperHTMLForPDF();
+  const dens = st.density || "normal";
 
-  /* Buat iframe tersembunyi, isi HTML, lalu print */
+  const DENSITY_CSS = {
+    longgar:     ".question-item { margin-bottom: 14px; }",
+    normal:      ".question-item { margin-bottom: 10px; }",
+    padat:       ".question-item { margin-bottom: 6px; }",
+    sangatpadat: ".question-item { margin-bottom: 3px; }"
+  };
+
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -3451,14 +3284,13 @@ function printPDFDirect() {
     margin: 0;
   }
   .a4-preview-sheet:last-child { page-break-after: avoid; break-after: auto; }
-  .question-item { page-break-inside: avoid; break-inside: avoid; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #e2e8f0; }
-  .question-item:last-child { border-bottom: none; }
+  .question-item { page-break-inside: avoid; break-inside: avoid; }
+  ${DENSITY_CSS[dens] || ""}
   .kunci-jawaban-text { display: none !important; }
   .print-guru .kunci-jawaban-text { display: block !important; }
   .solution-text { display: none !important; }
   .print-guru .solution-text { display: block !important; }
-  .edit-mode .question-edit-tools,
-  .edit-mode .edit-input { display: none !important; }
+  .edit-mode .question-edit-tools, .edit-mode .edit-input { display: none !important; }
   .view-text { display: block !important; }
 </style>
 </head>
@@ -3469,48 +3301,55 @@ ${html}
   doc.close();
 
   setTimeout(() => {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch(e) { console.warn(e); }
-    setTimeout(() => {
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    }, 1500);
+    try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch(e) { console.warn(e); }
+    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 1500);
   }, 700);
 
   closeModal();
   showToast("Dialog cetak terbuka. Pilih Save as PDF, A4, margins None.", "info", 5000);
 }
+/* =========================================================
+   BAGIAN 7/7 — BOOT LOG, SAFETY CHECK, PENUTUP
+   ========================================================= */
 
-/* ---------------------------------------------------------
-   6G. LOG
-   --------------------------------------------------------- */
-console.log("[EduSmart] Bagian 6 — Download PDF paket siap");
-console.log("  • Logo kabupaten dari appState.db.a.lk");
-console.log("  • Logo sekolah dari appState.db.a.ls");
-console.log("  • Menjodohkan: kolom kanan diacak deterministik per soal");
-console.log("  • Link materi → ditampilkan sebagai SUMBER BELAJAR di halaman terakhir");
-console.log("  • Edit Soal tersedia di tab baru (perubahan tidak disimpan ke bank soal)");
-/* ---------------------------------------------------------
-   5E. BOOT LOG
-   --------------------------------------------------------- */
-console.log("[EduSmart] buat_kuis.html v4.4 loaded");
-console.log("  • Menu sidebar: Paket Soal, Bank Soal (Generator AI di dalam paket)");
-console.log("  • Form PG/PGK: klik kotak huruf A-D untuk set kunci");
-console.log("  • Tab paket: Info Paket + Generate AI (Alt+1 / Alt+2)");
-console.log("  • Tombol kartu paket: 👁 Preview | ✏️ Edit | ✅ Soal | ⏻ Aktif | 📄 PDF | ⬇ JSON | 🗑 Hapus");
-console.log("  • Download PDF: modal setting → tab baru A4 → Edit Soal → Cetak");
+console.log("[EduSmart] buat_kuis.html v5.0 loaded");
+console.log("════════════════════════════════════════════════════════");
+console.log("  📚 Sidebar       : Paket Soal · Bank Soal");
+console.log("  🎯 Kartu Paket   : 👁 Preview · ✏️ Edit · ✅ Soal · ⏻ Aktif");
+console.log("                     📄 PDF · ⬇ JSON · 🗑 Hapus");
+console.log("  🤖 Generator AI  : Tab Info Paket + Tab Generate AI");
+console.log("  📄 Download PDF  : Modal setting → Tab Baru A4 → Edit → Cetak");
+console.log("  🎚️  Kepadatan     : Longgar / Normal / Padat / Sangat Padat");
+console.log("  ✏️  Edit Soal     : Di Kelola Soal (tombol ✏️ per soal) → tersimpan ke Supabase");
+console.log("  🖼️  Upload Foto   : Di form Edit Soal Bank Soal → media masuk ke bank_soal.media");
+console.log("  🔗 Link Materi   : Muncul sebagai 'SUMBER BELAJAR' di halaman akhir PDF");
+console.log("  🔀 Menjodohkan   : Kolom kanan diacak deterministik per soal");
+console.log("  ⌨️  Shortcut      : Ctrl+S simpan · ESC tutup modal · Alt+1/2 tab");
+console.log("════════════════════════════════════════════════════════");
 
+/* ==== Safety check: pastikan fungsi penting terdefinisi ==== */
 setTimeout(() => {
-  const cek = [
+  const cekFungsi = [
+    // Bagian 1-5
     "renderPaketList", "renderBankSoalList", "showBuatPaketModal",
     "showBuatSoalModal", "jalankanGenerateAI", "normalisasiSoalAI",
     "kelolaSoalPaket", "previewPaket", "renderJawabanPreview",
-    "downloadPaketPDF"
+    "exportPaketJSON", "showGeminiModal", "simpanGeminiKey",
+    "duplikatPaket", "toggleAktifPaket", "hapusPaket",
+    "editSoalDariKelola", "uploadMediaSoal",
+    // Bagian 6 — Download PDF
+    "downloadPaketPDF", "renderPDFSettingModal", "syncPDFSettingFromForm",
+    "setPDFMode", "setPDFDensity", "buildExamPaperHTMLForPDF",
+    "openPDFInNewTab", "printPDFDirect",
+    "shuffleKananOrder", "seededShuffle", "hashStringToInt"
   ];
-  const missing = cek.filter(fn => typeof window[fn] !== "function");
-  if (missing.length) console.warn("[EduSmart] Fungsi belum terdefinisi:", missing);
-}, 500);
+  const missing = cekFungsi.filter(fn => typeof window[fn] !== "function");
+  if (missing.length) {
+    console.warn("[EduSmart] ⚠️ Fungsi belum terdefinisi:", missing);
+  } else {
+    console.log("[EduSmart] ✅ Semua fungsi penting siap (" + cekFungsi.length + " fungsi).");
+  }
+}, 800);
 </script>
 </body>
 </html>
