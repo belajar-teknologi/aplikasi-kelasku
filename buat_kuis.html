@@ -2772,21 +2772,8 @@ function buildExamPaperHTMLForPDF() {
   if (currentPage.length) pages.push(currentPage);
   if (!pages.length) pages.push([]);
 
-  let changed = true, iteration = 0;
-  while (changed && iteration < 100) {
-    changed = false; iteration++;
-    for (let p = 0; p < pages.length - 1; p++) {
-      const cur = pages[p], next = pages[p+1];
-      if (!next.length) continue;
-      let curH = (p === 0) ? headerHeight + cur.reduce((s,i)=>s+i.height,0) : cur.reduce((s,i)=>s+i.height,0);
-      const first = next[0];
-      if (curH + first.height <= SAFE_MARGIN_PX) {
-        cur.push(first); next.shift(); changed = true;
-      }
-    }
-    for (let i = pages.length - 1; i >= 0; i--) if (!pages[i].length) pages.splice(i, 1);
-    if (!pages.length) pages.push([]);
-  }
+    // Reflow: paksa pindahkan soal ke halaman sebelumnya yang masih lega
+  reflowHalaman(pages, headerHeight, SAFE_MARGIN_PX, D);
 
   let finalHTML = '';
   pages.forEach((pageItems, pageIdx) => {
@@ -2811,7 +2798,35 @@ function buildExamPaperHTMLForPDF() {
 
   return finalHTML;
 }
-
+/* ---------- 6D-2. REFLOW OTOMATIS — Pindahkan soal ke halaman sebelumnya yang masih lega ---------- */
+function reflowHalaman(pagesArr, headerHeight, safeMargin, D) {
+  let changed = true;
+  let iterasi = 0;
+  const MAX_ITER = 50;
+  while (changed && iterasi < MAX_ITER) {
+    changed = false;
+    iterasi++;
+    for (let p = 0; p < pagesArr.length - 1; p++) {
+      const cur = pagesArr[p];
+      const next = pagesArr[p + 1];
+      if (!next.length) continue;
+      let tinggiSekarang = p === 0
+        ? headerHeight + cur.reduce((s, i) => s + i.height, 0)
+        : cur.reduce((s, i) => s + i.height, 0);
+      const soalBerikut = next[0];
+      if (tinggiSekarang + soalBerikut.height <= safeMargin) {
+        cur.push(soalBerikut);
+        next.shift();
+        changed = true;
+      }
+    }
+    for (let i = pagesArr.length - 1; i >= 0; i--) {
+      if (!pagesArr[i].length) pagesArr.splice(i, 1);
+    }
+    if (!pagesArr.length) pagesArr.push([]);
+  }
+  return pagesArr;
+}
 /* ---------- 6E. BUKA TAB BARU ---------- */
 function openPDFInNewTab() {
   syncPDFSettingFromForm();
