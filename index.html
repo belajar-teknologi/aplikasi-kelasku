@@ -385,7 +385,7 @@ const DEFAULT_MENUS = [
 
 const DEFAULT_DB = {
   v: 5,
-  a: { k: "", ns: "", ng: "", kl: "", gc: null, lk: null, ls: null, fg: null },
+  a: { k: "", ns: "", ng: "", nig: "", kl: "", gc: null, lk: null, ls: null, fg: null, bgLogin: "" },
   cfg: { sbUrl: "", sbKey: "", cloudName: "", cloudPreset: "", geminiKey: "" },
   mn: null,
   md: {
@@ -775,39 +775,91 @@ function renderLoginView(c) {
   const cred=getJsonBinCredential(); const cfg=getAppConfig();
   const savedCode=getLS(STORAGE.APP_CODE)||cfg?.kodeAplikasi||"";
   const savedLogo=appState.db?.a?.ls||""; const savedNama=appState.db?.a?.ns||"";
+  const savedBg=appState.db?.a?.bgLogin||"";
   const logoSrc=savedLogo||LOGO_DEFAULT;
+
+  // Background: foto upload guru (jika ada) atau CSS gradient dekoratif
+  const bgStyle = savedBg
+    ? `background-image: linear-gradient(135deg, rgba(67,56,202,.85), rgba(15,23,42,.9)), url('${savedBg}'); background-size: cover; background-position: center;`
+    : `background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #0f172a 100%);`;
+
   c.innerHTML=`
-  <div class="max-w-md mx-auto my-4 sm:my-8 bg-white p-5 sm:p-8 rounded-2xl shadow-xl border border-slate-100 fade-in">
-    <div class="text-center mb-5 sm:mb-6">
-      <img id="login-logo" src="${logoSrc}" alt="Logo" class="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain mb-2" referrerpolicy="no-referrer" onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
-      <h2 id="login-nama-sekolah" class="text-base sm:text-lg font-bold text-slate-800 ${savedNama?'':'hidden'}">${savedNama}</h2>
-      <h2 id="login-title" class="text-lg sm:text-xl font-bold text-slate-800 ${savedNama?'hidden':''}">EduSmart LMS</h2>
-      <p class="text-xs text-slate-500 mt-1">v4.0 · Masuk sebagai Guru atau Siswa</p>
-    </div>
-    <form onsubmit="handleLogin(event)" class="space-y-3.5 text-sm">
-      <div><label class="block font-semibold text-slate-700 mb-1 text-xs">Masuk Sebagai</label>
-        <select id="login-role" class="w-full px-3 py-3 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm"><option value="guru">Guru / Pengajar</option><option value="siswa">Siswa</option></select>
+  <div class="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row fade-in -m-3 sm:-m-6 lg:-m-8">
+
+    <!-- KIRI: Background / Branding -->
+    <div class="relative md:w-3/5 min-h-[40vh] md:min-h-full flex items-center justify-center overflow-hidden" style="${bgStyle}">
+      <!-- Dekorasi gelombang SVG -->
+      ${!savedBg?`
+      <svg class="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice">
+        <path fill="#ffffff" d="M0,400 C300,300 600,500 900,400 C1200,300 1440,450 1440,450 L1440,800 L0,800 Z"></path>
+        <path fill="#ffffff" opacity="0.5" d="M0,500 C300,400 600,600 900,500 C1200,400 1440,550 1440,550 L1440,800 L0,800 Z"></path>
+        <circle cx="200" cy="150" r="80" fill="#ffffff" opacity="0.1"></circle>
+        <circle cx="1200" cy="650" r="120" fill="#ffffff" opacity="0.1"></circle>
+        <circle cx="700" cy="100" r="60" fill="#ffffff" opacity="0.15"></circle>
+      </svg>`:""}
+
+      <div class="relative z-10 text-center text-white px-6 py-10 max-w-lg">
+        <div class="bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+          <img id="login-logo" src="${logoSrc}" alt="Logo" class="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain mb-3 drop-shadow-lg" referrerpolicy="no-referrer" onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
+          <h1 id="login-nama-sekolah" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'':'hidden'} drop-shadow">${savedNama}</h1>
+          <h1 id="login-title" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'hidden':''} drop-shadow">EduSmart LMS</h1>
+          <p class="text-xs sm:text-sm text-white/80 mt-2">Platform Pembelajaran Digital</p>
+          <div class="mt-4 flex items-center justify-center gap-2 text-[10px] text-white/60">
+            <i class="fa-solid fa-shield-halved"></i><span>v4.0 · JSONBin + Supabase</span>
+          </div>
+        </div>
       </div>
-      <div><label class="block font-semibold text-slate-700 mb-1 text-xs">Kode Aplikasi</label>
-        <input type="text" id="login-code" placeholder="EDU-5-XXXXXX" value="${savedCode}" class="w-full px-3 py-3 border rounded-xl font-mono uppercase tracking-wider focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="off">
-        <div id="login-code-status" class="text-[10px] mt-1 text-slate-400"></div>
+    </div>
+
+    <!-- KANAN: Form Login -->
+    <div class="md:w-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
+      <div class="w-full max-w-sm">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-slate-800">Selamat Datang 👋</h2>
+          <p class="text-xs text-slate-500 mt-1">Masuk sebagai Guru atau Siswa</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-3.5 text-sm">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1 text-xs">Masuk Sebagai</label>
+            <select id="login-role" class="w-full px-3 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+              <option value="guru">Guru / Pengajar</option>
+              <option value="siswa">Siswa</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1 text-xs">Kode Aplikasi</label>
+            <input type="text" id="login-code" placeholder="EDU-5-XXXXXX" value="${savedCode}" class="w-full px-3 py-3 border border-slate-200 rounded-xl font-mono uppercase tracking-wider focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="off">
+            <div id="login-code-status" class="text-[10px] mt-1 text-slate-400"></div>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1 text-xs">Username</label>
+            <input type="text" id="login-username" placeholder="Username" class="w-full px-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="username">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1 text-xs">Password</label>
+            <input type="password" id="login-password" placeholder="Password" class="w-full px-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="current-password">
+          </div>
+          <button type="submit" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl transition shadow-lg text-sm">
+            <i class="fa-solid fa-right-to-bracket"></i> Masuk
+          </button>
+        </form>
+
+        <div class="mt-4 flex justify-between text-[11px]">
+          <button onclick="showLupaPassword()" class="text-indigo-600 hover:underline font-semibold"><i class="fa-solid fa-question-circle"></i> Lupa Password?</button>
+          <button onclick="showSetupModal()" class="text-slate-500 hover:text-indigo-600 underline"><i class="fa-solid fa-gear"></i> Pengaturan</button>
+        </div>
+
+        <div class="mt-4 flex gap-2">
+          <button onclick="showJsonBinSettings()" class="flex-1 text-[10px] px-2 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-key"></i> ${cred?`API Key ✓ (${cred.type})`:"Set API Key"}</button>
+          <button onclick="showBuatDatabaseForm()" class="flex-1 text-[10px] px-2 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-database"></i> Buat Database</button>
+        </div>
+
+        ${cfg?.kodeAplikasi?`<div class="mt-4 bg-slate-50 border border-slate-100 rounded-xl p-3 text-[10px] text-slate-500">Database terakhir: <b class="font-mono text-indigo-600">${cfg.kodeAplikasi}</b></div>`:""}
       </div>
-      <div><label class="block font-semibold text-slate-700 mb-1 text-xs">Username</label>
-        <input type="text" id="login-username" placeholder="Username" class="w-full px-3 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="username"></div>
-      <div><label class="block font-semibold text-slate-700 mb-1 text-xs">Password</label>
-        <input type="password" id="login-password" placeholder="Password" class="w-full px-3 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm" autocomplete="current-password"></div>
-      <button type="submit" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl transition shadow-lg text-sm"><i class="fa-solid fa-right-to-bracket"></i> Masuk</button>
-    </form>
-    <div class="mt-4 flex justify-between text-[11px]">
-      <button onclick="showLupaPassword()" class="text-indigo-600 hover:underline font-semibold"><i class="fa-solid fa-question-circle"></i> Lupa Password?</button>
-      <button onclick="showSetupModal()" class="text-slate-500 hover:text-indigo-600 underline"><i class="fa-solid fa-gear"></i> Pengaturan</button>
     </div>
-    <div class="mt-4 flex gap-2">
-      <button onclick="showJsonBinSettings()" class="flex-1 text-[10px] px-2 py-2 border rounded-lg text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-key"></i> ${cred?`API Key ✓ (${cred.type})`:"Set API Key"}</button>
-      <button onclick="showBuatDatabaseForm()" class="flex-1 text-[10px] px-2 py-2 border rounded-lg text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-database"></i> Buat Database</button>
-    </div>
-    ${cfg?.kodeAplikasi?`<div class="mt-4 bg-slate-50 border rounded-xl p-3 text-[10px] text-slate-500">Database terakhir: <b class="font-mono text-indigo-600">${cfg.kodeAplikasi}</b></div>`:""}
   </div>`;
+
   setTimeout(()=>{
     const inputKode=document.getElementById("login-code"); const statusEl=document.getElementById("login-code-status");
     if (!inputKode) return; let timer=null;
@@ -819,9 +871,11 @@ function renderLoginView(c) {
         try {
           const cfg=await loadConfigByCode(val); const db=await loadJsonBinDB(cfg.binId);
           const logo=db.a?.ls||LOGO_DEFAULT; const nama=db.a?.ns||cfg.namaSekolah||"";
+          const bg=db.a?.bgLogin||"";
           const li=document.getElementById("login-logo"); const ne=document.getElementById("login-nama-sekolah"); const te=document.getElementById("login-title");
           if (li) { li.referrerPolicy="no-referrer"; li.src=logo; }
           if (nama) { ne.textContent=nama; ne.classList.remove("hidden"); te.classList.add("hidden"); }
+          if (bg) { const left=document.querySelector('.relative.md\\:w-3\\/5'); if (left) { left.style.backgroundImage=`linear-gradient(135deg, rgba(67,56,202,.85), rgba(15,23,42,.9)), url('${bg}')`; left.style.backgroundSize="cover"; left.style.backgroundPosition="center"; } }
           setLS(STORAGE.APP_CODE,val); saveAppConfig(cfg);
           statusEl.innerHTML=`<i class="fa-solid fa-circle-check text-emerald-600"></i> <span class="text-emerald-700 font-semibold">${nama||cfg.kodeAplikasi}</span>`; statusEl.className="text-[10px] mt-1 text-emerald-700";
         } catch(err) {
@@ -1781,23 +1835,107 @@ async function generateAI() {
    ========================================================= */
 function renderProfilGuru(c) {
   const foto=appState.db.a?.fg||""; const logoSek=appState.db.a?.ls||""; const logoKab=appState.db.a?.lk||"";
+  const bgLogin=appState.db.a?.bgLogin||"";
+  const namaGuru=appState.db.a?.ng||appState.currentUser?.name||"";
+  const nipGuru=appState.db.a?.nig||"";
   c.innerHTML=`<div class="max-w-3xl mx-auto space-y-4 fade-in">
     <div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm">
       <div class="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-        <div class="text-center">${logoKab?`<img src="${logoKab}" referrerpolicy="no-referrer" class="w-16 h-16 object-contain mx-auto">`:`<div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="fa-solid fa-image"></i></div>`}<label class="block text-[10px] text-slate-500 mt-1 cursor-pointer"><i class="fa-solid fa-upload"></i> Logo Kab<input type="file" accept="image/*" class="hidden" onchange="uploadLogo('lk',event)"></label></div>
+        <div class="text-center">
+          ${logoKab?`<img src="${logoKab}" referrerpolicy="no-referrer" class="w-16 h-16 object-contain mx-auto">`:`<div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="fa-solid fa-image"></i></div>`}
+          <label class="block text-[10px] text-slate-500 mt-1 cursor-pointer"><i class="fa-solid fa-upload"></i> Logo Kab<input type="file" accept="image/*" class="hidden" onchange="uploadLogo('lk',event)"></label>
+        </div>
         <div class="text-center flex-1">
           ${foto?`<img src="${foto}" referrerpolicy="no-referrer" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-indigo-100" onerror="this.style.display='none'">`:`<div class="w-24 h-24 bg-indigo-500 text-white rounded-full flex items-center justify-center text-3xl mx-auto"><i class="fa-solid fa-user"></i></div>`}
-          <div class="mt-2"><h2 class="font-bold text-lg">${appState.currentUser.name}</h2><p class="text-xs text-slate-500">${appState.db.a?.ns||"-"}</p></div>
+          <div class="mt-2"><h2 class="font-bold text-lg">${namaGuru}</h2><p class="text-xs text-slate-500">${appState.db.a?.ns||"-"}</p></div>
           <label class="inline-block mt-2 text-[10px] text-slate-500 cursor-pointer"><i class="fa-solid fa-camera"></i> Ganti Foto<input type="file" accept="image/*" class="hidden" onchange="uploadFotoProfil('guru',event)"></label>
         </div>
-        <div class="text-center">${logoSek?`<img src="${logoSek}" referrerpolicy="no-referrer" class="w-16 h-16 object-contain mx-auto">`:`<div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="fa-solid fa-image"></i></div>`}<label class="block text-[10px] text-slate-500 mt-1 cursor-pointer"><i class="fa-solid fa-upload"></i> Logo Sekolah<input type="file" accept="image/*" class="hidden" onchange="uploadLogo('ls',event)"></label></div>
+        <div class="text-center">
+          ${logoSek?`<img src="${logoSek}" referrerpolicy="no-referrer" class="w-16 h-16 object-contain mx-auto">`:`<div class="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400"><i class="fa-solid fa-image"></i></div>`}
+          <label class="block text-[10px] text-slate-500 mt-1 cursor-pointer"><i class="fa-solid fa-upload"></i> Logo Sekolah<input type="file" accept="image/*" class="hidden" onchange="uploadLogo('ls',event)"></label>
+        </div>
       </div>
-      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+
+      <!-- Data Guru -->
+      <div class="mt-6 space-y-3">
+        <h3 class="font-bold text-sm text-slate-700 flex items-center gap-2"><i class="fa-solid fa-id-card text-indigo-600"></i> Data Guru</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="block font-semibold mb-1 text-slate-600">Nama Guru</label>
+            <input id="profil-nama-guru" value="${namaGuru}" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold mb-1 text-slate-600">NIP Guru</label>
+            <input id="profil-nip-guru" value="${nipGuru}" placeholder="Contoh: 1987654321" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+        </div>
+        <button onclick="simpanDataGuru()" class="bg-indigo-600 text-white font-bold text-xs px-5 py-2.5 rounded-xl">Simpan Data Guru</button>
+      </div>
+
+      <!-- Background Login -->
+      <div class="mt-6 pt-4 border-t space-y-3">
+        <h3 class="font-bold text-sm text-slate-700 flex items-center gap-2"><i class="fa-solid fa-image text-emerald-600"></i> Background Halaman Login</h3>
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <div class="w-full sm:w-40 h-24 rounded-xl border-2 border-dashed border-slate-200 overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
+            ${bgLogin?`<img src="${bgLogin}" class="w-full h-full object-cover" referrerpolicy="no-referrer">`:`<div class="text-center text-slate-400"><i class="fa-solid fa-image text-2xl"></i><div class="text-[10px] mt-1">Belum ada</div></div>`}
+          </div>
+          <div class="flex-1 w-full space-y-2">
+            <p class="text-[11px] text-slate-500">Upload foto untuk background halaman login (sisi kiri). File disimpan di Cloudinary, URL disimpan di database.</p>
+            <div class="flex flex-wrap gap-2">
+              <label class="bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer"><i class="fa-solid fa-upload"></i> Upload Background<input type="file" accept="image/*" class="hidden" onchange="uploadBgLogin(event)"></label>
+              ${bgLogin?`<button onclick="hapusBgLogin()" class="bg-red-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl"><i class="fa-solid fa-trash"></i> Hapus</button>`:""}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Akun -->
+      <div class="mt-6 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div class="p-3 bg-slate-50 rounded-xl"><b>Username:</b> <span class="font-mono">${appState.db.a?.gc?.[0]||"-"}</span></div>
         <div class="p-3 bg-amber-50 rounded-xl text-amber-800"><b>🔒 Password:</b> Tersimpan di JSONBin</div>
       </div>
     </div>
   </div>`;
+}
+
+async function simpanDataGuru() {
+  const nama=document.getElementById("profil-nama-guru").value.trim();
+  const nip=document.getElementById("profil-nip-guru").value.trim();
+  if (!nama) { showToast("Nama guru wajib diisi.","error"); return; }
+  if (!appState.db.a) appState.db.a={};
+  appState.db.a.ng=nama;
+  appState.db.a.nig=nip;
+  if (appState.currentUser) { appState.currentUser.name=nama; setLS(STORAGE.USER, JSON.stringify(appState.currentUser)); }
+  saveLocal(); addActivity("update_profil_guru",`Update data guru: ${nama}`);
+  showLoading(true,"Menyimpan...");
+  const ok=await updateJsonBinDB(); showLoading(false);
+  if (ok) { showToast("✓ Data guru disimpan.","success"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
+  updateHeaderUI(); renderMainContent();
+}
+
+async function uploadBgLogin(e) {
+  const f=e.target.files[0]; if (!f) return;
+  showLoading(true,"Mengunggah background...");
+  try {
+    const r=await uploadFile(f,`edusmart/background`);
+    if (!r.url) throw new Error("Upload gagal, cek Cloudinary.");
+    appState.db.a.bgLogin=r.url;
+    saveLocal(); addActivity("update_bg_login","Ganti background login");
+    const ok=await updateJsonBinDB();
+    showLoading(false);
+    if (ok) { showToast("✓ Background login disimpan.","success"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
+    renderMainContent();
+  } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
+  e.target.value="";
+}
+
+async function hapusBgLogin() {
+  if (!confirm("Hapus background login? Akan kembali ke tampilan default.")) return;
+  appState.db.a.bgLogin="";
+  saveLocal(); showLoading(true,"Menyimpan...");
+  const ok=await updateJsonBinDB(); showLoading(false);
+  if (ok) { showToast("Background dihapus.","info"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
+  renderMainContent();
 }
 async function uploadFotoProfil(tipe, e) {
   const f=e.target.files[0]; if (!f) return; showLoading(true,"Mengunggah...");
