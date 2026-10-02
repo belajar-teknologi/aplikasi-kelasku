@@ -799,17 +799,19 @@ function renderLoginView(c) {
       </svg>`:""}
 
       <div class="relative z-10 text-center text-white px-6 py-10 max-w-lg">
-        <div class="bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/20 shadow-2xl">
-          <img id="login-logo" src="${logoSrc}" alt="Logo" class="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain mb-3 drop-shadow-lg" referrerpolicy="no-referrer" onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
-          <h1 id="login-nama-sekolah" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'':'hidden'} drop-shadow">${savedNama}</h1>
-          <h1 id="login-title" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'hidden':''} drop-shadow">EduSmart LMS</h1>
-          <p class="text-xs sm:text-sm text-white/80 mt-2">Platform Pembelajaran Digital</p>
-          <div class="mt-4 flex items-center justify-center gap-2 text-[10px] text-white/60">
-            <i class="fa-solid fa-shield-halved"></i><span>v4.0 · JSONBin + Supabase</span>
-          </div>
-        </div>
-      </div>
+  <!-- Logo di LUAR kartu, full 100% tanpa transparansi -->
+  <img id="login-logo" src="${logoSrc}" alt="Logo" class="w-24 h-24 sm:w-28 sm:h-28 mx-auto object-contain mb-4 drop-shadow-2xl" referrerpolicy="no-referrer" onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
+
+  <!-- Kartu transparan hanya untuk teks -->
+  <div class="bg-white/10 backdrop-blur-md rounded-3xl px-6 py-5 sm:px-8 sm:py-6 border border-white/20 shadow-2xl">
+    <h1 id="login-nama-sekolah" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'':'hidden'} drop-shadow">${savedNama}</h1>
+    <h1 id="login-title" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'hidden':''} drop-shadow">EduSmart LMS</h1>
+    <p class="text-xs sm:text-sm text-white/80 mt-2">Platform Pembelajaran Digital</p>
+    <div class="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/60">
+      <i class="fa-solid fa-shield-halved"></i><span>v4.0 · JSONBin + Supabase</span>
     </div>
+  </div>
+</div>
 
     <!-- KANAN: Form Login -->
     <div class="md:w-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
