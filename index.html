@@ -784,10 +784,10 @@ function renderLoginView(c) {
     : `background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #0f172a 100%);`;
 
   c.innerHTML=`
-  <div class="min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row fade-in -m-3 sm:-m-6 lg:-m-8">
+  <div class="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row fade-in -m-3 sm:-m-6 lg:-m-8">
 
     <!-- KIRI: Background / Branding -->
-    <div class="relative w-full lg:w-3/5 min-h-[40vh] lg:min-h-full flex items-center justify-center overflow-hidden" style="${bgStyle}">
+    <div class="relative md:w-3/5 min-h-[40vh] md:min-h-full flex items-center justify-center overflow-hidden" style="${bgStyle}">
       <!-- Dekorasi gelombang SVG -->
       ${!savedBg?`
       <svg class="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice">
@@ -798,36 +798,21 @@ function renderLoginView(c) {
         <circle cx="700" cy="100" r="60" fill="#ffffff" opacity="0.15"></circle>
       </svg>`:""}
 
-      <div class="relative z-10 text-center text-white px-6 py-10 max-w-lg w-full">
-  <div class="bg-slate-900/50 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/30 shadow-2xl flex flex-col items-center">
-
-    <!-- Logo: selalu paling atas di HP, di dalam kartu -->
-    <img id="login-logo" src="${logoSrc}" alt="Logo"
-      class="order-1 w-20 h-20 sm:w-24 sm:h-24 object-contain mb-3 drop-shadow-lg"
-      referrerpolicy="no-referrer"
-      onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
-
-    <!-- Teks nama sekolah -->
-    <h1 id="login-nama-sekolah"
-      class="order-2 text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'':'hidden'} drop-shadow">
-      ${savedNama}
-    </h1>
-
-    <h1 id="login-title"
-      class="order-2 text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'hidden':''} drop-shadow">
-      EduSmart LMS
-    </h1>
-
-    <p class="order-3 text-xs sm:text-sm text-white/80 mt-2">Platform Pembelajaran Digital</p>
-
-    <div class="order-4 mt-4 flex items-center justify-center gap-2 text-[10px] text-white/60">
-      <i class="fa-solid fa-shield-halved"></i><span>v4.0 · JSONBin + Supabase</span>
+      <div class="relative z-10 text-center text-white px-6 py-10 max-w-lg">
+        <div class="bg-white/10 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-white/20 shadow-2xl">
+          <img id="login-logo" src="${logoSrc}" alt="Logo" class="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain mb-3 drop-shadow-lg" referrerpolicy="no-referrer" onerror="this.src='${LOGO_DEFAULT}';this.onerror=null;">
+          <h1 id="login-nama-sekolah" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'':'hidden'} drop-shadow">${savedNama}</h1>
+          <h1 id="login-title" class="text-xl sm:text-2xl font-extrabold tracking-tight ${savedNama?'hidden':''} drop-shadow">EduSmart LMS</h1>
+          <p class="text-xs sm:text-sm text-white/80 mt-2">Platform Pembelajaran Digital</p>
+          <div class="mt-4 flex items-center justify-center gap-2 text-[10px] text-white/60">
+            <i class="fa-solid fa-shield-halved"></i><span>v4.0 · JSONBin + Supabase</span>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
     <!-- KANAN: Form Login -->
-    <div class="w-full lg:w-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
+    <div class="md:w-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
       <div class="w-full max-w-sm">
         <div class="mb-6">
           <h2 class="text-xl font-bold text-slate-800">Selamat Datang 👋</h2>
