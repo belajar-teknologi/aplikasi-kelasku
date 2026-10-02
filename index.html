@@ -547,6 +547,37 @@ async function updateJsonBinDB() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`); setLS("edusmart_last_sync", new Date().toISOString()); return true;
   } catch(err) { console.warn("JSONBin sync gagal:", err); return false; }
 }
+// ⭐ BARU — Fungsi khusus update foto siswa (aman, tidak menimpa data lain)
+async function updateJsonBinFotoSiswa(siswaId, fotoUrl) {
+  const cfg = getAppConfig();
+  const cred = getJsonBinCredential();
+  if (!cfg?.binId || !cred) throw new Error("Kredensial belum siap.");
+  
+  // 1. Baca data terbaru dari server (jangan pakai cache lokal)
+  const getRes = await fetch(
+    `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}/latest?meta=false`,
+    { cache: "no-store", headers: getJsonBinHeaders(cred) }
+  );
+  if (!getRes.ok) throw new Error("Gagal baca bin terbaru.");
+  const latest = await getRes.json();
+  
+  // 2. Cari siswa, update HANYA field foto
+  const sw = (latest.sw || []).find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
+  if (!sw) throw new Error("Siswa tidak ditemukan di server.");
+  sw[FIELD.SISWA.FOTO] = fotoUrl;
+  
+  // 3. PUT kembali ke JSONBin
+  const putRes = await fetch(
+    `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`,
+    {
+      method: "PUT",
+      headers: getJsonBinHeaders(cred, true),
+      body: JSON.stringify(latest)
+    }
+  );
+  if (!putRes.ok) throw new Error("Gagal simpan ke JSONBin.");
+  return true;
+}
 async function loadJsonBinDB(binId, cred) {
   const c=cred||getJsonBinCredential(); const h={}; if (c) h[c.type==="access"?"X-Access-Key":"X-Master-Key"]=c.key;
   const res=await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(binId)}/latest?meta=false`, { cache:"no-store", headers: h });
@@ -570,6 +601,12 @@ async function loadConfigByCode(kode) {
   if (!res.ok) throw new Error(`Kode ${code} tidak ditemukan.`);
   const cfg=await res.json(); const binId=cfg.binId||cfg.database?.binId;
   if (!binId || cfg.kodeAplikasi!==code) throw new Error("Config tidak valid.");
+  
+  // ⭐ BARU: Auto-set Access Key kalau user belum punya kredensial
+  if (cfg.database?.accessKey && !getJsonBinCredential()) {
+    saveJsonBinCredential(cfg.database.accessKey, "access");
+  }
+  
   return { ...cfg, binId, guruCredentials: cfg.guruCredentials, cloudinaryUrl: url };
 }
 
@@ -1938,13 +1975,36 @@ async function hapusBgLogin() {
   renderMainContent();
 }
 async function uploadFotoProfil(tipe, e) {
-  const f=e.target.files[0]; if (!f) return; showLoading(true,"Mengunggah...");
+  const f=e.target.files[0]; if (!f) return; 
+  showLoading(true,"Mengunggah...");
   try {
     const r=await uploadFile(f,`edusmart/profile/${tipe}`);
-    if (tipe==="guru") appState.db.a.fg=r.url;
-    else if (tipe==="siswa") { const sw=appState.db.sw.find(s=>Number(s[FIELD.SISWA.ID])===Number(appState.currentUser.siswaId)); if (sw) sw[FIELD.SISWA.FOTO]=r.url; }
-    saveLocal(); await updateJsonBinDB(); showLoading(false); updateHeaderUI(); showToast("Foto diunggah.","success"); renderApp();
-  } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
+    if (!r.url) throw new Error("Upload gagal.");
+    
+    if (tipe==="guru") {
+      appState.db.a.fg = r.url;
+      saveLocal();
+      await updateJsonBinDB();  // Guru pakai full DB (aman, dia punya master key)
+    } else if (tipe==="siswa") {
+      // ⭐ Siswa pakai fungsi khusus yang aman (baca dulu, update field foto saja)
+      await updateJsonBinFotoSiswa(appState.currentUser.siswaId, r.url);
+      
+      // Update cache lokal juga
+      const sw = appState.db.sw.find(s => 
+        Number(s[FIELD.SISWA.ID]) === Number(appState.currentUser.siswaId));
+      if (sw) sw[FIELD.SISWA.FOTO] = r.url;
+      saveLocal();
+    }
+    
+    showLoading(false); 
+    updateHeaderUI(); 
+    showToast("✓ Foto tersimpan ke cloud.","success"); 
+    renderApp();
+  } catch(err) { 
+    showLoading(false); 
+    showToast("Gagal: "+err.message,"error"); 
+  }
+  e.target.value = "";
 }
 async function uploadLogo(tipe, e) {
   const f=e.target.files[0]; if (!f) return; showLoading(true,"Mengunggah logo...");
