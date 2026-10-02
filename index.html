@@ -787,7 +787,7 @@ function renderLoginView(c) {
   <div class="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row fade-in -m-3 sm:-m-6 lg:-m-8">
 
     <!-- KIRI: Background / Branding -->
-    <div class="relative w-full md:w-3/5 min-h-[40vh] md:min-h-full flex items-center justify-center overflow-hidden" style="${bgStyle}">
+    <div class="relative basis-full md:basis-3/5 min-h-[40vh] md:min-h-full flex items-center justify-center overflow-hidden" style="${bgStyle}">
       <!-- Dekorasi gelombang SVG -->
       ${!savedBg?`
       <svg class="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 1440 800" preserveAspectRatio="xMidYMid slice">
@@ -827,7 +827,7 @@ function renderLoginView(c) {
 </div>
 
     <!-- KANAN: Form Login -->
-    <div class="md:w-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
+    <div class="basis-full md:basis-2/5 flex items-center justify-center bg-white p-5 sm:p-8">
       <div class="w-full max-w-sm">
         <div class="mb-6">
           <h2 class="text-xl font-bold text-slate-800">Selamat Datang 👋</h2>
