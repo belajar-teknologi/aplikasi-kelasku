@@ -356,6 +356,26 @@ CREATE INDEX IF NOT EXISTS idx_paket_items_paket ON paket_soal_items(paket_id);
 CREATE INDEX IF NOT EXISTS idx_jawaban_paket ON jawaban_siswa(paket_id);
 CREATE INDEX IF NOT EXISTS idx_hasil_paket ON hasil_ujian(paket_id);
 
+-- ================= TABEL LOG AKTIVITAS (BARU) =================
+CREATE TABLE IF NOT EXISTS log_aktivitas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tipe TEXT NOT NULL,
+  user_id TEXT,
+  user_name TEXT,
+  role TEXT,
+  detail TEXT,
+  extra JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE log_aktivitas DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.log_aktivitas TO anon, authenticated, service_role;
+
+CREATE INDEX IF NOT EXISTS idx_log_created ON log_aktivitas(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_log_user ON log_aktivitas(user_id);
+CREATE INDEX IF NOT EXISTS idx_log_tipe ON log_aktivitas(tipe);
+CREATE INDEX IF NOT EXISTS idx_log_role ON log_aktivitas(role);
+
 NOTIFY pgrst, 'reload schema';`;
 
 const DEFAULT_MENUS = [
@@ -527,9 +547,64 @@ function addActivity(tipe, detail, extra={}) {
   const log={ id: Date.now()+Math.floor(Math.random()*1000), tipe, user: user.name, role: user.role, detail, waktu: new Date().toISOString(), sent: false, ...extra };
   appState.db.al = appState.db.al || []; appState.db.al.push(logArr(log));
   if (appState.db.al.length>50) appState.db.al = appState.db.al.slice(-50);
+  // ⭐ TAMBAHAN: Kirim juga ke Supabase
+  const userId = user.siswaId || user.username || user.name;
+  kirimLogKeSupabase({ ...log, userId }).then(function(ok) { if (ok) log.sent = true; }).catch(function(){});
   setTimeout(()=>{ updateJsonBinDB().catch(()=>{}); },300);
 }
 function getMergedActivity() { const arr=appState.db.al||[]; const objs=arr.map(logToObj); objs.sort((a,b)=>new Date(b.waktu)-new Date(a.waktu)); return objs.slice(0,10); }
+/* ============ LOG KE SUPABASE (TAMBAHAN) ============ */
+
+// ⭐ Fungsi 1: Kirim log ke Supabase (INSERT, tidak menimpa)
+async function kirimLogKeSupabase(log) {
+  const sb = getSupabaseConfig();
+  if (!sb) return false;
+  try {
+    await sbInsert("log_aktivitas", [{
+      tipe: log.tipe,
+      user_id: String(log.userId || ""),
+      user_name: log.user || "",
+      role: log.role || "",
+      detail: log.detail || "",
+      extra: log.extra || {}
+    }]);
+    return true;
+  } catch(e) {
+    console.warn("Log ke Supabase gagal:", e);
+    return false;
+  }
+}
+
+// ⭐ Fungsi 2: Ambil log dari Supabase
+async function ambilLogDariSupabase(limit) {
+  limit = limit || 20;
+  const sb = getSupabaseConfig();
+  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
+  const rows = await sbFetch("log_aktivitas", "?order=created_at.desc&limit=" + limit);
+  return rows.map(function(r) {
+    return {
+      id: r.id,
+      tipe: r.tipe,
+      user: r.user_name,
+      role: r.role,
+      detail: r.detail,
+      waktu: r.created_at,
+      extra: r.extra || {}
+    };
+  });
+}
+
+// ⭐ Fungsi 3: Ambil gabungan (Supabase utama, lokal fallback)
+async function getMergedActivityAsync(limit) {
+  limit = limit || 10;
+  try {
+    const rows = await ambilLogDariSupabase(limit);
+    if (Array.isArray(rows) && rows.length > 0) return rows;
+  } catch(e) {
+    console.warn("Ambil log Supabase gagal, pakai lokal:", e);
+  }
+  return getMergedActivity();
+}
 
 /* ============ JSONBIN ============ */
 function getJsonBinHeaders(cred, withCT=false) { const h={}; if (withCT) h["Content-Type"]="application/json"; if (cred?.key) h[cred.type==="access"?"X-Access-Key":"X-Master-Key"]=cred.key; return h; }
@@ -2378,11 +2453,47 @@ function renderGuruDashboard(c) {
         ${aktivitas.length?aktivitas.map(a=>`<div class="p-2 border rounded-lg bg-slate-50 flex gap-2"><div class="text-[10px] text-slate-400 whitespace-nowrap">${formatRelative(a.waktu)}</div><div class="flex-1 min-w-0"><div class="font-semibold text-slate-700 truncate">${a.user}</div><div class="text-slate-500 text-[11px] break-words">${a.detail}</div></div></div>`).join(""):'<div class="text-slate-400 text-center py-4">Belum ada aktivitas</div>'}
       </div>
     </div>
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 class="font-bold text-sm">
+          <i class="fa-solid fa-cloud text-emerald-600"></i> Aktivitas Online (Supabase)
+        </h3>
+        <div class="flex gap-2">
+          <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Real-time</span>
+          <button onclick="refreshAktivitasSupabase()" class="text-slate-400 p-1"><i class="fa-solid fa-rotate text-xs"></i></button>
+        </div>
+      </div>
+      <div id="aktivitas-supabase" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar">
+        <div class="text-center text-xs text-slate-400 py-4">
+          <i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...
+        </div>
+      </div>
+    </div>
   </div>`;
-  setTimeout(()=>{
+    setTimeout(()=>{
     const ctx=document.getElementById('chartGuru');
-    if (ctx) new Chart(ctx, { type:'bar', data:{ labels: mapelAverages.map(m=>m.nama), datasets:[{ label:'Rata-rata', data: mapelAverages.map(m=>m.avg), backgroundColor:'rgba(79,70,229,.85)', borderRadius: 8 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100 } } } });
+    if (ctx) new Chart(ctx, { 
+      type:'bar', 
+      data:{ 
+        labels: mapelAverages.map(m=>m.nama), 
+        datasets:[{ 
+          label:'Rata-rata', 
+          data: mapelAverages.map(m=>m.avg), 
+          backgroundColor:'rgba(79,70,229,.85)', 
+          borderRadius: 8 
+        }] 
+      }, 
+      options:{ 
+        responsive:true, 
+        maintainAspectRatio:false, 
+        plugins:{ legend:{ display:false } }, 
+        scales:{ y:{ beginAtZero:true, max:100 } } 
+      } 
+    });
     refreshRankingCard("ranking-guru-content","ALL",null);
+    
+    // ⭐ Muat aktivitas dari Supabase
+    refreshAktivitasSupabase();
   },100);
 }
 
@@ -2786,6 +2897,38 @@ async function switchKelolaTable(name) {
         <tbody>${rows.map(r=>`<tr class="border-b">${cols.map(cn=>`<td class="p-2 whitespace-nowrap">${typeof r[cn]==="object"?JSON.stringify(r[cn]).slice(0,30):r[cn]??"-"}</td>`).join("")}</tr>`).join("")}</tbody>
       </table></div>`;
   } catch(err) { content.innerHTML=`<div class="text-red-500 text-xs p-4">Error: ${err.message}</div>`; }
+}
+/* =========================================================
+   AKTIVITAS SUPABASE (TAMBAHAN)
+   ========================================================= */
+async function refreshAktivitasSupabase() {
+  const el = document.getElementById("aktivitas-supabase");
+  if (!el) return;
+  el.innerHTML = '<div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>';
+  try {
+    const list = await getMergedActivityAsync(15);
+    if (!list.length) {
+      el.innerHTML = '<div class="text-center text-xs text-slate-400 py-4">Belum ada aktivitas online</div>';
+      return;
+    }
+    el.innerHTML = list.map(function(a) {
+      const waktu = formatRelative(a.waktu);
+      const roleWarna = a.role === "guru" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700";
+      return '<div class="p-2 border rounded-lg bg-slate-50 flex gap-2 hover:bg-white transition">' +
+        '<div class="w-8 h-8 rounded-lg ' + roleWarna + ' flex items-center justify-center shrink-0 text-xs"><i class="fa-solid fa-user"></i></div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center gap-2 flex-wrap">' +
+            '<span class="font-semibold text-slate-700 text-xs">' + (a.user || "-") + '</span>' +
+            '<span class="text-[9px] bg-slate-200 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase">' + (a.role || "-") + '</span>' +
+            '<span class="text-[10px] text-slate-400">' + waktu + '</span>' +
+          '</div>' +
+          '<div class="text-slate-500 text-[11px] break-words mt-0.5">' + (a.detail || "-") + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+  } catch(err) {
+    el.innerHTML = '<div class="text-red-500 text-center py-4 text-xs">Gagal memuat: ' + err.message + '</div>';
+  }
 }
 
 /* =========================================================
