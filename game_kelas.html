@@ -17,6 +17,9 @@
   ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.4); border-radius: 4px; }
   .score-row { animation: slideIn 0.3s ease; }
   @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .player-guru-ring { ring: 2px solid #6366f1; box-shadow: 0 0 0 2px #6366f1; }
 </style>
 </head>
 <body class="text-slate-800 p-3 md:p-6 flex flex-col justify-between items-center">
@@ -86,6 +89,9 @@ let appConfig = null;         // { binId, namaSekolah, kelas }
 let fullDb = null;            // data dari JSONBin
 let supabaseClient = null;    // Supabase client
 
+/* ⭐ Player aktif (guru atau siswa) */
+let currentPlayer = null;     // { id, nama, kelas, foto, role }
+
 /* =========================================================
    HELPER DASAR
    ========================================================= */
@@ -104,6 +110,7 @@ function showToast(message, type = 'info') {
   toastText.textContent = message;
   if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-green-400 text-xl';
   else if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-red-400 text-xl';
+  else if (type === 'warning') toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-xl';
   else toastIcon.className = 'fa-solid fa-circle-info text-yellow-400 text-xl';
   toast.classList.remove('hidden');
   clearTimeout(window.__toastTimeout);
@@ -131,7 +138,7 @@ function initSupabaseFromDb(db) {
 }
 
 /* =========================================================
-   FETCH JSONBIN (API key OPSIONAL)
+   FETCH JSONBIN
    ========================================================= */
 async function fetchJsonBinData(binId, opts = {}) {
   const apiKey = (opts.apiKey !== undefined ? opts.apiKey : getLS(STORAGE.JSONBIN_KEY)).trim();
@@ -186,12 +193,98 @@ function normalizeStudents(db) {
 }
 
 /* =========================================================
+   ⭐ PLAYER HELPER — Deteksi Guru / Siswa
+   ========================================================= */
+
+/**
+ * Ambil info player aktif (guru atau siswa)
+ * @returns {Object|null} - { id, nama, kelas, foto, role } atau null
+ */
+function getPlayerAktif() {
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user) return null;
+  
+  // === KASUS 1: GURU ===
+  if (user.role === "guru") {
+    return {
+      id: "guru_" + String(user.username || user.name || "unknown")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "_")
+            .slice(0, 40),
+      nama: user.name || "Guru",
+      kelas: user.kelas || "",
+      foto: fullDb?.a?.fg || user.foto || "",
+      role: "guru"
+    };
+  }
+  
+  // === KASUS 2: SISWA ===
+  if (user.role === "siswa") {
+    // Cari di db.sw berdasarkan siswaId
+    const sw = (fullDb?.sw || []).find(s => String(s[0]) === String(user.siswaId));
+    return {
+      id: String(user.siswaId || ""),
+      nama: user.name || (sw ? sw[3] : "Siswa"),
+      kelas: user.kelas || (sw ? sw[4] : ""),
+      foto: sw ? (sw[11] || "") : "",
+      role: "siswa"
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Cek apakah player sudah punya foto profil
+ */
+function cekPunyaFoto(player) {
+  if (!player) return false;
+  const foto = String(player.foto || "").trim();
+  if (!foto || foto === "null" || foto === "undefined") return false;
+  return foto.startsWith("http") || foto.startsWith("data:");
+}
+
+/**
+ * Ambil daftar "pemain siap" (yang sudah punya foto)
+ * - Guru punya foto → ikut masuk (badge GURU)
+ * - Siswa tanpa foto → tidak ikut
+ */
+function getPemainSiap() {
+  const player = getPlayerAktif();
+  const hasil = [];
+  
+  // 1. Guru DULU (kalau punya foto)
+  if (player && player.role === "guru" && cekPunyaFoto(player)) {
+    hasil.push({ ...player, isGuru: true });
+  }
+  
+  // 2. Siswa yang punya foto
+  studentsData.forEach(s => {
+    const foto = String(s.foto || "").trim();
+    if (foto && (foto.startsWith("http") || foto.startsWith("data:"))) {
+      hasil.push({ ...s, isGuru: false });
+    }
+  });
+  
+  return hasil;
+}
+
+/**
+ * Cek apakah player aktif siap main (sudah upload foto)
+ */
+function playerSiapMain() {
+  return cekPunyaFoto(getPlayerAktif());
+}
+
+/* =========================================================
    AUTO-LOGIN DARI LOCALSTORAGE
    ========================================================= */
 async function tryAutoLogin() {
-  // 1. Cek user
+  // 1. Cek user (guru ATAU siswa)
   const user = safeParse(getLS(STORAGE.USER));
-  if (!user || user.role !== "siswa") return { ok: false, alasan: "belum_login" };
+  if (!user || (user.role !== "siswa" && user.role !== "guru")) {
+    return { ok: false, alasan: "belum_login" };
+  }
 
   // 2. Cek config (binId)
   const cfg = safeParse(getLS(STORAGE.APP_CONFIG));
@@ -201,32 +294,41 @@ async function tryAutoLogin() {
   try {
     const db = await fetchJsonBinData(cfg.binId);
     const students = normalizeStudents(db);
-    if (students.length < 4) throw new Error(`Data siswa kurang dari 4 (ada ${students.length}). Minimal 4 siswa untuk main game.`);
+
+    // ⭐ Siswa butuh minimal 4. Guru tidak perlu (biar bisa main sendiri)
+    if (user.role === "siswa" && students.length < 4) {
+      throw new Error(`Data siswa kurang dari 4 (ada ${students.length}). Minimal 4 siswa untuk main game.`);
+    }
 
     // 4. Setup state
     appConfig = { kode: "AUTO", binId: cfg.binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
     fullDb = db;
     studentsData = students;
 
-    // 5. Setup Supabase dari db.cfg
+    // 5. Setup currentPlayer (guru atau siswa)
+    currentPlayer = getPlayerAktif();
+
+    // 6. Setup Supabase dari db.cfg
     const sbReady = initSupabaseFromDb(db);
 
-    // 6. Simpan db ke localStorage (untuk cache)
+    // 7. Simpan db ke localStorage
     setLS(STORAGE.DB_LOCAL, JSON.stringify(db));
 
-    return { ok: true, user, sbReady };
+    return { ok: true, user, sbReady, player: currentPlayer };
   } catch (err) {
     // Fallback ke cache
     const cached = safeParse(getLS(STORAGE.DB_LOCAL));
     if (cached) {
       const students = normalizeStudents(cached);
-      if (students.length >= 4) {
-        fullDb = cached;
-        studentsData = students;
-        appConfig = { kode: "CACHE", binId: cfg.binId, namaSekolah: cached?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
-        initSupabaseFromDb(cached);
-        return { ok: true, user, fromCache: true };
+      if (user.role === "siswa" && students.length < 4) {
+        return { ok: false, alasan: "gagal_fetch", user, error: `Data siswa kurang dari 4 (cache: ${students.length})` };
       }
+      fullDb = cached;
+      studentsData = students;
+      appConfig = { kode: "CACHE", binId: cfg.binId, namaSekolah: cached?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+      currentPlayer = getPlayerAktif();
+      initSupabaseFromDb(cached);
+      return { ok: true, user, fromCache: true, player: currentPlayer };
     }
     return { ok: false, alasan: "gagal_fetch", user, error: err.message };
   }
@@ -258,11 +360,15 @@ function renderBelumLoginScreen() {
           <i class="fa-solid fa-user-lock"></i>
         </div>
         <h2 class="text-2xl font-black text-gray-800">Perlu Login</h2>
-        <p class="text-xs text-gray-500 font-sans mt-1">Login dulu sebagai siswa di Dashboard</p>
+        <p class="text-xs text-gray-500 font-sans mt-1">Login dulu sebagai <b>siswa</b> atau <b>guru</b> di Dashboard</p>
       </div>
       <a href="./index.html" class="block w-full text-center bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
         <i class="fa-solid fa-right-to-bracket mr-1"></i> Buka Dashboard
       </a>
+      <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-800 font-sans">
+        <i class="fa-solid fa-circle-info"></i> 
+        <b>Guru</b> juga bisa main game ini! Login sebagai guru, upload foto profil, lalu main bersama siswa.
+      </div>
       <div class="pt-3 mt-3 border-t border-gray-100 text-center">
         <button onclick="useDemoMode()" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
           <i class="fa-solid fa-flask"></i> Coba Mode Demo
@@ -277,6 +383,8 @@ function renderBelumLoginScreen() {
 function renderSetupScreen(pesan, userInfo = null) {
   const c = document.getElementById("main-view-container");
   const u = userInfo;
+  const isGuru = u?.role === "guru";
+  
   c.innerHTML = `
     <div class="max-w-md mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white fade-in">
       <div class="text-center mb-5">
@@ -288,9 +396,9 @@ function renderSetupScreen(pesan, userInfo = null) {
       </div>
 
       ${u ? `
-        <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
-          <div class="font-bold text-emerald-900">✓ Login terdeteksi</div>
-          <div class="text-emerald-700 mt-0.5">${esc(u.name || "Siswa")} · Kelas ${esc(u.kelas || "-")}</div>
+        <div class="mb-4 p-3 ${isGuru ? 'bg-indigo-50 border-indigo-200' : 'bg-emerald-50 border-emerald-200'} border rounded-xl text-xs">
+          <div class="font-bold ${isGuru ? 'text-indigo-900' : 'text-emerald-900'}">✓ Login terdeteksi ${isGuru ? '(Guru)' : '(Siswa)'}</div>
+          <div class="${isGuru ? 'text-indigo-700' : 'text-emerald-700'} mt-0.5">${esc(u.name || (isGuru ? "Guru" : "Siswa"))} · Kelas ${esc(u.kelas || "-")}</div>
         </div>
       ` : `
         <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
@@ -322,9 +430,12 @@ function renderSetupScreen(pesan, userInfo = null) {
 
         <div id="setup-status" class="hidden text-center p-3 rounded-xl text-xs font-semibold"></div>
 
-        <div class="pt-3 border-t border-gray-100 text-center">
+        <div class="pt-3 border-t border-gray-100 flex justify-between items-center">
+          <a href="./index.html" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
+          </a>
           <button onclick="useDemoMode()" class="text-[11px] text-slate-500 hover:text-purple-600 underline">
-            <i class="fa-solid fa-flask"></i> Coba Mode Demo
+            <i class="fa-solid fa-flask"></i> Mode Demo
           </button>
         </div>
       </div>
@@ -349,7 +460,12 @@ async function handleSetupSubmit() {
     // Fetch JSONBin
     const db = await fetchJsonBinData(binId, { apiKey, keyType: "master" });
     const students = normalizeStudents(db);
-    if (students.length < 4) throw new Error(`Data siswa kurang dari 4 (ada ${students.length})`);
+    const user = safeParse(getLS(STORAGE.USER)) || {};
+    
+    // ⭐ Siswa butuh minimal 4. Guru tidak.
+    if (user.role === "siswa" && students.length < 4) {
+      throw new Error(`Data siswa kurang dari 4 (ada ${students.length})`);
+    }
 
     // Simpan binId + apiKey
     setLS(STORAGE.APP_CONFIG, JSON.stringify({ binId }));
@@ -361,8 +477,10 @@ async function handleSetupSubmit() {
     // Setup state
     fullDb = db;
     studentsData = students;
-    const user = safeParse(getLS(STORAGE.USER)) || {};
     appConfig = { kode: "SETUP", binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+    
+    // ⭐ Setup currentPlayer
+    currentPlayer = getPlayerAktif();
 
     // Supabase dari db.cfg
     const sbReady = initSupabaseFromDb(db);
@@ -402,17 +520,39 @@ function useDemoMode() {
   fullDb = null;
   studentsData = [...MOCK_STUDENTS];
   supabaseClient = null;
+  
+  // ⭐ Demo player
+  currentPlayer = {
+    id: "demo_player",
+    nama: "Pemain Demo",
+    kelas: "5",
+    foto: "https://placehold.co/200x200/6366f1/ffffff?text=Demo",
+    role: "siswa"
+  };
+  
   showToast("Mode Demo aktif.", "info");
   showScreen("menu-screen");
 }
 
 /* =========================================================
-   SCREEN: MENU UTAMA (+ PAPAN SKOR)
+   SCREEN: MENU UTAMA
    ========================================================= */
 async function renderMenuScreen() {
   const c = document.getElementById("main-view-container");
   const user = safeParse(getLS(STORAGE.USER)) || {};
   const namaSekolah = appConfig?.namaSekolah || "Sekolah";
+  
+  // ⭐ Cek player & kesiapan main
+  const player = getPlayerAktif();
+  const siapMain = cekPunyaFoto(player);
+  const pemainSiap = getPemainSiap();
+  
+  // ⭐ Badge role player
+  const roleBadge = player?.role === "guru" 
+    ? `<span class="ml-2 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold">GURU</span>`
+    : player?.role === "siswa"
+    ? `<span class="ml-2 text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full font-bold">SISWA</span>`
+    : "";
 
   c.innerHTML = `
     <div class="space-y-5 fade-in w-full max-w-4xl mx-auto">
@@ -424,78 +564,115 @@ async function renderMenuScreen() {
           <span>Pemain:</span>
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
-          <div class="flex-1 md:w-64 px-3 py-2 rounded-xl border-2 border-purple-200 bg-purple-50 text-xs font-sans font-semibold text-purple-800">
-            ${esc(user.name || "Siswa")} ${user.noAbsen ? `(#${user.noAbsen})` : ""}
+          <div class="flex-1 md:w-64 px-3 py-2 rounded-xl border-2 border-purple-200 bg-purple-50 text-xs font-sans font-semibold text-purple-800 truncate flex items-center">
+            ${esc(player?.nama || user.name || "Siswa")} ${user.noAbsen ? `(#${user.noAbsen})` : ""} ${roleBadge}
           </div>
           <div class="w-24 px-3 py-2 rounded-xl border-2 border-purple-200 text-xs font-sans text-center bg-slate-50">
-            Kelas ${esc(user.kelas || "-")}
+            Kelas ${esc(player?.kelas || user.kelas || "-")}
           </div>
         </div>
       </div>
+
+      <!-- ⭐ BANNER: WAJIB UPLOAD FOTO -->
+      ${!siapMain ? `
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-lg">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-200 text-amber-800 flex items-center justify-center text-2xl shrink-0">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-amber-900 text-sm">Upload Foto Profil Dulu!</div>
+              <div class="text-[11px] text-amber-700 mt-0.5">
+                ${player?.role === "guru" 
+                  ? "Sebagai guru, Anda juga perlu foto profil untuk main game bersama siswa." 
+                  : "Kamu harus punya foto profil untuk bisa main game."}
+              </div>
+            </div>
+            <a href="./index.html" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm shrink-0 transition">
+              <i class="fa-solid fa-upload"></i> Upload Foto
+            </a>
+          </div>
+        </div>
+      ` : ""}
 
       <!-- Title -->
       <div class="text-center text-white my-2">
         <h2 class="text-3xl md:text-4xl font-black drop-shadow-md">PILIH MODE GAME! 🎉</h2>
         <p class="text-purple-100 text-xs md:text-sm mt-1 font-sans" id="app-info-line">
-          ${esc(namaSekolah)} · ${studentsData.length} siswa ${supabaseClient ? '· Skor online ✓' : '· Skor lokal'}
+          ${esc(namaSekolah)} · ${pemainSiap.length} pemain siap ${supabaseClient ? '· Skor online ✓' : '· Skor lokal'}
         </p>
       </div>
 
-      <!-- Game cards -->
+      <!-- ⭐ Game cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div onclick="startTebakGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-yellow-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+        <div onclick="${siapMain ? 'startTebakGame()' : 'alertUploadFoto()'}" 
+             class="bg-white rounded-3xl p-5 shadow-xl border-4 border-yellow-300 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
           <div class="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:rotate-12 transition"><i class="fa-solid fa-eye"></i></div>
           <div>
             <h3 class="text-lg font-bold text-gray-800 mb-1">Tebak Muka Zoom</h3>
             <p class="text-[11px] text-gray-500 font-sans mb-3">Foto dibuka perlahan, tebak nama temannya!</p>
           </div>
-          <span class="w-full py-2 bg-yellow-400 text-yellow-950 font-bold rounded-xl text-xs shadow-sm">Main Now</span>
+          <span class="w-full py-2 ${siapMain ? 'bg-yellow-400 text-yellow-950' : 'bg-slate-200 text-slate-400'} font-bold rounded-xl text-xs shadow-sm">
+            ${siapMain ? 'Main Now' : '🔒 Terkunci'}
+          </span>
         </div>
 
-        <div onclick="startTepukGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-pink-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+        <div onclick="${siapMain ? 'startTepukGame()' : 'alertUploadFoto()'}" 
+             class="bg-white rounded-3xl p-5 shadow-xl border-4 border-pink-300 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
           <div class="w-16 h-16 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-hand-pointer"></i></div>
           <div>
             <h3 class="text-lg font-bold text-gray-800 mb-1">Tepuk Teman!</h3>
             <p class="text-[11px] text-gray-500 font-sans mb-3">Whack-a-Mole! Tepuk muka teman sesuai target.</p>
           </div>
-          <span class="w-full py-2 bg-pink-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
+          <span class="w-full py-2 ${siapMain ? 'bg-pink-500 text-white' : 'bg-slate-200 text-slate-400'} font-bold rounded-xl text-xs shadow-sm">
+            ${siapMain ? 'Main Now' : '🔒 Terkunci'}
+          </span>
         </div>
 
-        <div onclick="startMemoryGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-emerald-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+        <div onclick="${siapMain ? 'startMemoryGame()' : 'alertUploadFoto()'}" 
+             class="bg-white rounded-3xl p-5 shadow-xl border-4 border-emerald-300 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
           <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:-rotate-12 transition"><i class="fa-solid fa-clone"></i></div>
           <div>
             <h3 class="text-lg font-bold text-gray-800 mb-1">Cari Pasangan</h3>
             <p class="text-[11px] text-gray-500 font-sans mb-3">Buka pasangan kartu foto & nama yang cocok!</p>
           </div>
-          <span class="w-full py-2 bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
+          <span class="w-full py-2 ${siapMain ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'} font-bold rounded-xl text-xs shadow-sm">
+            ${siapMain ? 'Main Now' : '🔒 Terkunci'}
+          </span>
         </div>
 
-        <div onclick="startSusunGame()" class="bg-white rounded-3xl p-5 shadow-xl border-4 border-indigo-300 bounce-hover cursor-pointer flex flex-col justify-between items-center text-center group">
+        <div onclick="${siapMain ? 'startSusunGame()' : 'alertUploadFoto()'}" 
+             class="bg-white rounded-3xl p-5 shadow-xl border-4 border-indigo-300 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
           <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:scale-105 transition"><i class="fa-solid fa-arrow-down-a-z"></i></div>
           <div>
             <h3 class="text-lg font-bold text-gray-800 mb-1">Susun Nama</h3>
             <p class="text-[11px] text-gray-500 font-sans mb-3">Susun huruf acak sesuai nama foto teman!</p>
           </div>
-          <span class="w-full py-2 bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-sm">Main Now</span>
+          <span class="w-full py-2 ${siapMain ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-400'} font-bold rounded-xl text-xs shadow-sm">
+            ${siapMain ? 'Main Now' : '🔒 Terkunci'}
+          </span>
         </div>
       </div>
 
-      <!-- Daftar siswa -->
+      <!-- ⭐ Daftar pemain siap -->
       <div class="bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border border-white/50">
         <div class="flex justify-between items-center mb-3">
-          <span class="font-bold text-gray-700 text-xs"><i class="fa-solid fa-users text-purple-600"></i> Siswa Terdaftar (<span id="student-count">${studentsData.length}</span>)</span>
+          <span class="font-bold text-gray-700 text-xs">
+            <i class="fa-solid fa-users text-purple-600"></i> 
+            Pemain Siap (<span id="student-count">${pemainSiap.length}</span>)
+          </span>
           <button onclick="toggleStudentList()" class="text-xs text-purple-600 font-bold hover:underline" id="toggle-student-btn">Tampilkan Semua</button>
         </div>
         <div id="student-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-20 overflow-hidden transition-all duration-300"></div>
       </div>
 
-      <!-- ⭐ PAPAN SKOR (di bawah daftar pemain) -->
+      <!-- Papan Skor -->
       <div id="scoreboard-section" class="hidden bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-lg border-2 border-yellow-300">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
             <i class="fa-solid fa-trophy text-yellow-500 text-lg"></i>
             <span class="font-bold text-gray-700 text-sm">Papan Skor</span>
-            <span class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold" id="scoreboard-subtitle">Skor terakhir kamu</span>
+            <span class="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold" id="scoreboard-subtitle">Skor terbaru</span>
           </div>
           <button onclick="refreshScoreboard()" class="text-slate-400 hover:text-purple-600 p-1" title="Refresh">
             <i class="fa-solid fa-rotate text-xs"></i>
@@ -510,16 +687,51 @@ async function renderMenuScreen() {
   renderStudentGrid();
 }
 
+/* ⭐ Fungsi alert kalau belum upload foto */
+function alertUploadFoto() {
+  const player = getPlayerAktif();
+  const pesan = player?.role === "guru"
+    ? "Upload foto profil dulu (di halaman Profil) untuk bisa main game."
+    : "Upload foto profil dulu untuk bisa main game.";
+  showToast(pesan, "error", 4000);
+  
+  // Scroll ke banner
+  document.querySelector(".bg-amber-50")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* ⭐ Render grid pemain siap */
 function renderStudentGrid() {
   const grid = document.getElementById("student-grid");
   if (!grid) return;
+  
+  const pemainSiap = getPemainSiap();
   grid.innerHTML = "";
-  studentsData.forEach(s => {
+  
+  if (!pemainSiap.length) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center text-slate-400 text-xs py-4">
+        <i class="fa-solid fa-users-slash text-2xl mb-2"></i>
+        <p>Belum ada pemain yang punya foto profil.</p>
+      </div>`;
+    return;
+  }
+  
+  pemainSiap.forEach(p => {
     const avatar = document.createElement("div");
-    avatar.className = "flex flex-col items-center text-center";
+    avatar.className = "flex flex-col items-center text-center relative";
+    const borderWarna = p.isGuru ? "border-indigo-500" : "border-purple-300";
+    const ringClass = p.isGuru ? "ring-2 ring-indigo-300" : "";
+    
     avatar.innerHTML = `
-      <img src="${esc(s.foto)}" class="w-9 h-9 rounded-full object-cover border-2 border-purple-300 shadow-sm" onerror="this.src='https://placehold.co/100?text=Err'">
-      <span class="text-[9px] text-gray-600 truncate w-full font-sans mt-0.5">${esc(s.nama)}</span>`;
+      <div class="relative">
+        <img src="${esc(p.foto)}" 
+             class="w-9 h-9 rounded-full object-cover border-2 ${borderWarna} shadow-sm ${ringClass}" 
+             onerror="this.src='https://placehold.co/100?text=Err'">
+        ${p.isGuru ? `<span class="absolute -top-1 -right-1 bg-indigo-600 text-white text-[7px] font-bold px-1 py-0.5 rounded-full shadow">GURU</span>` : ""}
+      </div>
+      <span class="text-[9px] ${p.isGuru ? 'text-indigo-700 font-bold' : 'text-gray-600'} truncate w-full font-sans mt-0.5">
+        ${esc(p.nama)}
+      </span>`;
     grid.appendChild(avatar);
   });
 }
@@ -527,6 +739,7 @@ function renderStudentGrid() {
 function toggleStudentList() {
   const grid = document.getElementById("student-grid");
   const btn = document.getElementById("toggle-student-btn");
+  if (!grid || !btn) return;
   if (grid.classList.contains("max-h-20")) {
     grid.classList.remove("max-h-20");
     btn.textContent = "Sembunyikan";
@@ -540,11 +753,18 @@ function toggleStudentList() {
    SIMPAN SKOR
    ========================================================= */
 async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, waktuMulai, waktuSelesai, detail }) {
-  const user = safeParse(getLS(STORAGE.USER)) || {};
-  const siswaId = String(user.siswaId || user.id || "ANON");
-  const kelas = String(user.kelas || appConfig?.kelas || "Unspecified");
+  // ⭐ Pakai currentPlayer (support guru & siswa)
+  const player = getPlayerAktif();
+  if (!player) {
+    showToast("Player tidak terdeteksi. Coba login ulang.", "error");
+    return;
+  }
+  
+  const siswaId = String(player.id);
+  const kelas = String(player.kelas || appConfig?.kelas || "Unspecified");
   const durasiDetik = Math.max(1, Math.round((waktuSelesai - waktuMulai) / 1000));
-  const namaSiswa = user.name || "Siswa";
+  const namaSiswa = player.nama || "Pemain";
+  const role = player.role || "siswa";
 
   const payload = {
     siswa_id: siswaId,
@@ -556,7 +776,7 @@ async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, wak
     waktu_mulai: waktuMulai.toISOString(),
     waktu_selesai: waktuSelesai.toISOString(),
     durasi_detik: durasiDetik,
-    detail: detail || {}
+    detail: { ...(detail || {}), role: role }
   };
 
   // 1. Simpan lokal (selalu)
@@ -564,6 +784,7 @@ async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, wak
   localScores.unshift({
     ...payload,
     nama_siswa: namaSiswa,
+    role: role,
     created_at: new Date().toISOString()
   });
   setLS("gamekelas_local_scores", JSON.stringify(localScores.slice(0, 50)));
@@ -576,7 +797,8 @@ async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, wak
         console.error("Supabase insert error:", error);
         showToast("Skor tersimpan lokal (gagal ke server).", "warning");
       } else {
-        showToast("Skor tersimpan ke server! ☁️", "success");
+        const badge = role === "guru" ? " (Guru)" : "";
+        showToast(`Skor tersimpan ke server${badge}! ☁️`, "success");
       }
     } catch (err) {
       console.error("Exception:", err);
@@ -586,30 +808,28 @@ async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, wak
     showToast("Skor tersimpan lokal.", "info");
   }
 
-  // 3. Refresh papan skor (kalau sedang di menu)
+  // 3. Refresh papan skor
   setTimeout(() => refreshScoreboard(), 500);
 }
 
 /* =========================================================
-   PAPAN SKOR (BAGIAN BARU)
+   PAPAN SKOR
    ========================================================= */
 async function refreshScoreboard() {
   const section = document.getElementById("scoreboard-section");
   const list = document.getElementById("scoreboard-list");
   if (!section || !list) return;
 
-  // Tampilkan section (kalau belum)
   section.classList.remove("hidden");
 
-  const user = safeParse(getLS(STORAGE.USER)) || {};
-  const myId = String(user.siswaId || user.id || "");
+  const player = getPlayerAktif();
+  const myId = String(player?.id || "");
 
   list.innerHTML = `<p class="text-center text-gray-400 py-4 text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</p>`;
 
   try {
     let scores = [];
 
-    // Coba Supabase dulu
     if (supabaseClient) {
       try {
         const { data, error } = await supabaseClient
@@ -621,7 +841,6 @@ async function refreshScoreboard() {
       } catch (e) { console.warn("Supabase scoreboard gagal:", e); }
     }
 
-    // Fallback: dari localStorage
     if (!scores.length) {
       const local = safeParse(getLS("gamekelas_local_scores")) || [];
       scores = local.slice(0, 10);
@@ -632,15 +851,23 @@ async function refreshScoreboard() {
       return;
     }
 
-    // Cari nama siswa
-    const getName = (sid) => {
-      const s = studentsData.find(x => String(x.id) === String(sid));
-      if (s) return s.nama;
-      if (String(sid) === myId) return user.name || "Kamu";
-      return `Siswa ${sid}`;
+    // ⭐ Info player (support guru & siswa)
+    const getPlayerInfo = (item) => {
+      const sid = String(item.siswa_id);
+      
+      if (sid.startsWith("guru_")) {
+        const guruName = fullDb?.a?.ng || item.nama_siswa || "Guru";
+        return { nama: guruName, role: "guru", isGuru: true };
+      }
+      
+      const s = studentsData.find(x => String(x.id) === sid);
+      if (s) return { nama: s.nama, role: "siswa", isGuru: false };
+      
+      if (item.nama_siswa) return { nama: item.nama_siswa, role: item.role || "siswa", isGuru: item.role === "guru" };
+      
+      return { nama: `Siswa ${sid}`, role: "siswa", isGuru: false };
     };
 
-    // Game icon & warna
     const gameInfo = {
       "tebak_muka": { icon: "fa-eye", color: "bg-yellow-100 text-yellow-700", label: "Tebak Muka" },
       "tepuk_teman": { icon: "fa-hand-pointer", color: "bg-pink-100 text-pink-700", label: "Tepuk Teman" },
@@ -651,10 +878,14 @@ async function refreshScoreboard() {
     list.innerHTML = scores.map((item, i) => {
       const isMe = String(item.siswa_id) === myId;
       const info = gameInfo[item.game_id] || { icon: "fa-gamepad", color: "bg-slate-100 text-slate-700", label: item.game_id };
-      const nama = item.nama_siswa || getName(item.siswa_id);
+      const pInfo = getPlayerInfo(item);
       const waktu = item.created_at
         ? new Date(item.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })
         : "-";
+      
+      const guruBadge = pInfo.isGuru 
+        ? `<span class="text-[8px] bg-indigo-600 text-white px-1 py-0.5 rounded-full font-bold ml-1">GURU</span>` 
+        : "";
 
       return `
         <div class="score-row flex items-center gap-2 p-2.5 rounded-xl ${isMe ? 'bg-amber-100 border-2 border-amber-300' : 'bg-slate-50 border border-slate-200'}">
@@ -662,8 +893,8 @@ async function refreshScoreboard() {
             <i class="fa-solid ${info.icon} text-xs"></i>
           </div>
           <div class="flex-1 min-w-0">
-            <div class="font-bold text-[11px] truncate ${isMe ? 'text-amber-900' : 'text-slate-800'}">
-              ${esc(nama)}${isMe ? ' <span class="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full">KAMU</span>' : ''}
+            <div class="font-bold text-[11px] truncate ${isMe ? 'text-amber-900' : 'text-slate-800'} flex items-center">
+              ${esc(pInfo.nama)}${guruBadge}${isMe ? ' <span class="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full ml-1">KAMU</span>' : ''}
             </div>
             <div class="text-[10px] text-slate-500 truncate">
               ${esc(info.label)} · ✓${item.jumlah_benar || 0} ✗${item.jumlah_salah || 0} · ${waktu}
@@ -676,7 +907,6 @@ async function refreshScoreboard() {
         </div>`;
     }).join("");
 
-    // Update subtitle
     const subtitle = document.getElementById("scoreboard-subtitle");
     if (subtitle) subtitle.textContent = `10 skor terbaru`;
 
@@ -716,23 +946,40 @@ async function openLeaderboardModal() {
       return;
     }
 
-    const getName = (sid, namaSaved) => {
-      if (namaSaved) return namaSaved;
-      const s = studentsData.find(x => String(x.id) === String(sid));
-      return s ? s.nama : `ID: ${sid}`;
+    const getPlayerInfo = (item) => {
+      const sid = String(item.siswa_id);
+      
+      if (sid.startsWith("guru_")) {
+        return { nama: fullDb?.a?.ng || item.nama_siswa || "Guru", isGuru: true };
+      }
+      
+      const s = studentsData.find(x => String(x.id) === sid);
+      if (s) return { nama: s.nama, isGuru: false };
+      
+      if (item.nama_siswa) return { nama: item.nama_siswa, isGuru: item.role === "guru" };
+      
+      return { nama: `ID: ${sid}`, isGuru: false };
     };
 
     listEl.innerHTML = scores.map(item => {
-      const nama = getName(item.siswa_id, item.nama_siswa);
+      const pInfo = getPlayerInfo(item);
       const waktu = item.created_at
         ? new Date(item.created_at).toLocaleString("id-ID", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })
         : "-";
+      
+      const guruBadge = pInfo.isGuru 
+        ? `<span class="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold ml-1">GURU</span>` 
+        : "";
+      
       return `
         <div class="flex justify-between items-center bg-yellow-50 p-3 rounded-xl border border-yellow-200">
           <div class="flex items-center gap-3">
             <span class="text-lg">🎮</span>
             <div>
-              <p class="font-bold text-gray-800 text-xs">${esc(nama)} <span class="text-[10px] text-purple-600 font-normal">(Kelas ${esc(item.kelas || '-')})</span></p>
+              <p class="font-bold text-gray-800 text-xs flex items-center">
+                ${esc(pInfo.nama)}${guruBadge}
+                <span class="text-[10px] text-purple-600 font-normal ml-1">(Kelas ${esc(item.kelas || '-')})</span>
+              </p>
               <p class="text-[10px] text-gray-500 font-mono">${esc(item.game_id)} • ✓${item.jumlah_benar || 0} ✗${item.jumlah_salah || 0} • ${waktu}</p>
             </div>
           </div>
@@ -758,7 +1005,18 @@ let currentTargetStudent = null, tebakTimerInterval = null, currentBlurLevel = 2
 const TOTAL_TEBAK_ROUNDS = 5;
 
 function startTebakGame() {
-  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  // ⭐ Cek player siap main
+  if (!playerSiapMain()) {
+    alertUploadFoto();
+    return;
+  }
+  
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 4) {
+    showToast(`Minimal 4 pemain siap (ada ${pemainSiap.length}). Ajak teman upload foto dulu!`, "error");
+    return;
+  }
+  
   tebakScore = 0; tebakRound = 1; tebakCorrectCount = 0; tebakWrongCount = 0;
   tebakStartTime = new Date();
   renderTebakScreen();
@@ -802,10 +1060,19 @@ function nextTebakRound() {
     setTimeout(() => showScreen('menu-screen'), 1500);
     return;
   }
+  
+  // ⭐ Pakai getPemainSiap()
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 4) {
+    showToast("Pemain siap kurang dari 4. Game dihentikan.", "error");
+    setTimeout(() => showScreen('menu-screen'), 1500);
+    return;
+  }
+  
   document.getElementById('tebak-score').textContent = tebakScore;
   document.getElementById('tebak-round').textContent = `${tebakRound}/${TOTAL_TEBAK_ROUNDS}`;
 
-  currentTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
+  currentTargetStudent = pemainSiap[Math.floor(Math.random() * pemainSiap.length)];
   const imgEl = document.getElementById('tebak-img');
   const blurOverlay = document.getElementById('tebak-blur-overlay');
   const timerBar = document.getElementById('tebak-timer-bar');
@@ -817,7 +1084,7 @@ function nextTebakRound() {
 
   const options = [currentTargetStudent];
   while (options.length < 4) {
-    const r = studentsData[Math.floor(Math.random() * studentsData.length)];
+    const r = pemainSiap[Math.floor(Math.random() * pemainSiap.length)];
     if (!options.find(o => o.id === r.id)) options.push(r);
   }
   options.sort(() => Math.random() - 0.5);
@@ -871,7 +1138,18 @@ let tepukScore = 0, tepukTimeLeft = 30, tepukInterval = null, tepukTimerInterval
 let tepukTarget = null, tepukStartTime = null, tepukBenar = 0, tepukSalah = 0;
 
 function startTepukGame() {
-  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  // ⭐ Cek player siap main
+  if (!playerSiapMain()) {
+    alertUploadFoto();
+    return;
+  }
+  
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 2) {
+    showToast(`Minimal 2 pemain siap (ada ${pemainSiap.length}). Ajak teman upload foto dulu!`, "error");
+    return;
+  }
+  
   renderTepukScreen();
   buildTepukGrid();
   document.getElementById('tepuk-score').textContent = '0';
@@ -937,14 +1215,19 @@ function startTepukGameLoop() {
 }
 
 function setNewTepukTarget() {
-  tepukTarget = studentsData[Math.floor(Math.random() * studentsData.length)];
+  const pemainSiap = getPemainSiap();
+  if (!pemainSiap.length) return;
+  tepukTarget = pemainSiap[Math.floor(Math.random() * pemainSiap.length)];
   document.getElementById('tepuk-target-name').textContent = `Tepuk: ${tepukTarget.nama}!`;
 }
 
 function popUpStudent() {
+  const pemainSiap = getPemainSiap();
+  if (!pemainSiap.length || !tepukTarget) return;
+  
   for (let i = 0; i < 9; i++) document.getElementById(`hole-${i}`).classList.add('translate-y-full');
   const holeIdx = Math.floor(Math.random() * 9);
-  const randomStudent = (Math.random() > 0.4) ? tepukTarget : studentsData[Math.floor(Math.random() * studentsData.length)];
+  const randomStudent = (Math.random() > 0.4) ? tepukTarget : pemainSiap[Math.floor(Math.random() * pemainSiap.length)];
   const holeEl = document.getElementById(`hole-${holeIdx}`);
   const imgEl = document.getElementById(`hole-img-${holeIdx}`);
   const nameEl = document.getElementById(`hole-name-${holeIdx}`);
@@ -992,14 +1275,25 @@ function endTepukGame() {
 let memoryCards = [], flippedCards = [], matchedCount = 0, memoryMoves = 0, memoryStartTime = null;
 
 function startMemoryGame() {
-  if (studentsData.length < 6) { showToast("Minimal 6 siswa!", "error"); return; }
+  // ⭐ Cek player siap main
+  if (!playerSiapMain()) {
+    alertUploadFoto();
+    return;
+  }
+  
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 6) {
+    showToast(`Minimal 6 pemain siap (ada ${pemainSiap.length}). Ajak teman upload foto dulu!`, "error");
+    return;
+  }
+  
   renderMemoryScreen();
   memoryMoves = 0; matchedCount = 0; flippedCards = [];
   memoryStartTime = new Date();
   document.getElementById('memory-moves').textContent = '0';
   document.getElementById('memory-matched-count').textContent = '0/6';
 
-  const shuffled = [...studentsData].sort(() => Math.random() - 0.5).slice(0, 6);
+  const shuffled = [...pemainSiap].sort(() => Math.random() - 0.5).slice(0, 6);
   let deck = [];
   shuffled.forEach((s, idx) => {
     deck.push({ id: `p_${idx}`, studentId: s.id, type: 'photo', content: s.foto, nama: s.nama });
@@ -1099,7 +1393,18 @@ let selectedLetters = [], scrambledLetters = [], susunStartTime = null, susunBen
 const TOTAL_SUSUN_ROUNDS = 5;
 
 function startSusunGame() {
-  if (studentsData.length < 4) { showToast("Minimal 4 siswa!", "error"); return; }
+  // ⭐ Cek player siap main
+  if (!playerSiapMain()) {
+    alertUploadFoto();
+    return;
+  }
+  
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 4) {
+    showToast(`Minimal 4 pemain siap (ada ${pemainSiap.length}). Ajak teman upload foto dulu!`, "error");
+    return;
+  }
+  
   susunScore = 0; susunRound = 1; susunBenar = 0; susunSalah = 0;
   susunStartTime = new Date();
   renderSusunScreen();
@@ -1145,10 +1450,19 @@ function nextSusunRound() {
     setTimeout(() => showScreen('menu-screen'), 2000);
     return;
   }
+  
+  // ⭐ Pakai getPemainSiap()
+  const pemainSiap = getPemainSiap();
+  if (pemainSiap.length < 4) {
+    showToast("Pemain siap kurang dari 4. Game dihentikan.", "error");
+    setTimeout(() => showScreen('menu-screen'), 1500);
+    return;
+  }
+  
   document.getElementById('susun-score').textContent = susunScore;
   document.getElementById('susun-round').textContent = `${susunRound}/${TOTAL_SUSUN_ROUNDS}`;
 
-  susunTargetStudent = studentsData[Math.floor(Math.random() * studentsData.length)];
+  susunTargetStudent = pemainSiap[Math.floor(Math.random() * pemainSiap.length)];
   document.getElementById('susun-img').src = susunTargetStudent.foto;
 
   const cleanName = susunTargetStudent.nama.replace(/\s+/g, '').toUpperCase();
@@ -1201,18 +1515,49 @@ function resetCurrentSusunRound() {
 }
 
 /* =========================================================
+   P8: BOOT LOG & SAFETY CHECK
+   ========================================================= */
+function bootLogAndSafetyCheck() {
+  const VERSION = "v2.0-guru-support";
+  console.log(`%c🎮 Game Kelas ${VERSION}`, "background:#6366f1;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold;");
+  
+  const requiredFns = [
+    "getPlayerAktif", "cekPunyaFoto", "getPemainSiap", "playerSiapMain",
+    "alertUploadFoto", "renderStudentGrid", "refreshScoreboard",
+    "openLeaderboardModal", "startTebakGame", "startTepukGame",
+    "startMemoryGame", "startSusunGame"
+  ];
+  
+  const missing = requiredFns.filter(fn => typeof window[fn] !== "function");
+  if (missing.length) {
+    console.error("❌ Fungsi hilang:", missing);
+    showToast(`Warning: ${missing.length} fungsi belum terdefinisi`, "warning");
+  } else {
+    console.log(`✅ Semua ${requiredFns.length} fungsi inti terdefinisi.`);
+  }
+  
+  // Update badge
+  const badge = document.getElementById("data-status-badge");
+  if (badge) badge.textContent = `Game Kelas ${VERSION}`;
+}
+
+/* =========================================================
    INIT
    ========================================================= */
 window.addEventListener("load", async () => {
   console.log("🎮 Game Kelas siap. Cek session...");
+  
+  // P8: Boot log & safety check
+  bootLogAndSafetyCheck();
 
   const hasil = await tryAutoLogin();
 
   if (hasil.ok) {
-    showToast(`Halo ${hasil.user.name}! 🎮`, "success");
+    const roleInfo = hasil.user.role === "guru" ? "Guru" : "Siswa";
+    showToast(`Halo ${hasil.user.name}! (${roleInfo}) 🎮`, "success");
     showScreen("menu-screen");
 
-    // ⭐ Tampilkan papan skor setelah 500ms (refresh skor)
+    // ⭐ Refresh skor setelah 500ms
     setTimeout(() => {
       refreshScoreboard();
     }, 500);
