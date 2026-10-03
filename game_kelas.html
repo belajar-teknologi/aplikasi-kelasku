@@ -170,6 +170,8 @@ function normalizeStudents(db) {
   return rawSw.map((s, idx) => {
     if (Array.isArray(s)) {
       // Format EduSmart LMS: [id, noAbsen, nis, nama, kelas, jk, username, password, ttl, tgl, alamat, fotoUrl]
+      // ⭐ FOTO: kosongkan kalau tidak ada (jangan pakai placeholder)
+      const fotoUrl = s[11] ? String(s[11]).trim() : "";
       return {
         id: s[0] || `S${idx + 1}`,
         noAbsen: s[1] || idx + 1,
@@ -177,9 +179,10 @@ function normalizeStudents(db) {
         nama: s[3] || `Siswa ${idx + 1}`,
         kelas: s[4] || "",
         jk: s[5] || "",
-        foto: s[11] || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s[3] || "S").charAt(0))}`
+        foto: (fotoUrl && fotoUrl !== "null" && fotoUrl !== "undefined") ? fotoUrl : ""
       };
     }
+    const fotoUrl = (s.foto || s.fotoUrl || s.photo || "").trim();
     return {
       id: s.id || `S${idx + 1}`,
       noAbsen: s.noAbsen || idx + 1,
@@ -187,7 +190,7 @@ function normalizeStudents(db) {
       nama: s.nama || s.name || `Siswa ${idx + 1}`,
       kelas: s.kelas || "",
       jk: s.jk || "",
-      foto: s.foto || s.fotoUrl || s.photo || `https://placehold.co/200x200/6366f1/ffffff?text=${encodeURIComponent((s.nama || "S").charAt(0))}`
+      foto: (fotoUrl && fotoUrl !== "null" && fotoUrl !== "undefined") ? fotoUrl : ""
     };
   }).filter(s => s.nama && !s.nama.toLowerCase().includes("tanpa nama"));
 }
@@ -1099,18 +1102,35 @@ function nextTebakRound() {
     optContainer.appendChild(btn);
   });
 
-  if (tebakTimerInterval) clearInterval(tebakTimerInterval);
-  let timeLeft = 100;
+    if (tebakTimerInterval) clearInterval(tebakTimerInterval);
+  
+  // ⭐ Timer 2 fase:
+  // FASE 1 (10 detik): blur berkurang perlahan
+  // FASE 2 (3 detik): blur hilang total, siswa bisa lihat jelas
+  let timeLeft = 100;        // Fase blur (100% → 0%)
+  let holdTime = 30;         // Fase jeda (3 detik × 10 tick)
+  const TICK = 100;          // 100ms per tick
+  
   tebakTimerInterval = setInterval(() => {
-    timeLeft -= 2;
-    timerBar.style.width = `${timeLeft}%`;
-    currentBlurLevel = Math.max(0, currentBlurLevel - 0.5);
-    blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
-    if (timeLeft <= 0) {
+    if (timeLeft > 0) {
+      // FASE 1: blur berkurang
+      timeLeft -= 2;
+      timerBar.style.width = `${timeLeft}%`;
+      currentBlurLevel = Math.max(0, currentBlurLevel - 0.5);
+      blurOverlay.style.backdropFilter = `blur(${currentBlurLevel}px)`;
+    } else if (holdTime > 0) {
+      // FASE 2: blur 0, jeda 3 detik
+      holdTime--;
+      // Bar tetap 0%, warna berubah jadi merah (tanda waktu hampir habis)
+      if (holdTime === 30) {
+        timerBar.style.background = 'linear-gradient(to right, #f87171, #dc2626)';
+      }
+    } else {
+      // FASE 3: waktu habis
       clearInterval(tebakTimerInterval);
       handleTebakAnswer(null);
     }
-  }, 100);
+  }, TICK);
 }
 
 function handleTebakAnswer(selectedId, btnEl = null) {
