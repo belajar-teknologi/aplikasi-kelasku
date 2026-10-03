@@ -676,37 +676,101 @@ async function updateJsonBinDB() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`); setLS("edusmart_last_sync", new Date().toISOString()); return true;
   } catch(err) { console.warn("JSONBin sync gagal:", err); return false; }
 }
-// ⭐ BARU — Fungsi khusus update foto siswa (aman, tidak menimpa data lain)
+// ⭐ BARU v2 — Update foto siswa dengan RETRY + VERIFIKASI
 async function updateJsonBinFotoSiswa(siswaId, fotoUrl) {
   const cfg = getAppConfig();
   const cred = getJsonBinCredential();
   if (!cfg?.binId || !cred) throw new Error("Kredensial belum siap.");
   
-  // 1. Baca data terbaru dari server (jangan pakai cache lokal)
-  const getRes = await fetch(
-    `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}/latest?meta=false`,
-    { cache: "no-store", headers: getJsonBinHeaders(cred) }
-  );
-  if (!getRes.ok) throw new Error("Gagal baca bin terbaru.");
-  const latest = await getRes.json();
+  const MAX_RETRY = 5;
+  const headersGET = getJsonBinHeaders(cred);
+  const headersPUT = getJsonBinHeaders(cred, true);
   
-  // 2. Cari siswa, update HANYA field foto
-  const sw = (latest.sw || []).find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
-  if (!sw) throw new Error("Siswa tidak ditemukan di server.");
-  sw[FIELD.SISWA.FOTO] = fotoUrl;
-  
-  // 3. PUT kembali ke JSONBin
-  const putRes = await fetch(
-    `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`,
-    {
-      method: "PUT",
-      headers: getJsonBinHeaders(cred, true),
-      body: JSON.stringify(latest)
+  for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+    try {
+      // 1. BACA data terbaru (selalu fresh)
+      const getRes = await fetch(
+        `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}/latest?meta=false`,
+        { cache: "no-store", headers: headersGET }
+      );
+      if (!getRes.ok) throw new Error(`Baca HTTP ${getRes.status}`);
+      const latest = await getRes.json();
+      
+      // 2. Update field foto siswa
+      const sw = (latest.sw || []).find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
+      if (!sw) throw new Error("Siswa tidak ditemukan.");
+      sw[FIELD.SISWA.FOTO] = fotoUrl;
+      
+      // 3. PUT kembali ke JSONBin
+      const putRes = await fetch(
+        `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`,
+        { method: "PUT", headers: headersPUT, body: JSON.stringify(latest) }
+      );
+      if (!putRes.ok) throw new Error(`PUT HTTP ${putRes.status}`);
+      
+      // 4. VERIFIKASI — baca ulang untuk pastikan tersimpan
+      await new Promise(r => setTimeout(r, 300));
+      const verifyRes = await fetch(
+        `${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}/latest?meta=false`,
+        { cache: "no-store", headers: headersGET }
+      );
+      const verified = await verifyRes.json();
+      const swV = (verified.sw || []).find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
+      
+      if (swV && String(swV[FIELD.SISWA.FOTO]) === String(fotoUrl)) {
+        console.log(`[Foto] ✓ Tersimpan siswa ${siswaId} (attempt ${attempt})`);
+        return true;
+      }
+      
+      console.warn(`[Foto] Verifikasi gagal attempt ${attempt}, retry...`);
+      await new Promise(r => setTimeout(r, 500 * attempt));
+    } catch (err) {
+      console.warn(`[Foto] Attempt ${attempt} gagal:`, err.message);
+      if (attempt === MAX_RETRY) throw new Error(`Gagal setelah ${MAX_RETRY} percobaan`);
+      await new Promise(r => setTimeout(r, 500 * attempt));
     }
-  );
-  if (!putRes.ok) throw new Error("Gagal simpan ke JSONBin.");
-  return true;
+  }
+  throw new Error("Gagal upload foto.");
 }
+
+// ⭐ FUNGSI RECOVERY — Pulihkan foto siswa yang URL-nya masih ada
+async function pulihkanFotoSiswa(siswaId, fotoUrl) {
+  showLoading(true, `Memulihkan foto siswa ${siswaId}...`);
+  try {
+    await updateJsonBinFotoSiswa(siswaId, fotoUrl);
+    const sw = appState.db.sw.find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
+    if (sw) sw[FIELD.SISWA.FOTO] = fotoUrl;
+    saveLocal();
+    showLoading(false);
+    showToast(`✓ Foto siswa ${siswaId} dipulihkan.`, "success");
+    return true;
+  } catch(err) {
+    showLoading(false);
+    showToast(`Gagal: ${err.message}`, "error");
+    return false;
+  }
+}
+
+async function pulihkanFotoBatch(fotoMap) {
+  const entries = Object.entries(fotoMap);
+  let sukses = 0, gagal = 0;
+  showLoading(true, `Memulihkan ${entries.length} foto...`);
+  for (const [siswaId, fotoUrl] of entries) {
+    try {
+      await updateJsonBinFotoSiswa(Number(siswaId), fotoUrl);
+      const sw = appState.db.sw.find(s => String(s[FIELD.SISWA.ID]) === String(siswaId));
+      if (sw) sw[FIELD.SISWA.FOTO] = fotoUrl;
+      sukses++;
+    } catch(err) {
+      gagal++;
+      console.error(`✗ Siswa ${siswaId} gagal:`, err.message);
+    }
+  }
+  saveLocal();
+  showLoading(false);
+  showToast(`✓ ${sukses} foto dipulihkan, ${gagal} gagal.`, "success");
+}
+
 async function loadJsonBinDB(binId, cred) {
   const c=cred||getJsonBinCredential(); const h={}; if (c) h[c.type==="access"?"X-Access-Key":"X-Master-Key"]=c.key;
   const res=await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(binId)}/latest?meta=false`, { cache:"no-store", headers: h });
