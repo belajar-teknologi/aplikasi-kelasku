@@ -126,6 +126,9 @@ input[type="text"], input[type="number"], input[type="date"], input[type="passwo
 <div id="sync-badge" class="px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm">
 <span class="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></span><span class="hidden sm:inline">SIAP</span>
 </div>
+<button id="btn-refresh-data" onclick="forceRefreshData()" class="bg-indigo-600 hover:bg-indigo-500 text-xs p-2 rounded-lg font-medium transition flex items-center gap-1.5" title="Refresh Data">
+<i class="fa-solid fa-rotate"></i><span class="hidden md:inline header-action-text">Refresh</span>
+</button>
 <button id="btn-info-pengembang" onclick="showInfoPengembang()" class="bg-indigo-600 hover:bg-indigo-500 text-xs p-2 rounded-lg font-medium transition flex items-center gap-1.5" title="Info Pengembang">
 <i class="fa-solid fa-circle-info"></i><span class="hidden md:inline header-action-text">Info</span>
 </button>
@@ -676,6 +679,141 @@ async function updateJsonBinDB() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`); setLS("edusmart_last_sync", new Date().toISOString()); return true;
   } catch(err) { console.warn("JSONBin sync gagal:", err); return false; }
 }
+/* ⭐ Simpan hanya data inti ke JSONBin (hemat kuota) */
+async function updateJsonBinDB_Lite() {
+  const cfg = getAppConfig();
+  const cred = getJsonBinCredential();
+  if (!cfg?.binId || !cred) return false;
+  
+  try {
+    const dbLite = {
+      v: appState.db.v,
+      a: appState.db.a,
+      cfg: appState.db.cfg,
+      mn: appState.menus,
+      md: appState.db.md,
+      sw: appState.db.sw,
+      mp: appState.db.mp,
+      nc: appState.db.nc,
+      ncPerMapel: appState.db.ncPerMapel,
+      pg: appState.db.pg || [],
+      hk: appState.db.hk || [],
+      al: appState.db.al || [],
+      ll: appState.db.ll || [],
+      km: appState.db.km || []
+    };
+    
+    const res = await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`, {
+      method: "PUT",
+      headers: getJsonBinHeaders(cred, true),
+      body: JSON.stringify(dbLite)
+    });
+    
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    setLS("edusmart_last_sync", new Date().toISOString());
+    console.log("[JSONBin Lite] ✓ Tersimpan tanpa ab/nl/jr");
+    return true;
+  } catch(err) {
+    console.warn("[JSONBin Lite] Gagal:", err);
+    return false;
+  }
+}
+/* ⭐ AUTO-REFRESH HARIAN (24 jam) + Tombol Manual — super hemat */
+async function refreshDataDariCloud(force) {
+  const cfg = getAppConfig();
+  if (!cfg?.binId) return false;
+  
+  if (!force) {
+    // Cek apakah sudah lewat 24 jam sejak refresh terakhir
+    const lastRefresh = Number(localStorage.getItem("edusmart_last_auto_refresh") || 0);
+    const elapsed = Date.now() - lastRefresh;
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    
+    if (elapsed < ONE_DAY) {
+      const jam = Math.floor(elapsed / 3600000);
+      const sisaJam = Math.ceil((ONE_DAY - elapsed) / 3600000);
+      console.log(`[Refresh] Skip — ${jam} jam lalu (sisa ${sisaJam} jam)`);
+      return false;
+    }
+  }
+  
+  try {
+    console.log("[Refresh] Fetching data dari JSONBin...");
+    const freshDb = await loadJsonBinDB(cfg.binId);
+    if (!freshDb) return false;
+    
+    // Update data yang relevan (JANGAN timpa currentUser & menus)
+    if (freshDb.ab) appState.db.ab = freshDb.ab;
+    if (freshDb.nl) appState.db.nl = freshDb.nl;
+    if (freshDb.jr) appState.db.jr = freshDb.jr;
+    if (freshDb.sw) appState.db.sw = freshDb.sw;
+    if (freshDb.mp) appState.db.mp = freshDb.mp;
+    if (freshDb.pg) appState.db.pg = freshDb.pg;
+    if (freshDb.hk) appState.db.hk = freshDb.hk;
+    if (freshDb.ncPerMapel) appState.db.ncPerMapel = freshDb.ncPerMapel;
+    if (freshDb.md) appState.db.md = freshDb.md;
+    if (freshDb.a) appState.db.a = { ...appState.db.a, ...freshDb.a };
+    
+    saveLocal();
+    localStorage.setItem("edusmart_last_auto_refresh", Date.now());
+    console.log("[Refresh] ✓ Data berhasil di-refresh");
+    return true;
+  } catch(e) {
+    console.warn("[Refresh] ✗ Gagal:", e.message);
+    return false;
+  }
+}
+
+/* ⭐ Force refresh — untuk tombol manual */
+async function forceRefreshData() {
+  showLoading(true, "Memperbarui data...");
+  const ok = await refreshDataDariCloud(true);
+  showLoading(false);
+  
+  if (ok) {
+    showToast("✓ Data diperbarui", "success");
+    renderMainContent();
+  } else {
+    showToast("Gagal refresh, coba lagi", "error");
+  }
+}
+
+/* ⭐ KURIR SIMPAN: Coba Supabase dulu, gagal → JSONBin, gagal → Lokal */
+async function saveWithFallback(namaOperasi, supabaseFn, jsonbinFn) {
+  const hasil = { supabase: false, jsonbin: false, local: false, sumber: "none" };
+  
+  // TAHAP 1: Coba Supabase (utama)
+  try {
+    console.log("[Save] " + namaOperasi + ": mencoba Supabase...");
+    await supabaseFn();
+    hasil.supabase = true;
+    hasil.sumber = "supabase";
+    console.log("[Save] OK " + namaOperasi + ": Supabase berhasil");
+    return hasil;
+  } catch(e) {
+    console.warn("[Save] Supabase gagal: " + e.message);
+  }
+  
+  // TAHAP 2: Fallback ke JSONBin (cadangan)
+  try {
+    console.log("[Save] " + namaOperasi + ": fallback ke JSONBin...");
+    await jsonbinFn();
+    hasil.jsonbin = true;
+    hasil.sumber = "jsonbin";
+    console.log("[Save] OK " + namaOperasi + ": JSONBin berhasil");
+    return hasil;
+  } catch(e) {
+    console.warn("[Save] JSONBin gagal: " + e.message);
+  }
+  
+  // TAHAP 3: Simpan lokal saja
+  saveLocal();
+  hasil.local = true;
+  hasil.sumber = "local";
+  console.log("[Save] Hanya lokal: " + namaOperasi);
+  return hasil;
+}
+
 // ⭐ BARU v2 — Update foto siswa dengan RETRY + VERIFIKASI
 async function updateJsonBinFotoSiswa(siswaId, fotoUrl) {
   const cfg = getAppConfig();
@@ -1507,7 +1645,7 @@ async function simpanMasterData() {
   else if (tab==="akademik") { md.ak.jp=(document.getElementById("md-jp")?.value||"").split(",").map(s=>s.trim()).filter(Boolean); md.ak.kd=Number(document.getElementById("md-kd")?.value)||75; md.ak.kl=(document.getElementById("md-kl")?.value||"").split(",").map(s=>s.trim()).filter(Boolean); }
   else if (tab==="sekolah") { md.sk.al=document.getElementById("md-al")?.value.trim()||""; md.sk.em=document.getElementById("md-em")?.value.trim()||""; md.sk.tp=document.getElementById("md-tp")?.value.trim()||""; md.sk.np=document.getElementById("md-np")?.value.trim()||""; md.sk.wb=document.getElementById("md-wb")?.value.trim()||""; }
   saveLocal(); addActivity("simpan_master","Update Master Data"); showLoading(true,"Menyimpan...");
-  const ok=await updateJsonBinDB(); showLoading(false);
+  const ok=await updateJsonBinDB_Lite(); showLoading(false);
   if (ok) { showToast("✓ Tersimpan.","success"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
   renderMainContent();
 }
@@ -1575,7 +1713,7 @@ async function saveBulkSiswa() {
   window.__bulkSiswaDraft.forEach(s=>{ s.id=nextId(appState.db.sw); appState.db.sw.push(siswaArr(s)); });
   const total=window.__bulkSiswaDraft.length; window.__bulkSiswaDraft=[];
   saveLocal(); setSyncBadge(true); addActivity("tambah_siswa",`Tambah ${total} siswa`); showLoading(true,"Menyimpan...");
-  const ok=await updateJsonBinDB(); showLoading(false);
+  const ok=await updateJsonBinDB_Lite(); showLoading(false);
   if (ok) { showToast(`✓ ${total} siswa disimpan.`,"success"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
   closeModal(); renderMainContent();
 }
@@ -1677,17 +1815,88 @@ function renderAbsensi(c) {
   </div>`;
 }
 async function saveAbsen() {
-  const tgl=document.getElementById("absen-tgl").value; if (!tgl) { showToast("Tanggal wajib.","error"); return; }
-  appState.db.ab=appState.db.ab||[]; let n=0;
-  (appState.db.sw||[]).forEach(sw=>{
-    const sid=sw[FIELD.SISWA.ID]; const st=window.__absensiDraft[sid]||"H"; const id=`${tgl}_${sid}`;
-    const ex=appState.db.ab.find(a=>String(a[FIELD.ABSEN.ID])===id);
-    if (ex) ex[FIELD.ABSEN.STATUS]=st; else appState.db.ab.push(absenArr({ id, tanggal: tgl, siswaId: sid, status: st })); n++;
+  const tgl = document.getElementById("absen-tgl").value;
+  if (!tgl) { showToast("Tanggal wajib.", "error"); return; }
+  
+  appState.db.ab = appState.db.ab || [];
+  const rowsToUpsert = [];
+  let n = 0;
+  
+  // ════ TAHAP 0: Update state lokal dulu (cepat) ════
+  (appState.db.sw || []).forEach(sw => {
+    const sid = sw[FIELD.SISWA.ID];
+    const st = window.__absensiDraft[sid] || "H";
+    const id = `${tgl}_${sid}`;
+    
+    const ex = appState.db.ab.find(a => String(a[FIELD.ABSEN.ID]) === id);
+    if (ex) {
+      ex[FIELD.ABSEN.STATUS] = st;
+    } else {
+      appState.db.ab.push(absenArr({ id, tanggal: tgl, siswaId: sid, status: st }));
+      n++;
+    }
+    
+    rowsToUpsert.push({
+      id: String(id),
+      tanggal: tgl,
+      siswa_id: String(sid),
+      status: st,
+      updated_at: new Date().toISOString()
+    });
   });
-  saveLocal(); addActivity("input_absensi",`Input absensi ${tgl} (${n} siswa)`); showLoading(true,"Menyimpan...");
-  const okJB=await updateJsonBinDB(); let okSB=false; const sb=getSupabaseConfig();
-  if (sb) { try { await sbUpsert("absensi", appState.db.ab.map(arr=>{ const o=absenToObj(arr); return { id:String(o.id), tanggal:o.tanggal, siswa_id:String(o.siswaId), status:o.status, updated_at:new Date().toISOString() }; })); okSB=true; } catch(e) {} }
-  showLoading(false); if (okJB||okSB) setSyncBadge(false); showToast(`✓ Absensi ${n} siswa.`,"success"); renderMainContent();
+  
+  saveLocal();
+  addActivity("input_absensi", `Input absensi ${tgl} (${n} siswa)`);
+  showLoading(true, "Menyimpan...");
+  
+  // ════ TAHAP 1-3: Pakai saveWithFallback (Supabase → JSONBin → Lokal) ════
+  const hasil = await saveWithFallback(
+    `Absensi ${tgl}`,
+    // ─── Fungsi Supabase (utama) ───
+    async () => {
+      const sb = getSupabaseConfig();
+      if (!sb) throw new Error("Supabase belum dikonfigurasi");
+      
+      const res = await fetch(`${sb.url}/rest/v1/absensi`, {
+        method: "POST",
+        headers: {
+          "apikey": sb.key,
+          "Authorization": `Bearer ${sb.key}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rowsToUpsert)
+      });
+      
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status}: ${err}`);
+      }
+    },
+    // ─── Fungsi JSONBin (cadangan) ───
+    async () => {
+      const ok = await updateJsonBinDB();
+      if (!ok) throw new Error("JSONBin sync gagal");
+    }
+  );
+  
+  showLoading(false);
+  
+  // ════ TAHAP 4: Feedback jujur ke user ════
+  if (hasil.sumber === "supabase") {
+    setSyncBadge(false, "SUPABASE");
+    showToast(`✓ Absensi ${n} siswa tersimpan ke Supabase.`, "success");
+  } else if (hasil.sumber === "jsonbin") {
+    setSyncBadge(false, "JSONBIN");
+    showToast(`⚠️ Supabase down, tersimpan ke JSONBin (cadangan).`, "info");
+  } else if (hasil.sumber === "local") {
+    setSyncBadge(true, "OFFLINE");
+    showToast(`❌ Cloud down, tersimpan LOKAL saja. Coba lagi nanti.`, "error");
+  } else {
+    showToast(`❌ Gagal simpan absensi.`, "error");
+  }
+  
+  renderMainContent();
 }
 
 /* =========================================================
@@ -1751,16 +1960,74 @@ function updateNilai(sid, mk, col, val) {
   saveLocal(); setSyncBadge(true);
 }
 async function saveAllNilai(mk) {
-  saveLocal(); addActivity("input_nilai",`Input nilai ${mk}`); showLoading(true,"Menyimpan...");
-  const okJB=await updateJsonBinDB(); let okSB=false; const sb=getSupabaseConfig();
-  if (sb) {
-    try {
-      const nc=getKomponenByMapel(mk);
-      const rows=appState.db.nl.filter(arr=>arr[FIELD.NILAI.MAPEL_KODE]===mk).map(arr=>{ const o=nilaiToObj(arr,nc); return { id:String(o.id), siswa_id:String(o.siswaId), mapel_kode:o.mapelKode, scores:o.scores, updated_at:new Date().toISOString() }; });
-      await sbUpsert("nilai", rows); okSB=true;
-    } catch(e) {}
+  // ════ TAHAP 0: Update state lokal dulu ════
+  saveLocal();
+  addActivity("input_nilai", `Input nilai ${mk}`);
+  showLoading(true, "Menyimpan...");
+  
+  // Siapkan data yang akan dikirim
+  const nc = getKomponenByMapel(mk);
+  const rowsToUpsert = appState.db.nl
+    .filter(arr => arr[FIELD.NILAI.MAPEL_KODE] === mk)
+    .map(arr => {
+      const o = nilaiToObj(arr, nc);
+      return {
+        id: String(o.id),
+        siswa_id: String(o.siswaId),
+        mapel_kode: o.mapelKode,
+        scores: o.scores,
+        updated_at: new Date().toISOString()
+      };
+    });
+  
+  // ════ TAHAP 1-3: Pakai saveWithFallback ════
+  const hasil = await saveWithFallback(
+    `Nilai ${mk}`,
+    // ─── Fungsi Supabase (utama) ───
+    async () => {
+      const sb = getSupabaseConfig();
+      if (!sb) throw new Error("Supabase belum dikonfigurasi");
+      
+      const res = await fetch(`${sb.url}/rest/v1/nilai`, {
+        method: "POST",
+        headers: {
+          "apikey": sb.key,
+          "Authorization": `Bearer ${sb.key}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rowsToUpsert)
+      });
+      
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status}: ${err}`);
+      }
+    },
+    // ─── Fungsi JSONBin (cadangan) ───
+    async () => {
+      const ok = await updateJsonBinDB();
+      if (!ok) throw new Error("JSONBin sync gagal");
+    }
+  );
+  
+  showLoading(false);
+  
+  // ════ TAHAP 4: Feedback jujur ════
+  if (hasil.sumber === "supabase") {
+    setSyncBadge(false, "SUPABASE");
+    showToast(`✓ Nilai ${mk} (${rowsToUpsert.length} baris) tersimpan ke Supabase.`, "success");
+  } else if (hasil.sumber === "jsonbin") {
+    setSyncBadge(false, "JSONBIN");
+    showToast(`⚠️ Supabase down, nilai ${mk} tersimpan ke JSONBin (cadangan).`, "info");
+  } else if (hasil.sumber === "local") {
+    setSyncBadge(true, "OFFLINE");
+    showToast(`❌ Cloud down, nilai ${mk} tersimpan LOKAL saja.`, "error");
+  } else {
+    showToast(`❌ Gagal simpan nilai ${mk}.`, "error");
   }
-  showLoading(false); if (okJB||okSB) setSyncBadge(false); showToast(`✓ Nilai ${mk} tersimpan.`,"success"); renderMainContent();
+  
+  renderMainContent();
 }
 function showAddKomponen() {
   const mk=window.__penilaianMapel; const mapel=(appState.db.mp||[]).map(mapelToObj).find(m=>m.kode===mk);
@@ -1974,14 +2241,84 @@ function addJurnal() {
   window.__jurnalDraft.push(j); document.getElementById("jr-topik").value=""; document.getElementById("jr-catatan").value=""; renderJurnalDraft();
 }
 async function saveJurnal() {
-  if (!window.__jurnalDraft.length) { showToast("Draft kosong.","error"); return; }
-  appState.db.jr=appState.db.jr||[];
-  window.__jurnalDraft.forEach(j=>{ j.id=nextId(appState.db.jr); appState.db.jr.push(jurnalArr(j)); });
-  const total=window.__jurnalDraft.length; window.__jurnalDraft=[];
-  saveLocal(); addActivity("input_jurnal",`Input ${total} jurnal`); showLoading(true,"Menyimpan...");
-  const okJB=await updateJsonBinDB(); let okSB=false; const sb=getSupabaseConfig();
-  if (sb) { try { await sbUpsert("jurnal", appState.db.jr.map(arr=>{ const o=jurnalToObj(arr); return { id:String(o.id), tanggal:o.tanggal, kelas:o.kelas, mapel:o.mapel, topik:o.topik, catatan:o.catatan, updated_at:new Date().toISOString() }; })); okSB=true; } catch(e) {} }
-  showLoading(false); if (okJB||okSB) setSyncBadge(false); showToast(`✓ ${total} jurnal disimpan.`,"success"); renderMainContent();
+  if (!window.__jurnalDraft.length) { showToast("Draft kosong.", "error"); return; }
+  
+  // ════ TAHAP 0: Update state lokal dulu ════
+  appState.db.jr = appState.db.jr || [];
+  window.__jurnalDraft.forEach(j => {
+    j.id = nextId(appState.db.jr);
+    appState.db.jr.push(jurnalArr(j));
+  });
+  
+  const total = window.__jurnalDraft.length;
+  window.__jurnalDraft = [];
+  
+  saveLocal();
+  addActivity("input_jurnal", `Input ${total} jurnal`);
+  showLoading(true, "Menyimpan...");
+  
+  // Siapkan data untuk Supabase
+  const rowsToUpsert = appState.db.jr.map(arr => {
+    const o = jurnalToObj(arr);
+    return {
+      id: String(o.id),
+      tanggal: o.tanggal,
+      kelas: o.kelas,
+      mapel: o.mapel,
+      topik: o.topik,
+      catatan: o.catatan,
+      updated_at: new Date().toISOString()
+    };
+  });
+  
+  // ════ TAHAP 1-3: Pakai saveWithFallback ════
+  const hasil = await saveWithFallback(
+    `Jurnal`,
+    // ─── Fungsi Supabase (utama) ───
+    async () => {
+      const sb = getSupabaseConfig();
+      if (!sb) throw new Error("Supabase belum dikonfigurasi");
+      
+      const res = await fetch(`${sb.url}/rest/v1/jurnal`, {
+        method: "POST",
+        headers: {
+          "apikey": sb.key,
+          "Authorization": `Bearer ${sb.key}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rowsToUpsert)
+      });
+      
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`HTTP ${res.status}: ${err}`);
+      }
+    },
+    // ─── Fungsi JSONBin (cadangan) ───
+    async () => {
+      const ok = await updateJsonBinDB();
+      if (!ok) throw new Error("JSONBin sync gagal");
+    }
+  );
+  
+  showLoading(false);
+  
+  // ════ TAHAP 4: Feedback jujur ════
+  if (hasil.sumber === "supabase") {
+    setSyncBadge(false, "SUPABASE");
+    showToast(`✓ ${total} jurnal tersimpan ke Supabase.`, "success");
+  } else if (hasil.sumber === "jsonbin") {
+    setSyncBadge(false, "JSONBIN");
+    showToast(`⚠️ Supabase down, ${total} jurnal tersimpan ke JSONBin (cadangan).`, "info");
+  } else if (hasil.sumber === "local") {
+    setSyncBadge(true, "OFFLINE");
+    showToast(`❌ Cloud down, jurnal tersimpan LOKAL saja.`, "error");
+  } else {
+    showToast(`❌ Gagal simpan jurnal.`, "error");
+  }
+  
+  renderMainContent();
 }
 
 /* =========================================================
