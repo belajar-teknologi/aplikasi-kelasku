@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Arcade Kelas Super Fun</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  body { 
+    font-family: 'Fredoka', cursive, sans-serif; 
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%); 
+    min-height: 100vh; 
+    color: #f8fafc;
+  }
+  .bounce-hover:hover { 
+    transform: scale(1.05) rotate(-1deg); 
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+  }
+  .glow-box {
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+  .score-row { animation: slideIn 0.3s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  
+  /* Game Canvas & Play Area Custom CSS */
+  .game-area {
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+  }
+  
+  @keyframes floatUp {
+    0% { transform: translateY(100%) scale(0.8); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-120%) scale(1); opacity: 0; }
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.5); }
+    50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.9); }
+  }
+
+  .pulse-glow { animation: pulseGlow 2s infinite; }
+</style>
+</head>
+<body class="p-3 md:p-6 flex flex-col justify-between items-center min-h-screen">
+
+<!-- Header -->
+<header class="w-full max-w-4xl flex justify-between items-center mb-4 bg-slate-900/80 backdrop-blur-md px-5 py-3 rounded-2xl shadow-xl border border-slate-700/60">
+  <div class="flex items-center space-x-3 cursor-pointer" onclick="showScreen('menu-screen')">
+    <span class="text-3xl">🕹️</span>
+    <div>
+      <h1 class="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-pink-400 to-purple-400">Arcade Kelas Fun</h1>
+      <p class="text-xs text-slate-400 font-sans" id="data-status-badge">Memuat status...</p>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <button onclick="openLeaderboardModal()" class="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-amber-500/40">
+      <i class="fa-solid fa-trophy text-amber-400"></i> Skor
+    </button>
+    <a href="./index.html" class="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold rounded-xl text-xs transition flex items-center gap-1 border border-red-500/40" title="Kembali ke Dashboard">
+      <i class="fa-solid fa-house"></i> Dashboard
+    </a>
+  </div>
+</header>
+
+<!-- Toast Notification -->
+<div id="toast-message" class="hidden fixed top-5 left-1/2 transform -translate-x-1/2 z-[60] bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 transition-all duration-300">
+  <i id="toast-icon" class="fa-solid fa-circle-info text-yellow-400 text-xl"></i>
+  <span id="toast-text" class="text-sm font-semibold">Pesan notifikasi...</span>
+</div>
+
+<!-- MAIN CONTAINER -->
+<main class="w-full max-w-4xl flex-grow flex justify-center items-start">
+  <div id="main-view-container" class="w-full"></div>
+</main>
+
+<!-- Leaderboard Modal -->
+<div id="leaderboard-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex justify-center items-center p-4">
+  <div class="bg-slate-900 w-full max-w-lg rounded-3xl p-6 shadow-2xl border-2 border-amber-400/50 relative max-h-[85vh] flex flex-col text-slate-100">
+    <button onclick="closeLeaderboardModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+    <div class="text-center mb-4">
+      <h3 class="text-xl font-black text-amber-400 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-trophy text-amber-400"></i> Papan Skor Arcade
+      </h3>
+      <p class="text-xs text-slate-400 font-sans">Riwayat nilai game arcade terbaru di kelas</p>
+    </div>
+    <div id="leaderboard-list" class="flex-1 overflow-y-auto space-y-2 pr-1 font-sans text-xs">
+      <p class="text-center text-slate-500 py-6">Memuat riwayat skor...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   KONFIGURASI & STATE GLOBAL (Sama Persis dengan Game Kelas)
+   ========================================================= */
+const STORAGE = {
+  USER: "edusmart_user",
+  APP_CONFIG: "edusmart_app_config",
+  JSONBIN_KEY: "edusmart_jsonbin_api_key",
+  JSONBIN_TYPE: "edusmart_jsonbin_key_type",
+  DB_LOCAL: "edusmart_db"
+};
+
+let studentsData = [];        // [{ id, nama, kelas, foto }]
+let appConfig = null;         // { binId, namaSekolah, kelas }
+let fullDb = null;            // data dari JSONBin
+let supabaseClient = null;    // Supabase client
+
+/* Player aktif (guru atau siswa) */
+let currentPlayer = null;     // { id, nama, kelas, foto, role }
+
+/* Timers & Audio FX */
+let gameInterval = null;
+let gameTimer = null;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'correct') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    } else if (type === 'wrong') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+      osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.2); // A2
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    } else if (type === 'pop') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    }
+  } catch(e) {}
+}
+
+/* =========================================================
+   HELPER DASAR
+   ========================================================= */
+function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
+const getLS = (k, d="") => localStorage.getItem(k) || d;
+const setLS = (k, v) => localStorage.setItem(k, v);
+
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast-message');
+  const toastText = document.getElementById('toast-text');
+  const toastIcon = document.getElementById('toast-icon');
+  toastText.textContent = message;
+  if (type === 'success') toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-xl';
+  else if (type === 'error') toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-xl';
+  else if (type === 'warning') toastIcon.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-xl';
+  else toastIcon.className = 'fa-solid fa-circle-info text-sky-400 text-xl';
+  toast.classList.remove('hidden');
+  clearTimeout(window.__toastTimeout);
+  window.__toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+/* =========================================================
+   SUPABASE CONFIG DARI JSONBIN (db.cfg)
+   ========================================================= */
+function initSupabaseFromDb(db) {
+  const sbUrl = db?.cfg?.sbUrl || "";
+  const sbKey = db?.cfg?.sbKey || "";
+  if (sbUrl && sbKey && window.supabase) {
+    try {
+      supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+      console.log("[ArcadeKelas] Supabase siap (dari db.cfg)");
+      return true;
+    } catch (e) {
+      console.error("[ArcadeKelas] Supabase init error:", e);
+      supabaseClient = null;
+    }
+  }
+  supabaseClient = null;
+  return false;
+}
+
+/* =========================================================
+   FETCH JSONBIN
+   ========================================================= */
+async function fetchJsonBinData(binId, opts = {}) {
+  const apiKey = (opts.apiKey !== undefined ? opts.apiKey : getLS(STORAGE.JSONBIN_KEY)).trim();
+  const keyType = (opts.keyType || getLS(STORAGE.JSONBIN_TYPE, "master")).toLowerCase();
+
+  const headers = {};
+  if (apiKey) {
+    headers[keyType === "access" ? "X-Access-Key" : "X-Master-Key"] = apiKey;
+  }
+
+  const url = `https://api.jsonbin.io/v3/b/${encodeURIComponent(binId)}/latest?meta=false&t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store", headers });
+
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) throw new Error("Akses JSONBin ditolak. Bin Private? Cek API key.");
+    if (res.status === 404) throw new Error("Bin ID tidak ditemukan.");
+    throw new Error(`Gagal ambil data JSONBin (HTTP ${res.status}).`);
+  }
+  const data = await res.json();
+  return data.record || data;
+}
+
+/* =========================================================
+   NORMALISASI DATA SISWA
+   ========================================================= */
+function normalizeStudents(db) {
+  const rawSw = db.sw || db.siswa || db.students || [];
+  if (!Array.isArray(rawSw)) return [];
+  return rawSw.map((s, idx) => {
+    if (Array.isArray(s)) {
+      const fotoUrl = s[11] ? String(s[11]).trim() : "";
+      return {
+        id: s[0] || `S${idx + 1}`,
+        noAbsen: s[1] || idx + 1,
+        nis: s[2] || "",
+        nama: s[3] || `Siswa ${idx + 1}`,
+        kelas: s[4] || "",
+        jk: s[5] || "",
+        foto: (fotoUrl && fotoUrl !== "null" && fotoUrl !== "undefined") ? fotoUrl : ""
+      };
+    }
+    const fotoUrl = (s.foto || s.fotoUrl || s.photo || "").trim();
+    return {
+      id: s.id || `S${idx + 1}`,
+      noAbsen: s.noAbsen || idx + 1,
+      nis: s.nis || "",
+      nama: s.nama || s.name || `Siswa ${idx + 1}`,
+      kelas: s.kelas || "",
+      jk: s.jk || "",
+      foto: (fotoUrl && fotoUrl !== "null" && fotoUrl !== "undefined") ? fotoUrl : ""
+    };
+  }).filter(s => s.nama && !s.nama.toLowerCase().includes("tanpa nama"));
+}
+
+/* =========================================================
+   PLAYER HELPER — Deteksi Guru / Siswa
+   ========================================================= */
+function getPlayerAktif() {
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user) return null;
+  
+  if (user.role === "guru") {
+    return {
+      id: "guru_" + String(user.username || user.name || "unknown")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "_")
+            .slice(0, 40),
+      nama: user.name || "Guru",
+      kelas: user.kelas || "",
+      foto: fullDb?.a?.fg || user.foto || "",
+      role: "guru"
+    };
+  }
+  
+  if (user.role === "siswa") {
+    const sw = (fullDb?.sw || []).find(s => String(s[0]) === String(user.siswaId));
+    return {
+      id: String(user.siswaId || ""),
+      nama: user.name || (sw ? sw[3] : "Siswa"),
+      kelas: user.kelas || (sw ? sw[4] : ""),
+      foto: sw ? (sw[11] || "") : "",
+      role: "siswa"
+    };
+  }
+  
+  return null;
+}
+
+function cekPunyaFoto(player) {
+  if (!player) return false;
+  const foto = String(player.foto || "").trim();
+  if (!foto || foto === "null" || foto === "undefined") return false;
+  return foto.startsWith("http") || foto.startsWith("data:");
+}
+
+function getPemainSiap() {
+  const player = getPlayerAktif();
+  const hasil = [];
+  
+  if (player && player.role === "guru" && cekPunyaFoto(player)) {
+    hasil.push({ ...player, isGuru: true });
+  }
+  
+  studentsData.forEach(s => {
+    const foto = String(s.foto || "").trim();
+    if (foto && (foto.startsWith("http") || foto.startsWith("data:"))) {
+      hasil.push({ ...s, isGuru: false });
+    }
+  });
+  
+  return hasil;
+}
+
+function playerSiapMain() {
+  return cekPunyaFoto(getPlayerAktif());
+}
+
+/* =========================================================
+   AUTO-LOGIN DARI LOCALSTORAGE
+   ========================================================= */
+async function tryAutoLogin() {
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user || (user.role !== "siswa" && user.role !== "guru")) {
+    return { ok: false, alasan: "belum_login" };
+  }
+
+  const cfg = safeParse(getLS(STORAGE.APP_CONFIG));
+  if (!cfg?.binId) return { ok: false, alasan: "belum_setup", user };
+
+  try {
+    const db = await fetchJsonBinData(cfg.binId);
+    const students = normalizeStudents(db);
+
+    if (user.role === "siswa" && students.length < 4) {
+      throw new Error(`Data siswa kurang dari 4 (ada ${students.length}). Minimal 4 siswa untuk main game.`);
+    }
+
+    appConfig = { kode: "AUTO", binId: cfg.binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+    fullDb = db;
+    studentsData = students;
+
+    currentPlayer = getPlayerAktif();
+    const sbReady = initSupabaseFromDb(db);
+    setLS(STORAGE.DB_LOCAL, JSON.stringify(db));
+
+    return { ok: true, user, sbReady, player: currentPlayer };
+  } catch (err) {
+    const cached = safeParse(getLS(STORAGE.DB_LOCAL));
+    if (cached) {
+      const students = normalizeStudents(cached);
+      if (user.role === "siswa" && students.length < 4) {
+        return { ok: false, alasan: "gagal_fetch", user, error: `Data siswa kurang dari 4 (cache: ${students.length})` };
+      }
+      fullDb = cached;
+      studentsData = students;
+      appConfig = { kode: "CACHE", binId: cfg.binId, namaSekolah: cached?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+      currentPlayer = getPlayerAktif();
+      initSupabaseFromDb(cached);
+      return { ok: true, user, fromCache: true, player: currentPlayer };
+    }
+    return { ok: false, alasan: "gagal_fetch", user, error: err.message };
+  }
+}
+
+/* DEMO MODE MOCK DATA */
+const MOCK_STUDENTS = [
+  { id: "S1", nama: "Budi Santoso", kelas: "5", foto: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop" },
+  { id: "S2", nama: "Siti Rahma", kelas: "5", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop" },
+  { id: "S3", nama: "Andi Wijaya", kelas: "5", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" },
+  { id: "S4", nama: "Dewi Lestari", kelas: "5", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop" },
+  { id: "S5", nama: "Eko Prasetyo", kelas: "5", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop" },
+  { id: "S6", nama: "Fitri Ani", kelas: "5", foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop" },
+  { id: "S7", nama: "Gading Marten", kelas: "5", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop" },
+  { id: "S8", nama: "Hana Putri", kelas: "5", foto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop" }
+];
+
+function useDemoMode() {
+  appConfig = { kode: "DEMO", binId: "DEMO", namaSekolah: "Demo Mode Arcade", kelas: "5" };
+  fullDb = null;
+  studentsData = [...MOCK_STUDENTS];
+  supabaseClient = null;
+  
+  currentPlayer = {
+    id: "demo_player",
+    nama: "Pemain Demo",
+    kelas: "5",
+    foto: "https://placehold.co/200x200/a855f7/ffffff?text=Demo",
+    role: "siswa"
+  };
+  
+  showToast("Mode Demo aktif.", "info");
+  showScreen("menu-screen");
+}
+
+/* =========================================================
+   SCREEN ROUTER & SCREENS
+   ========================================================= */
+function showScreen(screenId) {
+  if (gameInterval) clearInterval(gameInterval);
+  if (gameTimer) clearInterval(gameTimer);
+
+  if (screenId === "menu-screen") renderMenuScreen();
+  else if (screenId === "setup-screen") renderSetupScreen();
+  else if (screenId === "belum-login-screen") renderBelumLoginScreen();
+}
+
+function renderBelumLoginScreen() {
+  const c = document.getElementById("main-view-container");
+  c.innerHTML = `
+    <div class="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-2 border-slate-700 fade-in text-center">
+      <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg border border-amber-500/30">
+        <i class="fa-solid fa-user-lock"></i>
+      </div>
+      <h2 class="text-2xl font-black text-white">Perlu Login</h2>
+      <p class="text-xs text-slate-400 font-sans mt-1 mb-5">Login dulu sebagai <b>siswa</b> atau <b>guru</b> di Dashboard EduSmart</p>
+
+      <a href="./index.html" class="block w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-lg transition text-sm">
+        <i class="fa-solid fa-right-to-bracket mr-1"></i> Buka Dashboard
+      </a>
+
+      <div class="mt-4 p-3 bg-indigo-950/60 border border-indigo-800/50 rounded-xl text-[11px] text-indigo-300 font-sans text-left">
+        <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i> 
+        <b>Guru & Siswa</b> dapat bermain arcade ini bersama! Cukup login & upload foto profil.
+      </div>
+
+      <div class="pt-4 mt-4 border-t border-slate-800 text-center">
+        <button onclick="useDemoMode()" class="text-[11px] text-slate-400 hover:text-purple-400 underline">
+          <i class="fa-solid fa-flask"></i> Coba Mode Demo
+        </button>
+      </div>
+    </div>`;
+}
+
+function renderSetupScreen(pesan, userInfo = null) {
+  const c = document.getElementById("main-view-container");
+  const u = userInfo;
+  const isGuru = u?.role === "guru";
+  
+  c.innerHTML = `
+    <div class="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl border-2 border-slate-700 fade-in">
+      <div class="text-center mb-5">
+        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-lg">
+          <i class="fa-solid fa-sliders"></i>
+        </div>
+        <h2 class="text-2xl font-black text-white">Setup Game Arcade</h2>
+        <p class="text-xs text-slate-400 font-sans mt-1">${esc(pesan || "Hubungkan ke data siswa")}</p>
+      </div>
+
+      ${u ? `
+        <div class="mb-4 p-3 ${isGuru ? 'bg-indigo-950/60 border-indigo-800' : 'bg-emerald-950/60 border-emerald-800'} border rounded-xl text-xs">
+          <div class="font-bold ${isGuru ? 'text-indigo-300' : 'text-emerald-300'}">✓ Login terdeteksi ${isGuru ? '(Guru)' : '(Siswa)'}</div>
+          <div class="${isGuru ? 'text-indigo-400' : 'text-emerald-400'} mt-0.5">${esc(u.name || (isGuru ? "Guru" : "Siswa"))} · Kelas ${esc(u.kelas || "-")}</div>
+        </div>
+      ` : `
+        <div class="mb-4 p-3 bg-amber-950/60 border border-amber-800 rounded-xl text-xs text-amber-300">
+          <i class="fa-solid fa-triangle-exclamation"></i> Anda belum login. <a href="./index.html" class="underline font-bold">Login dulu di Dashboard</a>.
+        </div>
+      `}
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-bold text-slate-300 mb-1.5 text-sm">Bin ID JSONBin</label>
+          <input type="text" id="setup-bin-id" placeholder="6a1da06ffd5d160533f497c"
+                 class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:border-purple-500 focus:outline-none font-mono text-xs">
+          <p class="text-[10px] text-slate-500 mt-1">Dapat dari guru (Pengaturan di Dashboard)</p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-300 mb-1.5 text-sm">
+            API Key JSONBin <span class="text-[10px] font-normal text-slate-500">(opsional)</span>
+          </label>
+          <input type="text" id="setup-api-key" placeholder="Kosongkan kalau Bin Public"
+                 class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border-2 border-slate-700 text-white focus:border-purple-500 focus:outline-none font-mono text-xs">
+        </div>
+
+        <button onclick="handleSetupSubmit()" id="setup-submit-btn"
+                class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-md transition text-sm">
+          <i class="fa-solid fa-link mr-1"></i> Hubungkan
+        </button>
+
+        <div id="setup-status" class="hidden text-center p-3 rounded-xl text-xs font-semibold"></div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-between items-center">
+          <a href="./index.html" class="text-[11px] text-slate-400 hover:text-purple-400 underline">
+            <i class="fa-solid fa-arrow-left"></i> Dashboard
+          </a>
+          <button onclick="useDemoMode()" class="text-[11px] text-slate-400 hover:text-purple-400 underline">
+            <i class="fa-solid fa-flask"></i> Mode Demo
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function handleSetupSubmit() {
+  const binId = (document.getElementById("setup-bin-id").value || "").trim();
+  const apiKey = (document.getElementById("setup-api-key").value || "").trim();
+  const btn = document.getElementById("setup-submit-btn");
+  const statusEl = document.getElementById("setup-status");
+
+  if (!binId) { showToast("Bin ID wajib diisi.", "error"); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghubungkan...';
+  statusEl.classList.remove("hidden");
+  statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-sky-950/80 text-sky-300 border border-sky-800";
+  statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengambil data siswa...';
+
+  try {
+    const db = await fetchJsonBinData(binId, { apiKey, keyType: "master" });
+    const students = normalizeStudents(db);
+    const user = safeParse(getLS(STORAGE.USER)) || {};
+    
+    if (user.role === "siswa" && students.length < 4) {
+      throw new Error(`Data siswa kurang dari 4 (ada ${students.length})`);
+    }
+
+    setLS(STORAGE.APP_CONFIG, JSON.stringify({ binId }));
+    if (apiKey) {
+      setLS(STORAGE.JSONBIN_KEY, apiKey);
+      setLS(STORAGE.JSONBIN_TYPE, "master");
+    }
+
+    fullDb = db;
+    studentsData = students;
+    appConfig = { kode: "SETUP", binId, namaSekolah: db?.a?.ns || user.sekolah || "Sekolah", kelas: user.kelas || "" };
+    currentPlayer = getPlayerAktif();
+
+    const sbReady = initSupabaseFromDb(db);
+    setLS(STORAGE.DB_LOCAL, JSON.stringify(db));
+
+    statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800";
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Berhasil! ${students.length} siswa dimuat.`;
+
+    showToast("Berhasil terhubung!", "success");
+    setTimeout(() => showScreen("menu-screen"), 700);
+  } catch (err) {
+    statusEl.className = "text-center p-3 rounded-xl text-xs font-semibold bg-rose-950/80 text-rose-300 border border-rose-800";
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> ${esc(err.message)}`;
+    showToast("Gagal: " + err.message, "error");
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-link mr-1"></i> Hubungkan';
+  }
+}
+
+/* =========================================================
+   SCREEN: MENU UTAMA
+   ========================================================= */
+async function renderMenuScreen() {
+  const c = document.getElementById("main-view-container");
+  const user = safeParse(getLS(STORAGE.USER)) || {};
+  const namaSekolah = appConfig?.namaSekolah || "Sekolah";
+  
+  const player = getPlayerAktif();
+  const siapMain = cekPunyaFoto(player);
+  const pemainSiap = getPemainSiap();
+  
+  const roleBadge = player?.role === "guru" 
+    ? `<span class="ml-2 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-bold">GURU</span>`
+    : player?.role === "siswa"
+    ? `<span class="ml-2 text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full font-bold">SISWA</span>`
+    : "";
+
+  c.innerHTML = `
+    <div class="space-y-5 fade-in w-full max-w-4xl mx-auto">
+
+      <!-- Active Player Info -->
+      <div class="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-slate-800 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-2 text-slate-300 font-bold text-sm">
+          <i class="fa-solid fa-gamepad text-purple-400 text-xl"></i>
+          <span>Pemain Aktif:</span>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <div class="flex-1 md:w-64 px-3 py-2 rounded-xl border border-purple-500/40 bg-purple-950/40 text-xs font-sans font-semibold text-purple-200 truncate flex items-center">
+            ${esc(player?.nama || user.name || "Siswa")} ${user.noAbsen ? `(#${user.noAbsen})` : ""} ${roleBadge}
+          </div>
+          <div class="w-24 px-3 py-2 rounded-xl border border-slate-700 text-xs font-sans text-center bg-slate-800/80 text-slate-300">
+            Kelas ${esc(player?.kelas || user.kelas || "-")}
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner: Wajib Photo Upload -->
+      ${!siapMain ? `
+        <div class="bg-amber-950/60 border border-amber-500/50 rounded-2xl p-4 shadow-lg text-amber-200">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl shrink-0 border border-amber-500/30">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-amber-300 text-sm">Upload Foto Profil Dulu!</div>
+              <div class="text-[11px] text-amber-400/80 mt-0.5">
+                ${player?.role === "guru" 
+                  ? "Sebagai guru, Anda juga perlu foto profil untuk main game bersama siswa." 
+                  : "Kamu harus punya foto profil untuk bisa main game arcade ini."}
+              </div>
+            </div>
+            <a href="./index.html" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm shrink-0 transition">
+              <i class="fa-solid fa-upload"></i> Upload Foto
+            </a>
+          </div>
+        </div>
+      ` : ""}
+
+      <!-- Header Title -->
+      <div class="text-center text-white my-2">
+        <h2 class="text-3xl md:text-4xl font-black drop-shadow-lg bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-pink-400 to-purple-400">
+          PILIH GAME ARCADE! ⚡
+        </h2>
+        <p class="text-slate-400 text-xs md:text-sm mt-1 font-sans" id="app-info-line">
+          ${esc(namaSekolah)} · ${pemainSiap.length} pemain siap ${supabaseClient ? '· Server Online ✓' : '· Skor Lokal'}
+        </p>
+      </div>
+
+      <!-- Arcade Game Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Game 1: Tangkap Bintang Teman -->
+        <div onclick="${siapMain ? 'startTangkapGame()' : 'alertUploadFoto()'}" 
+             class="bg-slate-900/90 rounded-3xl p-5 shadow-xl border-2 border-amber-400/60 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
+          <div class="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center text-3xl mb-3 group-hover:scale-110 transition border border-amber-500/30">
+            <i class="fa-solid fa-hand-holding-heart"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-1">Tangkap Teman</h3>
+            <p class="text-[11px] text-slate-400 font-sans mb-3">Tangkap avatar teman yang jatuh sesuai dengan target nama!</p>
+          </div>
+          <span class="w-full py-2 ${siapMain ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-500'} font-bold rounded-xl text-xs shadow-md">
+            ${siapMain ? 'Mainkan ⚡' : '🔒 Terkunci'}
+          </span>
+        </div>
+
+        <!-- Game 2: Kuis Kilat Benar/Salah -->
+        <div onclick="${siapMain ? 'startKilatGame()' : 'alertUploadFoto()'}" 
+             class="bg-slate-900/90 rounded-3xl p-5 shadow-xl border-2 border-pink-500/60 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
+          <div class="w-16 h-16 bg-pink-500/20 text-pink-400 rounded-2xl flex items-center justify-center text-3xl mb-3 group-hover:rotate-12 transition border border-pink-500/30">
+            <i class="fa-solid fa-[#fa-bolt] fa-bolt"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-1">Match Kilat</h3>
+            <p class="text-[11px] text-slate-400 font-sans mb-3">Cocokkan foto & nama dalam 3 detik! Benar atau Salah?</p>
+          </div>
+          <span class="w-full py-2 ${siapMain ? 'bg-pink-500 text-white' : 'bg-slate-800 text-slate-500'} font-bold rounded-xl text-xs shadow-md">
+            ${siapMain ? 'Mainkan ⚡' : '🔒 Terkunci'}
+          </span>
+        </div>
+
+        <!-- Game 3: Pop Balon Foto -->
+        <div onclick="${siapMain ? 'startBalonGame()' : 'alertUploadFoto()'}" 
+             class="bg-slate-900/90 rounded-3xl p-5 shadow-xl border-2 border-purple-500/60 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
+          <div class="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-3xl mb-3 group-hover:-rotate-12 transition border border-purple-500/30">
+            <i class="fa-solid fa-circle-dot"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-1">Pop Balon Foto</h3>
+            <p class="text-[11px] text-slate-400 font-sans mb-3">Pop balon terbang yang membawa foto target sebelum kabur!</p>
+          </div>
+          <span class="w-full py-2 ${siapMain ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-500'} font-bold rounded-xl text-xs shadow-md">
+            ${siapMain ? 'Mainkan ⚡' : '🔒 Terkunci'}
+          </span>
+        </div>
+
+        <!-- Game 4: Bayangan Misteri -->
+        <div onclick="${siapMain ? 'startBayanganGame()' : 'alertUploadFoto()'}" 
+             class="bg-slate-900/90 rounded-3xl p-5 shadow-xl border-2 border-emerald-500/60 bounce-hover ${siapMain ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'} flex flex-col justify-between items-center text-center group transition">
+          <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl mb-3 group-hover:scale-105 transition border border-emerald-500/30">
+            <i class="fa-solid fa-user-secret"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-1">Bayangan Misteri</h3>
+            <p class="text-[11px] text-slate-400 font-sans mb-3">Tebak foto buram yang makin lama makin jelas!</p>
+          </div>
+          <span class="w-full py-2 ${siapMain ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'} font-bold rounded-xl text-xs shadow-md">
+            ${siapMain ? 'Mainkan ⚡' : '🔒 Terkunci'}
+          </span>
+        </div>
+
+      </div>
+
+      <!-- Player Roster Grid -->
+      <div class="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-slate-800">
+        <div class="flex justify-between items-center mb-3">
+          <span class="font-bold text-slate-300 text-xs">
+            <i class="fa-solid fa-users text-purple-400"></i> 
+            Pemain Siap (<span id="student-count">${pemainSiap.length}</span>)
+          </span>
+          <button onclick="toggleStudentList()" class="text-xs text-purple-400 font-bold hover:underline" id="toggle-student-btn">Tampilkan Semua</button>
+        </div>
+        <div id="student-grid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 max-h-20 overflow-hidden transition-all duration-300"></div>
+      </div>
+
+      <!-- Live Scoreboard -->
+      <div id="scoreboard-section" class="hidden bg-slate-900/90 backdrop-blur-md rounded-2xl p-4 shadow-xl border-2 border-amber-400/40">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-trophy text-amber-400 text-lg"></i>
+            <span class="font-bold text-slate-200 text-sm">Papan Skor Terbaru</span>
+          </div>
+          <button onclick="refreshScoreboard()" class="text-slate-400 hover:text-purple-400 p-1" title="Refresh">
+            <i class="fa-solid fa-rotate text-xs"></i>
+          </button>
+        </div>
+        <div id="scoreboard-list" class="space-y-1.5 font-sans text-xs">
+          <p class="text-center text-slate-500 py-4 text-xs">Belum ada skor.</p>
+        </div>
+      </div>
+
+    </div>`;
+
+  renderStudentGrid();
+  refreshScoreboard();
+}
+
+function alertUploadFoto() {
+  const player = getPlayerAktif();
+  const pesan = player?.role === "guru"
+    ? "Upload foto profil dulu (di halaman Dashboard) untuk bisa main game."
+    : "Upload foto profil dulu untuk bisa main game.";
+  showToast(pesan, "error");
+}
+
+function renderStudentGrid() {
+  const grid = document.getElementById("student-grid");
+  if (!grid) return;
+  
+  const pemainSiap = getPemainSiap();
+  grid.innerHTML = "";
+  
+  if (!pemainSiap.length) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center text-slate-500 text-xs py-4">
+        <i class="fa-solid fa-users-slash text-2xl mb-2"></i>
+        <p>Belum ada pemain yang punya foto profil.</p>
+      </div>`;
+    return;
+  }
+  
+  pemainSiap.forEach(p => {
+    const avatar = document.createElement("div");
+    avatar.className = "flex flex-col items-center text-center relative";
+    const borderWarna = p.isGuru ? "border-indigo-400" : "border-purple-400";
+    
+    avatar.innerHTML = `
+      <div class="relative">
+        <img src="${esc(p.foto)}" 
+             class="w-9 h-9 rounded-full object-cover border-2 ${borderWarna} shadow-sm" 
+             onerror="this.src='https://placehold.co/100?text=Err'">
+        ${p.isGuru ? `<span class="absolute -top-1 -right-1 bg-indigo-600 text-white text-[7px] font-bold px-1 py-0.5 rounded-full shadow">GURU</span>` : ""}
+      </div>
+      <span class="text-[9px] ${p.isGuru ? 'text-indigo-300 font-bold' : 'text-slate-300'} truncate w-full font-sans mt-0.5">
+        ${esc(p.nama)}
+      </span>`;
+    grid.appendChild(avatar);
+  });
+}
+
+function toggleStudentList() {
+  const grid = document.getElementById("student-grid");
+  const btn = document.getElementById("toggle-student-btn");
+  if (!grid || !btn) return;
+  if (grid.classList.contains("max-h-20")) {
+    grid.classList.remove("max-h-20");
+    btn.textContent = "Sembunyikan";
+  } else {
+    grid.classList.add("max-h-20");
+    btn.textContent = "Tampilkan Semua";
+  }
+}
+
+/* =========================================================
+   SIMPAN SKOR (Sama Persis Supabase Schema)
+   ========================================================= */
+async function saveScoreToSupabase({ gameId, skor, jumlahBenar, jumlahSalah, waktuMulai, waktuSelesai, detail }) {
+  const player = getPlayerAktif();
+  if (!player) {
+    showToast("Player tidak terdeteksi. Coba login ulang.", "error");
+    return;
+  }
+  
+  const siswaId = String(player.id);
+  const kelas = String(player.kelas || appConfig?.kelas || "Unspecified");
+  const durasiDetik = Math.max(1, Math.round((waktuSelesai - waktuMulai) / 1000));
+  const namaSiswa = player.nama || "Pemain";
+  const role = player.role || "siswa";
+
+  const payload = {
+    siswa_id: siswaId,
+    kelas: kelas,
+    game_id: String(gameId),
+    skor: parseInt(skor) || 0,
+    jumlah_benar: parseInt(jumlahBenar) || 0,
+    jumlah_salah: parseInt(jumlahSalah) || 0,
+    waktu_mulai: waktuMulai.toISOString(),
+    waktu_selesai: waktuSelesai.toISOString(),
+    durasi_detik: durasiDetik,
+    detail: { ...(detail || {}), role: role }
+  };
+
+  // 1. Simpan Lokal
+  const localScores = safeParse(getLS("gamekelas_local_scores")) || [];
+  localScores.unshift({
+    ...payload,
+    nama_siswa: namaSiswa,
+    role: role,
+    created_at: new Date().toISOString()
+  });
+  setLS("gamekelas_local_scores", JSON.stringify(localScores.slice(0, 50)));
+
+  // 2. Simpan ke Supabase
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient.from("skor_game").insert([payload]);
+      if (error) {
+        console.error("Supabase insert error:", error);
+        showToast("Skor tersimpan lokal (gagal ke server).", "warning");
+      } else {
+        const badge = role === "guru" ? " (Guru)" : "";
+        showToast(`Skor tersimpan ke server${badge}! ☁️`, "success");
+      }
+    } catch (err) {
+      console.error("Exception:", err);
+      showToast("Skor tersimpan lokal.", "info");
+    }
+  } else {
+    showToast("Skor tersimpan lokal.", "info");
+  }
+
+  setTimeout(() => refreshScoreboard(), 500);
+}
+
+/* =========================================================
+   PAPAN SKOR
+   ========================================================= */
+async function refreshScoreboard() {
+  const section = document.getElementById("scoreboard-section");
+  const list = document.getElementById("scoreboard-list");
+  if (!section || !list) return;
+
+  section.classList.remove("hidden");
+  const player = getPlayerAktif();
+  const myId = String(player?.id || "");
+
+  list.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</p>`;
+
+  try {
+    let scores = [];
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("skor_game")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!error && data) scores = data;
+      } catch (e) {}
+    }
+
+    if (!scores.length) {
+      const local = safeParse(getLS("gamekelas_local_scores")) || [];
+      scores = local.slice(0, 10);
+    }
+
+    if (!scores.length) {
+      list.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">Belum ada skor tersimpan. Ayo main sekarang!</p>`;
+      return;
+    }
+
+    const gameInfo = {
+      "tangkap_teman": { icon: "fa-hand-holding-heart", color: "bg-amber-500/20 text-amber-400", label: "Tangkap Teman" },
+      "match_kilat": { icon: "fa-bolt", color: "bg-pink-500/20 text-pink-400", label: "Match Kilat" },
+      "pop_balon": { icon: "fa-circle-dot", color: "bg-purple-500/20 text-purple-400", label: "Pop Balon" },
+      "bayangan_misteri": { icon: "fa-user-secret", color: "bg-emerald-500/20 text-emerald-400", label: "Bayangan Misteri" }
+    };
+
+    list.innerHTML = scores.map(item => {
+      const isMe = String(item.siswa_id) === myId;
+      const info = gameInfo[item.game_id] || { icon: "fa-gamepad", color: "bg-slate-800 text-slate-300", label: item.game_id };
+      
+      let pNama = item.nama_siswa || `ID ${item.siswa_id}`;
+      const isGuru = item.detail?.role === "guru" || String(item.siswa_id).startsWith("guru_");
+      
+      return `
+        <div class="score-row flex items-center gap-2 p-2.5 rounded-xl ${isMe ? 'bg-amber-500/10 border border-amber-500/40' : 'bg-slate-800/60 border border-slate-700/50'}">
+          <div class="w-8 h-8 rounded-lg ${info.color} flex items-center justify-center shrink-0 border border-slate-700">
+            <i class="fa-solid ${info.icon} text-xs"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-[11px] truncate ${isMe ? 'text-amber-300' : 'text-slate-200'} flex items-center">
+              ${esc(pNama)} ${isGuru ? '<span class="text-[8px] bg-indigo-600 text-white px-1 py-0.5 rounded-full font-bold ml-1">GURU</span>' : ''}
+              ${isMe ? ' <span class="text-[8px] bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded-full font-bold ml-1">KAMU</span>' : ''}
+            </div>
+            <div class="text-[10px] text-slate-400 truncate">
+              ${esc(info.label)} · ✓${item.jumlah_benar || 0} ✗${item.jumlah_salah || 0}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-black text-sm ${isMe ? 'text-amber-400' : 'text-purple-400'}">${item.skor || 0}</div>
+            <div class="text-[9px] text-slate-500">${item.durasi_detik || 0}s</div>
+          </div>
+        </div>`;
+    }).join("");
+
+  } catch (err) {
+    list.innerHTML = `<p class="text-center text-rose-400 py-4 text-xs">Gagal memuat papan skor.</p>`;
+  }
+}
+
+function openLeaderboardModal() {
+  document.getElementById("leaderboard-modal").classList.remove("hidden");
+  refreshScoreboardModal();
+}
+
+function closeLeaderboardModal() {
+  document.getElementById("leaderboard-modal").classList.add("hidden");
+}
+
+async function refreshScoreboardModal() {
+  const listEl = document.getElementById("leaderboard-list");
+  listEl.innerHTML = `<p class="text-center text-slate-500 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data skor...</p>`;
+
+  let scores = [];
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient.from("skor_game").select("*").order("created_at", { ascending: false }).limit(20);
+      if (!error && data) scores = data;
+    } catch(e) {}
+  }
+
+  if (!scores.length) {
+    scores = (safeParse(getLS("gamekelas_local_scores")) || []).slice(0, 20);
+  }
+
+  if (!scores.length) {
+    listEl.innerHTML = `<p class="text-center text-slate-500 py-6 text-xs">Belum ada skor tersimpan.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = scores.map((item, idx) => `
+    <div class="flex items-center justify-between p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
+      <div class="flex items-center gap-2 truncate">
+        <span class="w-6 text-center font-bold text-amber-400">${idx + 1}</span>
+        <div>
+          <div class="font-bold text-slate-200">${esc(item.nama_siswa || item.siswa_id)}</div>
+          <div class="text-[10px] text-slate-400">${esc(item.game_id)} · ${item.durasi_detik || 0}s</div>
+        </div>
+      </div>
+      <div class="font-black text-amber-400 text-sm">${item.skor || 0}</div>
+    </div>
+  `).join("");
+}
+
+/* =========================================================
+   GAME 1: TANGKAP TEMAN (Catch Falling Classmate Avatars)
+   ========================================================= */
+function startTangkapGame() {
+  const pemainList = getPemainSiap();
+  if (pemainList.length < 2) {
+    showToast("Minimal butuh 2 pemain berpoto!", "error");
+    return;
+  }
+
+  const container = document.getElementById("main-view-container");
+  let score = 0;
+  let correctHits = 0;
+  let wrongHits = 0;
+  let lives = 3;
+  let targetPemain = pemainList[Math.floor(Math.random() * pemainList.length)];
+  const startTime = new Date();
+
+  container.innerHTML = `
+    <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-4 md:p-6 shadow-2xl border-2 border-amber-400/50 max-w-2xl mx-auto fade-in flex flex-col text-white">
+      <!-- Top Status Bar -->
+      <div class="flex justify-between items-center bg-slate-800/80 px-4 py-2.5 rounded-2xl border border-slate-700 mb-4 text-xs font-bold">
+        <div class="flex items-center gap-2">
+          <button onclick="showScreen('menu-screen')" class="text-slate-400 hover:text-white mr-2"><i class="fa-solid fa-arrow-left"></i> Menu</button>
+          <span class="text-amber-400">Skor: <span id="game-score">0</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-rose-400" id="game-lives">❤️❤️❤️</span>
+        </div>
+      </div>
+
+      <!-- Target Banner -->
+      <div class="text-center bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-pink-500/20 p-3 rounded-2xl border border-amber-500/30 mb-4">
+        <p class="text-xs text-amber-300 font-sans font-semibold">TANGKAP AVATAR:</p>
+        <h3 class="text-2xl font-black text-white" id="target-name">${esc(targetPemain.nama)}</h3>
+      </div>
+
+      <!-- Play Field Canvas/Area -->
+      <div id="play-area" class="game-area bg-slate-950 rounded-2xl h-80 border-2 border-slate-800 relative overflow-hidden flex justify-center items-center">
+        <div class="text-slate-600 text-xs text-center pointer-events-none">Siap-siap tangkap avatar yang muncul!</div>
+      </div>
+    </div>`;
+
+  function spawnAvatar() {
+    const playArea = document.getElementById("play-area");
+    if (!playArea) return;
+
+    const isTarget = Math.random() < 0.45;
+    const p = isTarget ? targetPemain : pemainList[Math.floor(Math.random() * pemainList.length)];
+
+    const avatar = document.createElement("div");
+    avatar.className = "absolute cursor-pointer rounded-full p-1 bg-slate-800 border-2 border-amber-400 shadow-lg hover:scale-110 transition-transform";
+    
+    const size = 56;
+    const posX = Math.random() * (playArea.clientWidth - size);
+    avatar.style.left = `${posX}px`;
+    avatar.style.bottom = `-60px`;
+    avatar.style.width = `${size}px`;
+    avatar.style.height = `${size}px`;
+
+    avatar.innerHTML = `<img src="${esc(p.foto)}" class="w-full h-full rounded-full object-cover pointer-events-none" onerror="this.src='https://placehold.co/100?text=Err'">`;
+
+    let posPosY = -60;
+    const speed = 2 + Math.random() * 2.5;
+
+    const moveAnim = setInterval(() => {
+      posPosY += speed;
+      avatar.style.bottom = `${posPosY}px`;
+
+      if (posPosY > playArea.clientHeight) {
+        clearInterval(moveAnim);
+        if (avatar.parentNode) playArea.removeChild(avatar);
+        if (p.id === targetPemain.id) {
+          // Missed target
+          lives--;
+          updateLivesDisplay();
+          playSound('wrong');
+          if (lives <= 0) endGame();
+        }
+      }
+    }, 20);
+
+    avatar.onclick = () => {
+      clearInterval(moveAnim);
+      if (avatar.parentNode) playArea.removeChild(avatar);
+
+      if (p.id === targetPemain.id) {
+        score += 100;
+        correctHits++;
+        playSound('correct');
+        document.getElementById("game-score").textContent = score;
+
+        // Switch new target every 3 hits
+        if (correctHits % 3 === 0) {
+          targetPemain = pemainList[Math.floor(Math.random() * pemainList.length)];
+          document.getElementById("target-name").textContent = targetPemain.nama;
+        }
+      } else {
+        score = Math.max(0, score - 30);
+        wrongHits++;
+        lives--;
+        playSound('wrong');
+        document.getElementById("game-score").textContent = score;
+        updateLivesDisplay();
+        if (lives <= 0) endGame();
+      }
+    };
+
+    playArea.appendChild(avatar);
+  }
+
+  function updateLivesDisplay() {
+    const el = document.getElementById("game-lives");
+    if (el) el.textContent = "❤️".repeat(Math.max(0, lives));
+  }
+
+  gameInterval = setInterval(spawnAvatar, 1100);
+
+  function endGame() {
+    clearInterval(gameInterval);
+    const endTime = new Date();
+    saveScoreToSupabase({
+      gameId: "tangkap_teman",
+      skor: score,
+      jumlahBenar: correctHits,
+      jumlahSalah: wrongHits,
+      waktuMulai: startTime,
+      waktuSelesai: endTime,
+      detail: { mode: "Arcade Tangkap" }
+    });
+
+    container.innerHTML = `
+      <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-amber-400 text-center max-w-md mx-auto fade-in">
+        <div class="text-4xl mb-2">🎮</div>
+        <h3 class="text-2xl font-black text-white mb-1">Game Selesai!</h3>
+        <p class="text-xs text-slate-400 mb-4">Total Skor Kamu: <span class="text-amber-400 font-bold text-lg">${score}</span></p>
+
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs font-sans space-y-1 mb-5">
+          <div class="flex justify-between text-slate-300"><span>Target Ditangkap:</span><span class="text-emerald-400 font-bold">${correctHits}</span></div>
+          <div class="flex justify-between text-slate-300"><span>Misklik:</span><span class="text-rose-400 font-bold">${wrongHits}</span></div>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="startTangkapGame()" class="flex-1 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition">Main Lagi</button>
+          <button onclick="showScreen('menu-screen')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Menu</button>
+        </div>
+      </div>`;
+  }
+}
+
+/* =========================================================
+   GAME 2: MATCH KILAT BENAR / SALAH (3-Sec Rapid Quiz)
+   ========================================================= */
+function startKilatGame() {
+  const pemainList = getPemainSiap();
+  if (pemainList.length < 2) {
+    showToast("Minimal butuh 2 pemain berpoto!", "error");
+    return;
+  }
+
+  const container = document.getElementById("main-view-container");
+  let score = 0;
+  let correctHits = 0;
+  let wrongHits = 0;
+  let timerVal = 30;
+  let currentPair = null;
+  const startTime = new Date();
+
+  function nextRound() {
+    const isCorrectPair = Math.random() < 0.5;
+    const photoPlayer = pemainList[Math.floor(Math.random() * pemainList.length)];
+    let namePlayer = photoPlayer;
+
+    if (!isCorrectPair) {
+      const others = pemainList.filter(p => p.id !== photoPlayer.id);
+      namePlayer = others[Math.floor(Math.random() * others.length)];
+    }
+
+    currentPair = { photoPlayer, namePlayer, isCorrect: photoPlayer.id === namePlayer.id };
+
+    const imgEl = document.getElementById("kilat-img");
+    const nameEl = document.getElementById("kilat-name");
+
+    if (imgEl && nameEl) {
+      imgEl.src = photoPlayer.foto;
+      nameEl.textContent = namePlayer.nama;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-pink-500/50 max-w-md mx-auto fade-in text-white text-center">
+      <div class="flex justify-between items-center bg-slate-800 px-4 py-2 rounded-xl border border-slate-700 mb-4 text-xs font-bold">
+        <button onclick="showScreen('menu-screen')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left"></i> Menu</button>
+        <span class="text-pink-400">Waktu: <span id="kilat-timer">30</span>s</span>
+        <span class="text-amber-400">Skor: <span id="kilat-score">0</span></span>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-xs text-slate-400 font-sans mb-2">Apakah Foto dan Nama ini COCOK?</p>
+        <div class="w-36 h-36 mx-auto rounded-2xl overflow-hidden border-4 border-pink-500 shadow-xl mb-3">
+          <img id="kilat-img" src="" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/150?text=Err'">
+        </div>
+        <h3 id="kilat-name" class="text-xl font-black text-amber-300">Loading...</h3>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-6">
+        <button onclick="answerKilat(true)" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-2xl text-lg shadow-lg transition active:scale-95">
+          <i class="fa-solid fa-check mr-1"></i> BENAR
+        </button>
+        <button onclick="answerKilat(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-black py-4 rounded-2xl text-lg shadow-lg transition active:scale-95">
+          <i class="fa-solid fa-xmark mr-1"></i> SALAH
+        </button>
+      </div>
+    </div>`;
+
+  window.answerKilat = function(userAnswer) {
+    if (!currentPair) return;
+    if (userAnswer === currentPair.isCorrect) {
+      score += 50;
+      correctHits++;
+      playSound('correct');
+    } else {
+      score = Math.max(0, score - 20);
+      wrongHits++;
+      playSound('wrong');
+    }
+    document.getElementById("kilat-score").textContent = score;
+    nextRound();
+  };
+
+  nextRound();
+
+  gameTimer = setInterval(() => {
+    timerVal--;
+    const el = document.getElementById("kilat-timer");
+    if (el) el.textContent = timerVal;
+
+    if (timerVal <= 0) {
+      clearInterval(gameTimer);
+      const endTime = new Date();
+      saveScoreToSupabase({
+        gameId: "match_kilat",
+        skor: score,
+        jumlahBenar: correctHits,
+        jumlahSalah: wrongHits,
+        waktuMulai: startTime,
+        waktuSelesai: endTime,
+        detail: { mode: "Match Kilat 30s" }
+      });
+
+      container.innerHTML = `
+        <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-pink-500 text-center max-w-md mx-auto fade-in">
+          <div class="text-4xl mb-2">⚡</div>
+          <h3 class="text-2xl font-black text-white mb-1">Waktu Habis!</h3>
+          <p class="text-xs text-slate-400 mb-4">Total Skor Kamu: <span class="text-amber-400 font-bold text-lg">${score}</span></p>
+
+          <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs font-sans space-y-1 mb-5">
+            <div class="flex justify-between text-slate-300"><span>Tebakan Benar:</span><span class="text-emerald-400 font-bold">${correctHits}</span></div>
+            <div class="flex justify-between text-slate-300"><span>Tebakan Salah:</span><span class="text-rose-400 font-bold">${wrongHits}</span></div>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="startKilatGame()" class="flex-1 bg-pink-500 hover:bg-pink-600 text-white font-bold py-2.5 rounded-xl text-xs transition">Main Lagi</button>
+            <button onclick="showScreen('menu-screen')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Menu</button>
+          </div>
+        </div>`;
+    }
+  }, 1000);
+}
+
+/* =========================================================
+   GAME 3: POP BALON FOTO (Rising Balloon Pop)
+   ========================================================= */
+function startBalonGame() {
+  const pemainList = getPemainSiap();
+  if (pemainList.length < 2) {
+    showToast("Minimal butuh 2 pemain berpoto!", "error");
+    return;
+  }
+
+  const container = document.getElementById("main-view-container");
+  let score = 0;
+  let correctHits = 0;
+  let wrongHits = 0;
+  let timerVal = 35;
+  let targetPemain = pemainList[Math.floor(Math.random() * pemainList.length)];
+  const startTime = new Date();
+
+  container.innerHTML = `
+    <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-4 md:p-6 shadow-2xl border-2 border-purple-500/50 max-w-2xl mx-auto fade-in flex flex-col text-white">
+      <div class="flex justify-between items-center bg-slate-800 px-4 py-2.5 rounded-2xl border border-slate-700 mb-4 text-xs font-bold">
+        <button onclick="showScreen('menu-screen')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left"></i> Menu</button>
+        <span class="text-purple-400">Waktu: <span id="balon-timer">35</span>s</span>
+        <span class="text-amber-400">Skor: <span id="balon-score">0</span></span>
+      </div>
+
+      <div class="text-center bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-indigo-500/20 p-3 rounded-2xl border border-purple-500/30 mb-4">
+        <p class="text-xs text-purple-300 font-sans font-semibold">POP BALON DENGAN FOTO:</p>
+        <h3 class="text-2xl font-black text-amber-300" id="balon-target-name">${esc(targetPemain.nama)}</h3>
+      </div>
+
+      <div id="balon-area" class="game-area bg-slate-950 rounded-2xl h-80 border-2 border-slate-800 relative overflow-hidden"></div>
+    </div>`;
+
+  function spawnBalon() {
+    const area = document.getElementById("balon-area");
+    if (!area) return;
+
+    const isTarget = Math.random() < 0.4;
+    const p = isTarget ? targetPemain : pemainList[Math.floor(Math.random() * pemainList.length)];
+
+    const balon = document.createElement("div");
+    balon.className = "absolute cursor-pointer rounded-full p-1 border-2 border-purple-400 bg-purple-900/80 shadow-xl flex items-center justify-center transition-transform active:scale-90";
+    
+    const colors = ['border-pink-400 bg-pink-950/80', 'border-purple-400 bg-purple-950/80', 'border-amber-400 bg-amber-950/80', 'border-emerald-400 bg-emerald-950/80'];
+    balon.className += " " + colors[Math.floor(Math.random() * colors.length)];
+
+    const size = 60;
+    const posX = Math.random() * (area.clientWidth - size);
+    balon.style.left = `${posX}px`;
+    balon.style.bottom = `-70px`;
+    balon.style.width = `${size}px`;
+    balon.style.height = `${size}px`;
+
+    balon.innerHTML = `<img src="${esc(p.foto)}" class="w-full h-full rounded-full object-cover pointer-events-none" onerror="this.src='https://placehold.co/100?text=Err'">`;
+
+    let posPosY = -70;
+    const speed = 1.5 + Math.random() * 2;
+
+    const moveAnim = setInterval(() => {
+      posPosY += speed;
+      balon.style.bottom = `${posPosY}px`;
+
+      if (posPosY > area.clientHeight) {
+        clearInterval(moveAnim);
+        if (balon.parentNode) area.removeChild(balon);
+      }
+    }, 20);
+
+    balon.onclick = () => {
+      clearInterval(moveAnim);
+      if (balon.parentNode) area.removeChild(balon);
+      playSound('pop');
+
+      if (p.id === targetPemain.id) {
+        score += 80;
+        correctHits++;
+        playSound('correct');
+        document.getElementById("balon-score").textContent = score;
+
+        if (correctHits % 2 === 0) {
+          targetPemain = pemainList[Math.floor(Math.random() * pemainList.length)];
+          document.getElementById("balon-target-name").textContent = targetPemain.nama;
+        }
+      } else {
+        score = Math.max(0, score - 25);
+        wrongHits++;
+        playSound('wrong');
+        document.getElementById("balon-score").textContent = score;
+      }
+    };
+
+    area.appendChild(balon);
+  }
+
+  gameInterval = setInterval(spawnBalon, 900);
+
+  gameTimer = setInterval(() => {
+    timerVal--;
+    const el = document.getElementById("balon-timer");
+    if (el) el.textContent = timerVal;
+
+    if (timerVal <= 0) {
+      clearInterval(gameInterval);
+      clearInterval(gameTimer);
+      const endTime = new Date();
+
+      saveScoreToSupabase({
+        gameId: "pop_balon",
+        skor: score,
+        jumlahBenar: correctHits,
+        jumlahSalah: wrongHits,
+        waktuMulai: startTime,
+        waktuSelesai: endTime,
+        detail: { mode: "Pop Balon Foto" }
+      });
+
+      container.innerHTML = `
+        <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-purple-500 text-center max-w-md mx-auto fade-in text-white">
+          <div class="text-4xl mb-2">🎈</div>
+          <h3 class="text-2xl font-black text-white mb-1">Waktu Pop Habis!</h3>
+          <p class="text-xs text-slate-400 mb-4">Total Skor Kamu: <span class="text-amber-400 font-bold text-lg">${score}</span></p>
+
+          <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs font-sans space-y-1 mb-5">
+            <div class="flex justify-between text-slate-300"><span>Balon Target Popped:</span><span class="text-emerald-400 font-bold">${correctHits}</span></div>
+            <div class="flex justify-between text-slate-300"><span>Salah Pop:</span><span class="text-rose-400 font-bold">${wrongHits}</span></div>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="startBalonGame()" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2.5 rounded-xl text-xs transition">Main Lagi</button>
+            <button onclick="showScreen('menu-screen')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Menu</button>
+          </div>
+        </div>`;
+    }
+  }, 1000);
+}
+
+/* =========================================================
+   GAME 4: BAYANGAN MISTERI (Blur Reveal Guess)
+   ========================================================= */
+function startBayanganGame() {
+  const pemainList = getPemainSiap();
+  if (pemainList.length < 4) {
+    showToast("Minimal 4 pemain berpoto untuk mode ini!", "error");
+    return;
+  }
+
+  const container = document.getElementById("main-view-container");
+  let score = 0;
+  let correctHits = 0;
+  let wrongHits = 0;
+  let roundCount = 0;
+  const maxRounds = 5;
+  let currentTarget = null;
+  let blurVal = 20;
+  let blurTimer = null;
+  const startTime = new Date();
+
+  function nextRound() {
+    if (roundCount >= maxRounds) {
+      endGame();
+      return;
+    }
+
+    roundCount++;
+    blurVal = 22;
+    currentTarget = pemainList[Math.floor(Math.random() * pemainList.length)];
+
+    // Option choices (1 correct, 3 wrong)
+    const wrongChoices = pemainList.filter(p => p.id !== currentTarget.id);
+    const shuffledWrong = wrongChoices.sort(() => 0.5 - Math.random()).slice(0, 3);
+    const choices = [currentTarget, ...shuffledWrong].sort(() => 0.5 - Math.random());
+
+    const imgEl = document.getElementById("shadow-img");
+    const optionsGrid = document.getElementById("options-grid");
+    const roundEl = document.getElementById("shadow-round");
+
+    if (roundEl) roundEl.textContent = `${roundCount}/${maxRounds}`;
+    if (imgEl) {
+      imgEl.src = currentTarget.foto;
+      imgEl.style.filter = `blur(${blurVal}px)`;
+    }
+
+    if (blurTimer) clearInterval(blurTimer);
+    blurTimer = setInterval(() => {
+      blurVal = Math.max(0, blurVal - 1.5);
+      if (imgEl) imgEl.style.filter = `blur(${blurVal}px)`;
+      if (blurVal <= 0) clearInterval(blurTimer);
+    }, 400);
+
+    if (optionsGrid) {
+      optionsGrid.innerHTML = choices.map(c => `
+        <button onclick="guessBayangan('${c.id}')" class="bg-slate-800 hover:bg-emerald-600 text-white font-bold py-3 px-2 rounded-xl border border-slate-700 text-xs transition active:scale-95 truncate">
+          ${esc(c.nama)}
+        </button>
+      `).join("");
+    }
+  }
+
+  container.innerHTML = `
+    <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-emerald-500/50 max-w-md mx-auto fade-in text-white text-center">
+      <div class="flex justify-between items-center bg-slate-800 px-4 py-2 rounded-xl border border-slate-700 mb-4 text-xs font-bold">
+        <button onclick="showScreen('menu-screen')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-arrow-left"></i> Menu</button>
+        <span class="text-emerald-400">Ronde: <span id="shadow-round">1/5</span></span>
+        <span class="text-amber-400">Skor: <span id="shadow-score">0</span></span>
+      </div>
+
+      <div class="mb-4">
+        <p class="text-xs text-slate-400 font-sans mb-2">Siapakah sosok dibalik foto ini?</p>
+        <div class="w-40 h-40 mx-auto rounded-3xl overflow-hidden border-4 border-emerald-500 shadow-2xl mb-3 bg-slate-950 flex items-center justify-center">
+          <img id="shadow-img" src="" class="w-full h-full object-cover transition-all duration-300" onerror="this.src='https://placehold.co/150?text=Err'">
+        </div>
+      </div>
+
+      <div id="options-grid" class="grid grid-cols-2 gap-2 mt-4"></div>
+    </div>`;
+
+  window.guessBayangan = function(selectedId) {
+    if (blurTimer) clearInterval(blurTimer);
+    const imgEl = document.getElementById("shadow-img");
+    if (imgEl) imgEl.style.filter = "blur(0px)";
+
+    if (selectedId === currentTarget.id) {
+      const bonus = Math.round(blurVal * 5); // Speed bonus if guessed early while blurry
+      const roundScore = 100 + bonus;
+      score += roundScore;
+      correctHits++;
+      playSound('correct');
+      showToast(`Tebakan Tepat! +${roundScore}`, "success");
+    } else {
+      wrongHits++;
+      playSound('wrong');
+      showToast(`Salah! Itu adalah ${currentTarget.nama}`, "error");
+    }
+
+    document.getElementById("shadow-score").textContent = score;
+    setTimeout(nextRound, 1200);
+  };
+
+  nextRound();
+
+  function endGame() {
+    if (blurTimer) clearInterval(blurTimer);
+    const endTime = new Date();
+
+    saveScoreToSupabase({
+      gameId: "bayangan_misteri",
+      skor: score,
+      jumlahBenar: correctHits,
+      jumlahSalah: wrongHits,
+      waktuMulai: startTime,
+      waktuSelesai: endTime,
+      detail: { mode: "Bayangan Misteri" }
+    });
+
+    container.innerHTML = `
+      <div class="bg-slate-900/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl border-2 border-emerald-500 text-center max-w-md mx-auto fade-in text-white">
+        <div class="text-4xl mb-2">🕵️</div>
+        <h3 class="text-2xl font-black text-white mb-1">Ronde Selesai!</h3>
+        <p class="text-xs text-slate-400 mb-4">Total Skor Kamu: <span class="text-amber-400 font-bold text-lg">${score}</span></p>
+
+        <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs font-sans space-y-1 mb-5">
+          <div class="flex justify-between text-slate-300"><span>Tebakan Tepat:</span><span class="text-emerald-400 font-bold">${correctHits} / ${maxRounds}</span></div>
+          <div class="flex justify-between text-slate-300"><span>Misklik:</span><span class="text-rose-400 font-bold">${wrongHits}</span></div>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="startBayanganGame()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition">Main Lagi</button>
+          <button onclick="showScreen('menu-screen')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Menu</button>
+        </div>
+      </div>`;
+  }
+}
+
+/* =========================================================
+   INITIALIZATION / ENTRY POINT
+   ========================================================= */
+window.addEventListener("DOMContentLoaded", async () => {
+  const badge = document.getElementById("data-status-badge");
+  badge.textContent = "Mengosongkan sesi...";
+
+  const auto = await tryAutoLogin();
+
+  if (auto.ok) {
+    badge.textContent = auto.fromCache ? "Offline (Cache)" : "Terhubung ✓";
+    showScreen("menu-screen");
+  } else {
+    if (auto.alasan === "belum_login") {
+      badge.textContent = "Belum Login";
+      renderBelumLoginScreen();
+    } else if (auto.alasan === "belum_setup") {
+      badge.textContent = "Perlu Setup";
+      renderSetupScreen("Masukkan Bin ID dari guru untuk mulai.", auto.user);
+    } else {
+      badge.textContent = "Gagal mengambil data";
+      renderSetupScreen(auto.error || "Gagal mengambil data dari JSONBin", auto.user);
+    }
+  }
+});
+</script>
+</body>
+</html>
