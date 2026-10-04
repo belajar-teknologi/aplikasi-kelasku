@@ -1061,42 +1061,7 @@ async function saveMasterDB(payload, options) {
            : "local"
   };
 }
-/* =========================================================
-   ⭐ BARU v5: SIMPAN MENU KE SUPABASE (khusus custom menu)
-   ========================================================= */
-async function simpanMenuKeSupabase() {
-  // Sinkronkan dulu appState.db.mn dengan appState.menus
-  appState.db.mn = appState.menus;
-  saveLocal();
-  
-  const sb = getSupabaseConfig();
-  if (!sb) {
-    console.warn("[Menu] Supabase belum diset, hanya tersimpan lokal");
-    return { supabase: false, lokal: true, error: "Supabase belum dikonfigurasi" };
-  }
-  
-  try {
-    const cfg = getAppConfig();
-    const payload = {
-      ...appState.db,
-      mn: appState.menus,
-      _lastMenuUpdate: new Date().toISOString()
-    };
-    
-    await sbSaveMasterConfig(
-      "app_master",
-      payload,
-      cfg?.kodeAplikasi || appState.db?.a?.k || null
-    );
-    
-    setMasterCache(payload);
-    console.log("[Menu] ✓ Tersimpan ke Supabase master_config (" + appState.menus.length + " menu)");
-    return { supabase: true, lokal: true };
-  } catch(e) {
-    console.warn("[Menu] ✗ Gagal simpan ke Supabase:", e.message);
-    return { supabase: false, lokal: true, error: e.message };
-  }
-}
+
 /* =========================================================
    ⭐ BARU v5: SIMPAN FOTO SISWA (Supabase Storage + master_config)
    ========================================================= */
@@ -1330,18 +1295,9 @@ function addActivity(tipe, detail, extra={}) {
   }
   
   // ⭐ HANYA kirim ke Supabase — TIDAK ADA updateJsonBinDB() di sini
-    const userId = user.siswaId || user.username || user.name;
+  const userId = user.siswaId || user.username || user.name;
   kirimLogKeSupabase({ ...log, userId })
-    .then(function(ok) { 
-      if (ok) {
-        log.sent = true;
-        // ⭐ Auto-refresh panel aktivitas kalau sedang di dashboard
-        if (document.getElementById("aktivitas-supabase") && 
-            appState.activeView === "dashboard") {
-          refreshAktivitasSupabase();
-        }
-      }
-    })
+    .then(function(ok) { if (ok) log.sent = true; })
     .catch(function(){});
   
   // ⭐ Simpan lokal saja, tanpa auto-save JSONBin
@@ -1393,14 +1349,6 @@ async function refreshDataDariCloud(force) {
     if (freshDb.ncPerMapel) appState.db.ncPerMapel = freshDb.ncPerMapel;
     if (freshDb.md) appState.db.md = freshDb.md;
     if (freshDb.a) appState.db.a = { ...appState.db.a, ...freshDb.a };
-    // ⭐ BARU: restore menu dari cloud
-    if (Array.isArray(freshDb.mn) && freshDb.mn.length) {
-      appState.menus = freshDb.mn;
-      appState.db.mn = freshDb.mn;
-      setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
-      console.log("[Refresh] ✓ Menu di-restore dari cloud:", freshDb.mn.length, "item");
-      renderSidebarNav();
-    }
     
     saveLocal();
     setLS(STORAGE.LAST_AUTO_REFRESH, String(Date.now()));
@@ -2125,12 +2073,6 @@ async function handleLogin(e) {
       restoreCredsFromDb(db); 
       saveAppConfig(cfg); 
       setLS(STORAGE.APP_CODE,code);
-        // ⭐ Pastikan menu custom dari Supabase ikut termuat
-      if (Array.isArray(db.mn) && db.mn.length) {
-        appState.menus = db.mn;
-        setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
-        console.log("[Login] Menu dimuat dari cloud:", db.mn.length, "item");
-      }
       appState.currentUser={ username: gcUser, name: db.a?.ng||cfg.namaGuru||"Guru", role:"guru", sekolah: db.a?.ns||cfg.namaSekolah||"", kelas: db.a?.kl||cfg.kelas||"" };
       setLS(STORAGE.USER, JSON.stringify(appState.currentUser)); 
       setLS(STORAGE.DB, JSON.stringify(appState.db));
@@ -2151,12 +2093,6 @@ async function handleLogin(e) {
     restoreCredsFromDb(db); 
     saveAppConfig(cfg); 
     setLS(STORAGE.APP_CODE,code);
-      // ⭐ Pastikan menu custom dari Supabase ikut termuat
-    if (Array.isArray(db.mn) && db.mn.length) {
-      appState.menus = db.mn;
-      setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
-      console.log("[Login] Menu dimuat dari cloud:", db.mn.length, "item");
-    }
     appState.currentUser={ username: siswa.username, name: siswa.nama, role:"siswa", nis: siswa.nis, noAbsen: siswa.noAbsen, kelas: siswa.kelas, siswaId: siswa.id, sekolah: db.a?.ns||cfg.namaSekolah||"", guru: db.a?.ng||cfg.namaGuru||"" };
     setLS(STORAGE.USER, JSON.stringify(appState.currentUser)); 
     setLS(STORAGE.DB, JSON.stringify(appState.db));
@@ -2179,11 +2115,8 @@ function logout() {
   delLS(STORAGE.USER); 
   delLS(STORAGE.DB); 
   delLS(STORAGE.APP_CONFIG);
-  // ⭐ JANGAN hapus MASTER_CACHE & MENUS agar login ulang cepat
-  
   appState.activeView="dashboard"; 
   appState.db=JSON.parse(JSON.stringify(DEFAULT_DB));
-  appState.menus=[...DEFAULT_MENUS];
   showToast("Anda telah keluar.","info"); 
   renderApp();
 }
@@ -2772,22 +2705,11 @@ function renderDataSiswa(c) {
   </div>`;
 }
 
-async function deleteSiswa(id) { 
+function deleteSiswa(id) { 
   if (!confirm("Hapus siswa ini?")) return; 
   appState.db.sw=appState.db.sw.filter(s=>Number(s[FIELD.SISWA.ID])!==Number(id)); 
   saveLocal(); 
-  setSyncBadge(true, "MENYIMPAN");
-  
-  showToast("⏳ Menghapus siswa...", "info");
-  const hasil = await simpanMenuKeSupabase();
-  
-  if (hasil.supabase) {
-    showToast("✓ Siswa dihapus dari Supabase.", "success");
-    setSyncBadge(false, "SUPABASE");
-  } else {
-    showToast("⚠️ Terhapus LOKAL saja.", "error");
-    setSyncBadge(true, "OFFLINE");
-  }
+  setSyncBadge(true); 
   renderMainContent(); 
 }
 function showBulkSiswa() { 
@@ -2836,16 +2758,14 @@ async function saveBulkSiswa() {
   setSyncBadge(true); 
   addActivity("tambah_siswa",`Tambah ${total} siswa`); 
   showLoading(true,"Menyimpan...");
-  // ⭐ PAKAI helper simpanMenuKeSupabase (karena bundel seluruh appState.db)
-const hasil = await simpanMenuKeSupabase();
-showLoading(false);
-
-if (hasil.supabase) {
-  showToast(`✓ ${total} siswa tersimpan ke Supabase.`, "success");
-  setSyncBadge(false, "SUPABASE");
-} else {
-  showToast(`⚠️ Tersimpan LOKAL saja.`, "error");
-  setSyncBadge(true, "OFFLINE");
+  const ok=await updateJsonBinDB_Lite(); 
+  showLoading(false);
+  if (ok) { 
+    showToast(`✓ ${total} siswa disimpan.`,"success"); 
+    setSyncBadge(false); 
+  } else showToast("Tersimpan lokal.","error");
+  closeModal(); 
+  renderMainContent();
 }
 function importExcelSiswa(e) {
   const f=e.target.files[0]; 
@@ -4823,28 +4743,12 @@ async function handleAddMenu(e) {
   if (source==="url" && url) item.url=url; 
   else if (source==="supabase" && table) item.table=table; 
   else item.dataSource="static";
-  
-  appState.menus.push(item);
+  appState.menus.push(item); 
   saveLocal();
-  
-  showToast(`⏳ Menyimpan menu "${name}"...`, "info");
-  
-  // ⭐ GANTI: simpan ke Supabase (bukan JSONBin)
-  const hasil = await simpanMenuKeSupabase();
-  
-  if (hasil.supabase) {
-    showToast(`✓ Menu "${name}" tersimpan ke Supabase.`, "success");
-    setSyncBadge(false, "SUPABASE");
-  } else {
-    showToast(`⚠️ Menu "${name}" tersimpan LOKAL saja.`, "error");
-    setSyncBadge(true, "OFFLINE");
-  }
-  
-  renderApp();
-  renderSidebarNav();
+  showToast(`✓ Menu "${name}" ditambahkan.`,"success"); 
+  renderApp(); 
   closeModal();
-  
-  addActivity("tambah_menu", `Tambah menu: ${name} (${role})`);
+  try { await updateJsonBinDB(); } catch(e) {}
 }
 function renderMenuTambahan(c) {
   const customGuru=appState.menus.filter(m=>m.isCustom&&m.roles?.includes("guru"));
@@ -4893,25 +4797,11 @@ async function hapusMenuCustom(id) {
   const m=appState.menus.find(x=>x.id===id); 
   if (!m) return;
   if (!confirm(`Hapus menu "${m.name}"?`)) return;
-  
   appState.menus=appState.menus.filter(x=>x.id!==id); 
   saveLocal();
-  
-  showToast(`⏳ Menghapus menu "${m.name}"...`, "info");
-  
-  // ⭐ GANTI: simpan ke Supabase
-  const hasil = await simpanMenuKeSupabase();
-  
-  if (hasil.supabase) {
-    showToast(`✓ Menu "${m.name}" dihapus dari Supabase.`, "info");
-    setSyncBadge(false, "SUPABASE");
-  } else {
-    showToast(`⚠️ Terhapus LOKAL saja.`, "error");
-    setSyncBadge(true, "OFFLINE");
-  }
-  
+  showToast(`Menu "${m.name}" dihapus.`,"info"); 
   renderMainContent();
-  addActivity("hapus_menu", `Hapus menu: ${m.name}`);
+  try { await updateJsonBinDB(); } catch(e) {}
 }
 async function openCustomMenu(id) {
   const m=appState.menus.find(x=>x.id===id); 
