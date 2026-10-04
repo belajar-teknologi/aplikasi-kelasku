@@ -4259,19 +4259,20 @@ function renderSoalGame() {
     <div class="flex justify-between items-center text-xs"><span class="bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-full">Soal ${st.idx+1}/${st.soal.length}</span><span class="font-bold text-emerald-600">✓ ${st.benar}</span><span class="font-bold text-red-600">✗ ${st.salah}</span></div>
     <div class="text-base sm:text-lg font-bold text-slate-800 text-center py-4 bg-slate-50 rounded-xl">${soal.soal}</div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      ${soal.opsi.map(o=>`<button onclick="jawabGame('${o.replace(/'/g,"\\'")}')" class="py-3 border-2 rounded-xl hover:bg-indigo-600 hover:text-white font-bold transition text-sm">${o}</button>`).join("")}
+      ${soal.opsi.map((o, i) => `<button onclick="jawabGame(${i})" class="py-3 border-2 rounded-xl hover:bg-indigo-600 hover:text-white font-bold transition text-sm">${o}</button>`).join("")}
     </div>
   </div>`;
 }
-function jawabGame(pilih) {
-  const st=window.__gameState; 
-  const soal=st.soal[st.idx]; 
-  const benar=String(pilih)===String(soal.jawaban);
-  if (benar) st.benar++; 
-  else st.salah++; 
-  st.detail.push({ tipe: soal.tipe, benar }); 
+function jawabGame(indexPilih) {
+  const st = window.__gameState;
+  const soal = st.soal[st.idx];
+  const pilih = soal.opsi[indexPilih];
+  const benar = String(pilih) === String(soal.jawaban);
+  if (benar) st.benar++;
+  else st.salah++;
+  st.detail.push({ tipe: soal.tipe, benar });
   st.idx++;
-  setTimeout(()=>renderSoalGame(),400);
+  setTimeout(() => renderSoalGame(), 400);
 }
 async function selesaiGame() {
   const area=document.getElementById("game-area"); 
