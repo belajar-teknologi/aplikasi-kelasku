@@ -1472,9 +1472,14 @@ async function loadConfigByCode(kode) {
     saveJsonBinCredential(cfg.database.accessKey, "access");
   }
   
-  // ⭐ Set primary source dari config
-  if (cfg.database?.provider) {
+  // ⭐ v5.1: JANGAN overwrite primary source user
+  // Cuma set kalau belum pernah diset user
+  if (cfg.database?.provider && !localStorage.getItem(STORAGE.PRIMARY_SOURCE)) {
+    console.log("[Config] Set primary source pertama kali:", cfg.database.provider);
     setPrimarySource(cfg.database.provider);
+  } else {
+    console.log("[Config] Primary source sudah diset user:",
+      localStorage.getItem(STORAGE.PRIMARY_SOURCE), "— skip");
   }
   
   return { ...cfg, binId, guruCredentials: cfg.guruCredentials, cloudinaryUrl: url };
@@ -2140,13 +2145,27 @@ async function handleLogin(e) {
 }
 
 function logout() {
-  appState.currentUser=null;
+  appState.currentUser = null;
+  
+  // ⭐ Hapus data user, TAPI JANGAN hapus pengaturan (primary source, dll)
   delLS(STORAGE.USER); 
   delLS(STORAGE.DB); 
   delLS(STORAGE.APP_CONFIG);
-  appState.activeView="dashboard"; 
-  appState.db=JSON.parse(JSON.stringify(DEFAULT_DB));
-  showToast("Anda telah keluar.","info"); 
+  
+  // ⭐ v5.1: Preserve pengaturan penting
+  // localStorage.setItem(STORAGE.PRIMARY_SOURCE, ...) TIDAK DIHAPUS
+  // localStorage.setItem(STORAGE.SB_URL, ...) TIDAK DIHAPUS
+  // localStorage.setItem(STORAGE.SB_KEY, ...) TIDAK DIHAPUS
+  // localStorage.setItem(STORAGE.JSONBIN_KEY, ...) TIDAK DIHAPUS
+  // localStorage.setItem(STORAGE.APP_CODE, ...) TIDAK DIHAPUS
+  
+  appState.activeView = "dashboard"; 
+  appState.db = JSON.parse(JSON.stringify(DEFAULT_DB));
+  
+  const primary = localStorage.getItem(STORAGE.PRIMARY_SOURCE);
+  console.log("[Logout] ✓ Primary source preserved:", primary);
+  
+  showToast("Anda telah keluar.", "info"); 
   renderApp();
 }
 
@@ -2563,6 +2582,12 @@ async function executeBuatDatabase() {
   try {
     const bin=await createJsonBinDB(database,kodeAplikasi,`EduSmart ${kelas} ${tahunAjar}`);
     const binId=bin.metadata.id;
+        // ⭐ v5.1 Patch C1: Auto-detect provider — Supabase prioritas kalau sudah diset
+    const hasSupabase = !!getSupabaseConfig();
+    const defaultProvider = hasSupabase ? "supabase" : "jsonbin";
+    console.log("[BuatDB] Provider default:", defaultProvider, 
+      "(Supabase:", hasSupabase ? "siap ✓" : "belum diset ✗", ")");
+    
     const configObj={ 
       version:5, 
       kodeAplikasi, 
@@ -2572,7 +2597,11 @@ async function executeBuatDatabase() {
       tahunAjar, 
       guruCredentials: { username, passwordHash }, 
       geminiApiKey: geminiKey||"", 
-      database: { provider:"jsonbin", binId }, 
+      database: { 
+        provider: defaultProvider,
+        binId,
+        fallback: hasSupabase ? "jsonbin" : "supabase"
+      }, 
       createdAt: new Date().toISOString() 
     };
     const cloud=await uploadConfigCloudinary(configObj,kodeAplikasi);
@@ -4062,6 +4091,10 @@ async function saveToCloud() {
       username: appState.db.a?.gc?.[0] || "", 
       passwordHash: appState.db.a?.gc?.[2] || "" 
     };
+        // ⭐ v5.1 Patch C2: Ambil provider dari setting user saat ini
+    const activeProvider = getPrimarySource();
+    console.log("[SaveCloud] Simpan config dengan provider:", activeProvider);
+    
     await uploadConfigCloudinary({ 
       version: 5, 
       kodeAplikasi: cfg.kodeAplikasi, 
@@ -4071,7 +4104,11 @@ async function saveToCloud() {
       tahunAjar: appState.db.md?.u?.ta || cfg.tahunAjar || "-", 
       guruCredentials: gcHashOnly, 
       geminiApiKey: gk, 
-      database: { provider: "supabase", binId: cfg.binId || null }, 
+      database: { 
+        provider: activeProvider, 
+        binId: cfg.binId || null,
+        fallback: activeProvider === "supabase" ? "jsonbin" : "supabase"
+      }, 
       createdAt: cfg.createdAt || new Date().toISOString() 
     }, cfg.kodeAplikasi);
   } catch(e) {}
