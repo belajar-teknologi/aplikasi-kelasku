@@ -2155,9 +2155,16 @@ async function handleLogin(e) {
       return;
     }
     
-    const sw=(db.sw||[]).find(s=>String(s[FIELD.SISWA.USER]||"").toLowerCase()===username.toLowerCase() && String(s[FIELD.SISWA.PASS])===password);
+        const sw=(db.sw||[]).find(s=>String(s[FIELD.SISWA.USER]||"").toLowerCase()===username.toLowerCase() && String(s[FIELD.SISWA.PASS])===password);
     if (!sw) throw new Error("Username atau password siswa salah.");
     const siswa=siswaToObj(sw);
+    
+    // ⭐ Validasi siswaId
+    if (siswa.id === undefined || siswa.id === null || String(siswa.id).trim() === "") {
+      throw new Error("Data siswa tidak lengkap (ID kosong). Hubungi guru.");
+    }
+    console.log("[Login Siswa] ID:", siswa.id, "| NIS:", siswa.nis, "| Nama:", siswa.nama);
+    
     appState.db=db; 
     ensureMasterData(); 
     restoreMenusFromDb(db); 
@@ -4391,27 +4398,53 @@ async function selesaiGame() {
     <div class="text-[10px] text-slate-400">Durasi: ${durasi} detik</div>
     <div class="text-[10px] text-slate-400">Menyimpan skor...</div>
   </div>`;
+  
   const sb=getSupabaseConfig();
-  if (sb && appState.currentUser?.siswaId) {
-    try {
-      await sbInsert("skor_game",[{ 
-        siswa_id: String(appState.currentUser.siswaId), 
-        kelas: appState.currentUser.kelas||"", 
-        game_id:"edukasi", 
-        skor, 
-        jumlah_benar: st.benar, 
-        jumlah_salah: st.salah, 
-        waktu_mulai: st.mulai, 
-        waktu_selesai: st.selesai, 
-        durasi_detik: durasi, 
-        detail: st.detail 
-      }]);
-      showToast("✓ Skor tersimpan.","success"); 
-      refreshLeaderboardGame(appState.currentUser.kelas);
-    } catch(e) { 
-      showToast("Gagal simpan skor: "+e.message,"error"); 
-    }
-  } else showToast("Skor tidak disimpan (Supabase belum di-setup).","info");
+  const user = appState.currentUser;
+  
+  // ─── Tentukan ID unik: siswa pakai siswaId, guru pakai "guru_<username>" ───
+  let userId = "";
+  let userKelas = "";
+  if (user?.role === "siswa" && user.siswaId) {
+    userId = String(user.siswaId).trim();
+    userKelas = String(user.kelas || "").trim();
+  } else if (user?.role === "guru") {
+    userId = "guru_" + (user.username || "guru");
+    userKelas = String(appState.db.a?.kl || "").trim();
+  }
+  
+  const isValidId = userId !== "" && userId !== "undefined" && userId !== "null";
+  console.log("[Game] role:", user?.role, "| userId:", userId, "| valid:", isValidId);
+  
+  if (!sb) {
+    showToast("Skor tidak disimpan (Supabase belum di-setup).","info");
+    return;
+  }
+  
+  if (!isValidId) {
+    showToast("Skor tidak disimpan: ID user tidak valid.","error");
+    console.error("[Game] userId tidak valid:", userId, "| currentUser:", user);
+    return;
+  }
+  
+  try {
+    await sbInsert("skor_game",[{ 
+      siswa_id: userId, 
+      kelas: userKelas, 
+      game_id:"edukasi", 
+      skor, 
+      jumlah_benar: st.benar, 
+      jumlah_salah: st.salah, 
+      waktu_mulai: st.mulai, 
+      waktu_selesai: st.selesai, 
+      durasi_detik: durasi, 
+      detail: st.detail 
+    }]);
+    showToast("✓ Skor tersimpan.","success"); 
+    refreshLeaderboardGame(userKelas);
+  } catch(e) { 
+    showToast("Gagal simpan skor: "+e.message,"error"); 
+  }
 }
 async function refreshLeaderboardGame(kelas) {
   const el=document.getElementById("leaderboard-game"); 
@@ -5461,23 +5494,64 @@ async function refreshHasilGame() {
   try {
     const rows = await sbFetch("skor_game", "?order=created_at.desc&limit=5&select=id,siswa_id,kelas,skor,jumlah_benar,jumlah_salah,durasi_detik,created_at");
     if (!rows.length) {
-      el.innerHTML = `<div class="text-center py-8"><i class="fa-solid fa-gamepad text-4xl text-slate-300 mb-2"></i><div class="text-slate-500 text-xs">Belum ada siswa yang main game.</div></div>`;
+      el.innerHTML = `<div class="text-center py-8"><i class="fa-solid fa-gamepad text-4xl text-slate-300 mb-2"></i><div class="text-slate-500 text-xs">Belum ada yang main game.</div></div>`;
       return;
     }
+    
+    // ─── Siapkan daftar nama dari siswa DAN guru ───
     const siswaAll = (appState.db.sw || []).map(siswaToObj);
+    const guruNama = appState.db.a?.ng || "";
+    const guruUsername = appState.db.a?.gc?.[0] || "";
+    const guruId = "guru_" + (guruUsername || "guru");
+    
     const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+    
     el.innerHTML = rows.map((r, i) => {
-      const s = siswaAll.find(x => String(x.id) === String(r.siswa_id));
-      const nama = s?.nama || `Siswa ${r.siswa_id}`;
+      const raw = String(r.siswa_id || "").trim();
+      
+      // ─── Cari di data siswa (id / nis / username) ───
+      const sw = siswaAll.find(x =>
+        String(x.id) === raw ||
+        String(x.nis) === raw ||
+        String(x.username) === raw
+      );
+      
+      // ─── Fallback: cek apakah ini guru ───
+      let nama, role;
+      if (sw) {
+        nama = sw.nama;
+        role = "siswa";
+      } else if (
+        raw === guruId ||
+        raw === guruUsername ||
+        raw === "guru_guru" ||
+        (guruNama && raw.toLowerCase() === guruNama.toLowerCase())
+      ) {
+        nama = guruNama || "Guru";
+        role = "guru";
+      } else {
+        nama = `(ID tak dikenal: ${raw || "kosong"})`;
+        role = "?";
+      }
+      
+      // ─── Badge role ───
+      const badgeRole = role === "guru" 
+        ? `<span class="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.5 rounded uppercase">Guru</span>`
+        : role === "siswa"
+        ? `<span class="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded uppercase">Siswa</span>`
+        : `<span class="text-[9px] bg-slate-200 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase">?</span>`;
+      
       const waktu = formatRelative(r.created_at);
       const skor = Number(r.skor) || 0;
       const warnaSkor = skor >= 80 ? "text-emerald-700" : skor >= 60 ? "text-amber-600" : "text-red-600";
       const bgCard = i === 0 ? "bg-gradient-to-r from-amber-50 to-white border-amber-200" : i === 1 ? "bg-gradient-to-r from-slate-50 to-white border-slate-200" : i === 2 ? "bg-gradient-to-r from-orange-50 to-white border-orange-200" : "bg-slate-50 border-slate-100";
+      
       return `<div class="p-3 rounded-lg border ${bgCard} flex items-center gap-3 hover:shadow-sm transition">
         <div class="text-2xl shrink-0">${medals[i]}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-semibold text-slate-700 truncate">${nama}</span>
+            ${badgeRole}
             <span class="text-[9px] bg-slate-200 text-slate-600 font-bold px-1.5 py-0.5 rounded">${r.kelas || "-"}</span>
           </div>
           <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
@@ -5516,8 +5590,21 @@ async function refreshHasilGameSiswa() {
   }
   
   const sid = appState.currentUser?.siswaId;
-  if (!sid) {
-    el.innerHTML = '<div class="text-center text-xs text-slate-400 py-4">Siswa tidak dikenal</div>';
+  const isValidSid = sid !== undefined && sid !== null && 
+                     String(sid).trim() !== "" && 
+                     String(sid).trim() !== "undefined" &&
+                     String(sid).trim() !== "null";
+  
+  if (!isValidSid) {
+    el.innerHTML = `
+      <div class="text-center py-6">
+        <i class="fa-solid fa-user-slash text-3xl text-slate-300 mb-2"></i>
+        <div class="text-slate-500 text-xs">ID siswa tidak valid.</div>
+        <button onclick="logout()" class="mt-3 bg-red-500 text-white text-[10px] font-bold px-3 py-2 rounded-lg">
+          <i class="fa-solid fa-right-from-bracket"></i> Login Ulang
+        </button>
+      </div>`;
+    console.warn("[Hasil Game Siswa] siswaId tidak valid:", sid, "| currentUser:", appState.currentUser);
     return;
   }
   
@@ -5525,7 +5612,7 @@ async function refreshHasilGameSiswa() {
     // ─── Ambil 5 hasil game terbaru dari siswa ini ───
     const rows = await sbFetch(
       "skor_game",
-      `?siswa_id=eq.${encodeURIComponent(sid)}&order=created_at.desc&limit=5&select=id,skor,jumlah_benar,jumlah_salah,durasi_detik,created_at`
+      `?siswa_id=eq.${encodeURIComponent(String(sid).trim())}&order=created_at.desc&limit=5&select=id,skor,jumlah_benar,jumlah_salah,durasi_detik,created_at`
     );
     
     if (!rows.length) {
