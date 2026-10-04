@@ -843,13 +843,50 @@ async function getMergedActivityAsync(limit) {
 }
 
 /* =========================================================
-   ⭐ BARU v5: PRIMARY SOURCE MANAGER
+   ⭐ BARU v5.1: PRIMARY SOURCE MANAGER (SMART DEFAULT)
+   Aturan:
+   1. Kalau Supabase DISET → default = supabase
+   2. Kalau Supabase BELUM diset → default = jsonbin
+   3. Kalau user MANUAL ganti → hormati pilihannya
    ========================================================= */
 function getPrimarySource() {
-  return getLS(STORAGE.PRIMARY_SOURCE, DEFAULT_PRIMARY_SOURCE);
+  // ─── Cek apakah user sudah manual set ───
+  const userChoice = getLS(STORAGE.PRIMARY_SOURCE, "");
+  const sb = getSupabaseConfig();
+  const hasSupabase = !!sb;
+  
+  // Kalau user sudah pilih, hormati (kecuali pilihan invalid)
+  if (userChoice === "supabase" || userChoice === "jsonbin") {
+    // ⭐ Edge case: user pilih supabase tapi Supabase belum diset
+    if (userChoice === "supabase" && !hasSupabase) {
+      console.warn("[Primary] User pilih 'supabase' tapi belum diset → fallback ke jsonbin");
+      return "jsonbin";
+    }
+    // ⭐ Edge case: user pilih jsonbin tapi JSONBin belum diset
+    if (userChoice === "jsonbin" && !getJsonBinCredential()) {
+      console.warn("[Primary] User pilih 'jsonbin' tapi API Key belum diset → fallback ke supabase");
+      return hasSupabase ? "supabase" : "jsonbin";
+    }
+    return userChoice;
+  }
+  
+  // ─── Belum ada pilihan user → AUTO DETECT ───
+  if (hasSupabase) {
+    console.log("[Primary] Auto-detect: Supabase diset → pakai SUPABASE");
+    // Set otomatis biar konsisten
+    setLS(STORAGE.PRIMARY_SOURCE, "supabase");
+    return "supabase";
+  }
+  
+  console.log("[Primary] Auto-detect: Supabase belum diset → pakai JSONBIN");
+  setLS(STORAGE.PRIMARY_SOURCE, "jsonbin");
+  return "jsonbin";
 }
+
 function setPrimarySource(src) {
-  setLS(STORAGE.PRIMARY_SOURCE, src === "jsonbin" ? "jsonbin" : "supabase");
+  const newSrc = src === "jsonbin" ? "jsonbin" : "supabase";
+  setLS(STORAGE.PRIMARY_SOURCE, newSrc);
+  console.log("[Primary] Manual set ke:", newSrc);
 }
 
 /* =========================================================
