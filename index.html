@@ -2719,43 +2719,533 @@ async function importNilaiExcel(e, mapelKode) {
 window.__hbKelas="ALL"; 
 window.__hbSiswa="ALL";
 
-function renderHasilBelajar(c) {
-  const siswaAll=(appState.db.sw||[]).map(siswaToObj); 
-  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
-  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))].sort();
-  const filterKelas=window.__hbKelas||"ALL"; 
-  const filterSiswa=window.__hbSiswa||"ALL";
-  let filtered=filterKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===filterKelas);
-  if (filterSiswa!=="ALL") filtered=filtered.filter(s=>String(s.id)===String(filterSiswa));
-  const siswaDropdownList=filterKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===filterKelas);
-  c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
-    <div class="flex flex-col sm:flex-row justify-between gap-3">
-      <h2 class="text-base sm:text-lg font-bold">Hasil Belajar</h2>
-      <div class="flex flex-wrap gap-2">
-        <select onchange="window.__hbKelas=this.value; window.__hbSiswa='ALL'; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white"><option value="ALL" ${filterKelas==="ALL"?"selected":""}>Semua Kelas</option>${kelasList.map(k=>`<option value="${k}" ${filterKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}</select>
-        <select onchange="window.__hbSiswa=this.value; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white max-w-[200px]"><option value="ALL" ${filterSiswa==="ALL"?"selected":""}>Semua Siswa</option>${siswaDropdownList.map(s=>`<option value="${s.id}" ${String(filterSiswa)===String(s.id)?"selected":""}>${s.nama} (${s.noAbsen||"-"})</option>`).join("")}</select>
-        <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold"><i class="fa-solid fa-file-pdf"></i> Cetak PDF</button>
+/* =========================================================
+   ⭐ HASIL BELAJAR v2 — Dashboard Siswa + Nilai Kurang
+   ========================================================= */
+
+/* ─── 2A. Dashboard Ringkas Nilai Siswa (Reuse dari Dashboard Siswa) ─── */
+function renderDashboardNilaiSiswa(sid) {
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
+  if (!sw) return `<div class="text-center text-xs text-slate-400 py-4">Siswa tidak ditemukan.</div>`;
+  
+  const fotoSiswa = sw.fotoUrl || "";
+  
+  // Hitung rata-rata total
+  let totalAll = 0, countAll = 0;
+  (appState.db.nl || []).filter(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid)).forEach(arr => {
+    const mk = arr[FIELD.NILAI.MAPEL_KODE];
+    const nc = getKomponenByMapel(mk);
+    const rec = nilaiToObj(arr, nc);
+    nc.forEach(cc => { 
+      const v = Number(rec.scores?.[cc] ?? 0); 
+      if (!isNaN(v)) { totalAll += v; countAll++; } 
+    });
+  });
+  const avg = countAll ? (totalAll / countAll).toFixed(1) : "0.0";
+  
+  // Statistik per mapel
+  const statMapel = mapelAll.map(m => {
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+    if (!nlArr) return { nama: m.nama, kode: m.kode, kkm: m.kkm, rata: 0, kosong: nc.slice(), kurang: nc.slice() };
+    const rec = nilaiToObj(nlArr, nc);
+    const vals = nc.map(cc => Number(rec.scores?.[cc] ?? 0));
+    const rata = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    const kosong = nc.filter(cc => !rec.scores[cc] || Number(rec.scores[cc]) === 0);
+    const kurang = nc.filter(cc => Number(rec.scores[cc] ?? 0) < (Number(m.kkm) || getMasterKKM()));
+    return { nama: m.nama, kode: m.kode, kkm: Number(m.kkm) || getMasterKKM(), rata: +rata.toFixed(1), kosong, kurang };
+  });
+  
+  const totalTuntas = statMapel.filter(m => m.rata >= m.kkm).length;
+  const totalKurang = statMapel.filter(m => m.rata < m.kkm && m.rata > 0).length;
+  const totalKosong = statMapel.reduce((acc, m) => acc + m.kosong.length, 0);
+  
+  return `
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-4">
+      <!-- Header siswa -->
+      <div class="flex items-center gap-3 pb-3 border-b">
+        ${fotoSiswa 
+          ? `<img src="${fotoSiswa}" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100" onerror="this.style.display='none'">` 
+          : `<div class="w-12 h-12 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg font-bold">${(sw.nama || "?").charAt(0).toUpperCase()}</div>`}
+        <div class="min-w-0">
+          <h3 class="font-bold text-base text-slate-800 truncate">📊 ${sw.nama || "-"}</h3>
+          <p class="text-[11px] text-slate-500">Kelas ${sw.kelas || "-"} · No. Absen ${sw.noAbsen || "-"} · NIS ${sw.nis || "-"}</p>
+        </div>
+      </div>
+      
+      <!-- 4 kartu ringkas -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white p-3 rounded-xl border shadow-sm">
+          <div class="text-[10px] text-slate-500 font-semibold">Rata Nilai</div>
+          <div class="text-xl font-bold mt-1 ${Number(avg) >= getMasterKKM() ? 'text-emerald-700' : 'text-amber-700'}">${avg}</div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+          <div class="text-[10px] text-emerald-700 font-semibold">Tuntas</div>
+          <div class="text-xl font-bold mt-1 text-emerald-700">${totalTuntas} mapel</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl">
+          <div class="text-[10px] text-amber-700 font-semibold">Kurang</div>
+          <div class="text-xl font-bold mt-1 text-amber-700">${totalKurang} mapel</div>
+        </div>
+        <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
+          <div class="text-[10px] text-red-700 font-semibold">Komponen Kosong</div>
+          <div class="text-xl font-bold mt-1 text-red-700">${totalKosong} item</div>
+        </div>
+      </div>
+      
+      <!-- Statistik Nilai per Mapel -->
+      <div>
+        <h4 class="font-bold text-sm mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-chart-simple text-emerald-600"></i> Statistik Nilai per Mapel
+        </h4>
+        <div class="space-y-3">
+          ${statMapel.map(m => {
+            const kkm = m.kkm;
+            const lulus = m.rata >= kkm;
+            const persen = Math.min(m.rata, 100);
+            const warnaBar = lulus ? "bg-emerald-500" : (m.rata > 0 ? "bg-amber-400" : "bg-slate-300");
+            const warnaText = lulus ? "text-emerald-600" : (m.rata > 0 ? "text-amber-600" : "text-slate-400");
+            return `
+              <div>
+                <div class="flex justify-between items-center text-xs mb-1 flex-wrap gap-1">
+                  <span class="font-semibold text-slate-700">${m.nama} <span class="text-[9px] text-slate-400">(KKM ${kkm})</span></span>
+                  <span class="font-bold ${warnaText}">${m.rata.toFixed(1)}</span>
+                </div>
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full ${warnaBar}" style="width:${persen}%"></div>
+                </div>
+                ${m.kosong.length ? `<div class="text-[10px] text-red-600 mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Komponen kosong: <b>${m.kosong.join(", ")}</b></div>` : ""}
+              </div>
+            `;
+          }).join("") || `<div class="text-center text-xs text-slate-400 py-4">Belum ada mapel.</div>`}
+        </div>
+      </div>
+      
+      <!-- Ranking Card -->
+      <div id="ranking-hb-${sid}">
+        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat ranking...</div>
       </div>
     </div>
-    ${filterSiswa!=="ALL"&&filtered.length?`<div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
-      <span class="text-indigo-900"><i class="fa-solid fa-user-graduate"></i> Menampilkan: <b>${filtered[0]?.nama||"-"}</b></span>
-      <button onclick="cetakRaporSiswa(${filtered[0].id})" class="bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg"><i class="fa-solid fa-print"></i> Rapor Siswa</button>
-    </div>`:""}
-    <div class="table-scroll"><table class="w-full text-xs border-collapse">
-      <thead><tr class="bg-slate-100 font-bold border-b"><th class="p-2 text-left">No</th><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Kelas</th><th class="p-2 text-left">Mapel</th><th class="p-2 text-center bg-emerald-50">Rata²</th><th class="p-2 text-center">Detail</th><th class="p-2 text-center">Status</th></tr></thead>
-      <tbody class="divide-y">${filtered.flatMap(s=>mapelAll.map(m=>{
-        const nc=getKomponenByMapel(m.kode);
-        const nlArr=(appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(s.id)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
-        const rec=nlArr?nilaiToObj(nlArr,nc):{ scores:{} };
-        let total=0; 
-        nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); });
-        const avg=nc.length?total/nc.length:0; 
-        const lulus=avg>=(m.kkm||70);
-        const detail=nc.map(cc=>`${cc}: ${rec.scores?.[cc]??0}`).join(", ");
-        return `<tr><td class="p-2 text-slate-400">${s.noAbsen}</td><td class="p-2 font-semibold">${s.nama}</td><td class="p-2">${s.kelas}</td><td class="p-2 font-bold text-indigo-700">${m.nama}</td><td class="p-2 text-center font-bold text-emerald-700 bg-emerald-50/50">${avg.toFixed(1)}</td><td class="p-2 text-[10px] text-slate-500 max-w-xs">${detail||"-"}</td><td class="p-2 text-center"><span class="${lulus?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'} font-bold px-2 py-0.5 rounded-full text-[10px]">${lulus?'LULUS':'REMEDIAL'}</span></td></tr>`;
-      })).join("")||'<tr><td colspan="7" class="text-center py-4 text-slate-400">Tidak ada data.</td></tr>'}</tbody>
-    </table></div>
-  </div>`;
+  `;
+}
+
+/* ─── 2B. Section Nilai Kurang + Komponen Kosong ─── */
+function renderNilaiKurangSection(sid) {
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  
+  const listKurang = [];
+  const listKosong = [];
+  
+  mapelAll.forEach(m => {
+    const kkm = Number(m.kkm) || getMasterKKM();
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+    if (!nlArr) return;
+    
+    const rec = nilaiToObj(nlArr, nc);
+    const detailKurang = [];
+    const detailKosong = [];
+    
+    nc.forEach(cc => {
+      const v = Number(rec.scores?.[cc] ?? 0);
+      if (v === 0) {
+        detailKosong.push(cc);
+      } else if (v < kkm) {
+        detailKurang.push({ komponen: cc, nilai: v });
+      }
+    });
+    
+    if (detailKurang.length) {
+      listKurang.push({ mapel: m.nama, kkm, detail: detailKurang });
+    }
+    if (detailKosong.length) {
+      listKosong.push({ mapel: m.nama, detail: detailKosong });
+    }
+  });
+  
+  if (!listKurang.length && !listKosong.length) {
+    return `
+      <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 text-center">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-4xl mb-2"></i>
+        <div class="font-bold text-emerald-800">🎉 Luar Biasa!</div>
+        <div class="text-xs text-emerald-700 mt-1">Semua nilai sudah tuntas KKM dan tidak ada komponen kosong.</div>
+      </div>
+    `;
+  }
+  
+  return `
+    <div class="space-y-4">
+      ${listKurang.length ? `
+        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-red-900">🚨 Nilai Kurang dari KKM</h3>
+              <p class="text-[10px] text-red-700">${listKurang.length} mapel perlu perhatian</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            ${listKurang.map(item => `
+              <div class="bg-white rounded-xl p-3 border border-red-100">
+                <div class="font-bold text-sm text-slate-800 mb-2">
+                  📕 ${item.mapel} 
+                  <span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-full ml-1">KKM ${item.kkm}</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${item.detail.map(d => `
+                    <span class="text-[11px] bg-red-100 text-red-700 font-bold px-2 py-1 rounded-lg">
+                      ${d.komponen}: <span class="text-red-900">${d.nilai}</span> ❌
+                    </span>
+                  `).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+      
+      ${listKosong.length ? `
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 sm:p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+              <i class="fa-solid fa-inbox"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-amber-900">⚠️ Komponen Belum Diisi</h3>
+              <p class="text-[10px] text-amber-700">${listKosong.length} mapel punya komponen kosong</p>
+            </div>
+          </div>
+          <div class="space-y-2">
+            ${listKosong.map(item => `
+              <div class="bg-white rounded-xl p-3 border border-amber-100 flex items-center justify-between gap-2 flex-wrap">
+                <div class="font-bold text-sm text-slate-800">📘 ${item.mapel}</div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${item.detail.map(k => `
+                    <span class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-lg">${k}</span>
+                  `).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+/* ─── 2C. Fungsi Utama: Hasil Belajar v2 ─── */
+function renderHasilBelajar(c) {
+  const siswaAll = (appState.db.sw || []).map(siswaToObj);
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  const kelasList = [...new Set(siswaAll.map(s => s.kelas).filter(Boolean))].sort();
+  const filterKelas = window.__hbKelas || "ALL";
+  const filterSiswa = window.__hbSiswa || "ALL";
+  const filterBermasalah = window.__hbBermasalah === true; // ⭐ BARU
+
+  // Filter
+  let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  
+  // ⭐ Filter siswa bermasalah (punya nilai kurang atau komponen kosong)
+  if (filterBermasalah) {
+    filtered = filtered.filter(s => {
+      const mapelAll2 = mapelAll;
+      for (const m of mapelAll2) {
+        const kkm = Number(m.kkm) || getMasterKKM();
+        const nc = getKomponenByMapel(m.kode);
+        const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+        if (!nlArr) continue;
+        const rec = nilaiToObj(nlArr, nc);
+        for (const cc of nc) {
+          const v = Number(rec.scores?.[cc] ?? 0);
+          if (v === 0 || v < kkm) return true;
+        }
+      }
+      return false;
+    });
+  }
+  
+  if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
+  
+  const siswaDropdownList = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
+  const siswaTerpilih = filterSiswa !== "ALL" ? siswaAll.find(s => String(s.id) === String(filterSiswa)) : null;
+  
+  c.innerHTML = `
+    <div class="space-y-4 fade-in">
+      
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-indigo-600"></i> Hasil Belajar
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">Filter per siswa untuk lihat dashboard nilai & kekurangan.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
+            <i class="fa-solid fa-file-pdf"></i> Cetak PDF
+          </button>
+        </div>
+      </div>
+      
+      <!-- Filter Bar -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-2">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <select onchange="window.__hbKelas=this.value; window.__hbSiswa='ALL'; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
+            <option value="ALL" ${filterKelas === "ALL" ? "selected" : ""}>Semua Kelas</option>
+            ${kelasList.map(k => `<option value="${k}" ${filterKelas === k ? "selected" : ""}>Kelas ${k}</option>`).join("")}
+          </select>
+          <select onchange="window.__hbSiswa=this.value; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
+            <option value="ALL" ${filterSiswa === "ALL" ? "selected" : ""}>Semua Siswa</option>
+            ${siswaDropdownList.map(s => `<option value="${s.id}" ${String(filterSiswa) === String(s.id) ? "selected" : ""}>${s.nama} (${s.noAbsen || "-"})</option>`).join("")}
+          </select>
+          <label class="flex items-center gap-2 px-3 py-2 border rounded-xl bg-white cursor-pointer text-xs">
+            <input type="checkbox" ${filterBermasalah ? "checked" : ""} onchange="window.__hbBermasalah=this.checked; renderMainContent()" class="w-4 h-4">
+            <span class="font-semibold text-slate-700">Hanya siswa bermasalah</span>
+          </label>
+        </div>
+      </div>
+      
+      <!-- ⭐ KARTU DASHBOARD SISWA (muncul kalau filter 1 siswa) -->
+      ${siswaTerpilih ? `
+        <div class="space-y-4">
+          ${renderDashboardNilaiSiswa(filterSiswa)}
+          ${renderNilaiKurangSection(filterSiswa)}
+          
+          <!-- Tombol Aksi -->
+          <div class="bg-white p-4 rounded-2xl border shadow-sm">
+            <h3 class="font-bold text-sm mb-3">⚡ Aksi Cepat</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button onclick="cetakKartuNilaiKurang('${filterSiswa}')" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-3 px-3 rounded-xl">
+                <i class="fa-solid fa-file-pdf"></i> Cetak Kartu Nilai Kurang
+              </button>
+              <button onclick="kirimWANilaiKurang('${filterSiswa}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 px-3 rounded-xl">
+                <i class="fa-brands fa-whatsapp"></i> Kirim WA Ortu
+              </button>
+              <button onclick="cetakRaporSiswa(${filterSiswa})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 px-3 rounded-xl">
+                <i class="fa-solid fa-print"></i> Cetak Rapor
+              </button>
+            </div>
+          </div>
+        </div>
+      ` : ""}
+      
+      <!-- Tabel nilai lengkap -->
+      <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        ${filtered.length ? `
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border-collapse">
+              <thead class="bg-slate-50 border-b">
+                <tr class="text-slate-600 font-bold">
+                  <th class="p-2 text-left">No</th>
+                  <th class="p-2 text-left">Nama</th>
+                  <th class="p-2 text-left">Kelas</th>
+                  <th class="p-2 text-left">Mapel</th>
+                  <th class="p-2 text-center bg-emerald-50">Rata²</th>
+                  <th class="p-2 text-center">Detail</th>
+                  <th class="p-2 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                ${filtered.flatMap(s => mapelAll.map(m => {
+                  const nc = getKomponenByMapel(m.kode);
+                  const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+                  const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
+                  let total = 0;
+                  nc.forEach(cc => { total += Number(rec.scores?.[cc] ?? 0); });
+                  const avg = nc.length ? total / nc.length : 0;
+                  const lulus = avg >= (m.kkm || 70);
+                  const detail = nc.map(cc => `${cc}: ${rec.scores?.[cc] ?? 0}`).join(", ");
+                  return `
+                    <tr class="${!lulus ? 'bg-red-50/30' : ''}">
+                      <td class="p-2 text-slate-400">${s.noAbsen}</td>
+                      <td class="p-2 font-semibold">${s.nama}</td>
+                      <td class="p-2">${s.kelas}</td>
+                      <td class="p-2 font-bold text-indigo-700">${m.nama}</td>
+                      <td class="p-2 text-center font-bold ${lulus ? 'text-emerald-700' : 'text-red-600'} bg-emerald-50/50">${avg.toFixed(1)}</td>
+                      <td class="p-2 text-[10px] text-slate-500 max-w-xs">${detail || "-"}</td>
+                      <td class="p-2 text-center">
+                        <span class="${lulus ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} font-bold px-2 py-0.5 rounded-full text-[10px]">${lulus ? 'LULUS' : 'REMEDIAL'}</span>
+                      </td>
+                    </tr>
+                  `;
+                })).join("") || '<tr><td colspan="7" class="text-center py-4 text-slate-400">Tidak ada data.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div class="p-12 text-center">
+            <i class="fa-solid fa-inbox text-5xl text-slate-300 mb-4"></i>
+            <p class="text-slate-400 text-sm">Tidak ada data untuk filter ini.</p>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+  
+  // Render ranking card di dalam dashboard siswa
+  if (siswaTerpilih) {
+    setTimeout(() => {
+      refreshRankingCard(`ranking-hb-${filterSiswa}`, siswaTerpilih.kelas, filterSiswa);
+    }, 100);
+  }
+}
+
+/* ─── 2D. Cetak Kartu Nilai Kurang (PDF) ─── */
+function cetakKartuNilaiKurang(sid) {
+  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
+  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
+  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  
+  // Header sekolah
+  doc.setFontSize(14);
+  doc.setFont(undefined, "bold");
+  doc.text(appState.db.a?.ns || "Sekolah", 14, 15);
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  doc.text("LAPORAN NILAI KURANG DARI KKM", 14, 22);
+  doc.line(14, 24, 196, 24);
+  
+  // Info siswa
+  let y = 32;
+  doc.setFontSize(10);
+  doc.text(`Nama       : ${sw.nama || "-"}`, 14, y); y += 6;
+  doc.text(`Kelas      : ${sw.kelas || "-"}`, 14, y); y += 6;
+  doc.text(`No. Absen  : ${sw.noAbsen || "-"}`, 14, y); y += 6;
+  doc.text(`NIS        : ${sw.nis || "-"}`, 14, y); y += 6;
+  doc.text(`Tanggal    : ${new Date().toLocaleDateString("id-ID")}`, 14, y); y += 10;
+  
+  // Kumpulkan nilai kurang
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  const rowsKurang = [];
+  const rowsKosong = [];
+  
+  mapelAll.forEach(m => {
+    const kkm = Number(m.kkm) || getMasterKKM();
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+    if (!nlArr) return;
+    const rec = nilaiToObj(nlArr, nc);
+    
+    const dKurang = [];
+    const dKosong = [];
+    nc.forEach(cc => {
+      const v = Number(rec.scores?.[cc] ?? 0);
+      if (v === 0) dKosong.push(cc);
+      else if (v < kkm) dKurang.push(`${cc}:${v}`);
+    });
+    
+    if (dKurang.length) rowsKurang.push([m.nama, kkm, dKurang.join(", ")]);
+    if (dKosong.length) rowsKosong.push([m.nama, dKosong.join(", ")]);
+  });
+  
+  // Tabel nilai kurang
+  if (rowsKurang.length) {
+    doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("A. NILAI KURANG DARI KKM", 14, y);
+    y += 5;
+    doc.autoTable({
+      startY: y,
+      head: [["Mapel", "KKM", "Komponen Kurang"]],
+      body: rowsKurang,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: "bold" },
+      theme: "grid"
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+  
+  // Tabel komponen kosong
+  if (rowsKosong.length) {
+    doc.setFontSize(11);
+    doc.setFont(undefined, "bold");
+    doc.text("B. KOMPONEN BELUM DIISI", 14, y);
+    y += 5;
+    doc.autoTable({
+      startY: y,
+      head: [["Mapel", "Komponen Kosong"]],
+      body: rowsKosong,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: "bold" },
+      theme: "grid"
+    });
+  }
+  
+  if (!rowsKurang.length && !rowsKosong.length) {
+    doc.setFontSize(12);
+    doc.setTextColor(22, 163, 74);
+    doc.text("✓ Semua nilai sudah tuntas KKM", 14, y);
+  }
+  
+  // Footer
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 285);
+  
+  doc.save(`Kartu_Nilai_Kurang_${(sw.nama || "siswa").replace(/\s+/g, "_")}_${Date.now()}.pdf`);
+  showToast("✓ Kartu nilai kurang diunduh.", "success");
+}
+
+/* ─── 2E. Kirim WA Ortu (WhatsApp) ─── */
+function kirimWANilaiKurang(sid) {
+  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
+  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
+  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
+  
+  const mapelAll = (appState.db.mp || []).map(mapelToObj);
+  const listKurang = [];
+  const listKosong = [];
+  
+  mapelAll.forEach(m => {
+    const kkm = Number(m.kkm) || getMasterKKM();
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+    if (!nlArr) return;
+    const rec = nilaiToObj(nlArr, nc);
+    const dKurang = [];
+    const dKosong = [];
+    nc.forEach(cc => {
+      const v = Number(rec.scores?.[cc] ?? 0);
+      if (v === 0) dKosong.push(cc);
+      else if (v < kkm) dKurang.push(`${cc} (${v})`);
+    });
+    if (dKurang.length) listKurang.push(`• ${m.nama}: ${dKurang.join(", ")}`);
+    if (dKosong.length) listKosong.push(`• ${m.nama}: ${dKosong.join(", ")}`);
+  });
+  
+  const sekolah = appState.db.a?.ns || "Sekolah";
+  const guru = appState.db.a?.ng || "Guru";
+  
+  let pesan = `Assalamualaikum, Bapak/Ibu Wali dari *${sw.nama}* (Kelas ${sw.kelas}).\n\n`;
+  pesan += `Berikut adalah laporan nilai ananda di *${sekolah}*:\n\n`;
+  
+  if (listKurang.length) {
+    pesan += `🚨 *NILAI KURANG DARI KKM:*\n${listKurang.join("\n")}\n\n`;
+  }
+  if (listKosong.length) {
+    pesan += `⚠️ *KOMPONEN BELUM DIISI:*\n${listKosong.join("\n")}\n\n`;
+  }
+  if (!listKurang.length && !listKosong.length) {
+    pesan += `🎉 *Alhamdulillah, semua nilai ananda sudah tuntas KKM.*\n\n`;
+  }
+  
+  pesan += `Mohon bimbingan di rumah untuk perbaikan. Terima kasih. 🙏\n\n`;
+  pesan += `— ${guru}`;
+  
+  // Copy ke clipboard
+  copyToClipboard(pesan, "✓ Pesan disalin. Paste di WhatsApp.");
+  
+  // Buka WhatsApp
+  const url = `https://wa.me/?text=${encodeURIComponent(pesan)}`;
+  window.open(url, "_blank");
+  
+  showToast("✓ Pesan WA dibuka. Pilih kontak ortu.", "success");
 }
 
 function cetakRaporPDF() {
