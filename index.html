@@ -3552,41 +3552,68 @@ async function refreshLeaderboardGame(kelas) {
 /* =========================================================
    ⭐ FUNGSI BARU: ABSENSI HARI INI (GURU)
    ========================================================= */
-function getAbsensiHariIni(kelasFilter) {
-  const today = new Date().toISOString().split('T')[0];
+async function getAbsensiHariIniDariSupabase(kelasFilter) {
+  const today = new Date().toISOString().split("T")[0];
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
-  const siswaList = (!kelasFilter || kelasFilter === "ALL") 
-    ? siswaAll 
+  const siswaList = (!kelasFilter || kelasFilter === "ALL")
+    ? siswaAll
     : siswaAll.filter(s => s.kelas === kelasFilter);
-  const absenHariIni = (appState.db.ab || []).filter(a => {
-    const o = absenToObj(a);
-    return o.tanggal === today;
-  });
+  
   const map = { H: 0, I: 0, S: 0, A: 0 };
-  absenHariIni.forEach(a => {
-    const o = absenToObj(a);
-    const st = o.status;
-    if (map[st] !== undefined) map[st]++;
-  });
-  const sudahDiabsen = absenHariIni.length;
-  const belumDiabsen = Math.max(0, siswaList.length - sudahDiabsen);
-  return { ...map, total: siswaList.length, sudahDiabsen, belumDiabsen, tanggal: today };
+  let sudahDiabsen = 0;
+  
+  const sb = getSupabaseConfig();
+  if (sb) {
+    try {
+      const res = await fetch(
+        `${sb.url}/rest/v1/absensi?tanggal=eq.${today}&select=siswa_id,status`,
+        { headers: sbHeaders() }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        rows.forEach(r => {
+          if (kelasFilter && kelasFilter !== "ALL") {
+            const sw = siswaAll.find(s => String(s.id) === String(r.siswa_id));
+            if (!sw || sw.kelas !== kelasFilter) return;
+          }
+          const st = r.status;
+          if (map[st] !== undefined) {
+            map[st]++;
+            sudahDiabsen++;
+          }
+        });
+      }
+    } catch(e) { console.warn("[Absen Hari Ini] Supabase gagal:", e); }
+  }
+  
+  return {
+    ...map,
+    total: siswaList.length,
+    sudahDiabsen,
+    belumDiabsen: Math.max(0, siswaList.length - sudahDiabsen),
+    tanggal: today
+  };
 }
 
-function renderKartuAbsensiHariIniGuru() {
-  const a = getAbsensiHariIni("ALL");
+async function renderKartuAbsensiHariIniGuru() {
+  const a = await getAbsensiHariIniDariSupabase("ALL");
   const statusColor = {
     H: { bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-600", value: "text-emerald-700" },
     I: { bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-600", value: "text-amber-700" },
     S: { bg: "bg-orange-50", border: "border-orange-100", text: "text-orange-600", value: "text-orange-700" },
     A: { bg: "bg-red-50", border: "border-red-100", text: "text-red-600", value: "text-red-700" }
   };
-  return `<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+  return `<div id="kartu-absen-hari-ini" class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
     <div class="flex items-center justify-between flex-wrap gap-2">
       <h3 class="font-bold text-sm flex items-center gap-2">
         <i class="fa-solid fa-calendar-check text-emerald-600"></i> Absensi Hari Ini
       </h3>
-      <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">${a.tanggal}</span>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">${a.tanggal}</span>
+        <button onclick="refreshKartuAbsenHariIni()" class="text-slate-400 p-1" title="Refresh">
+          <i class="fa-solid fa-rotate text-xs"></i>
+        </button>
+      </div>
     </div>
     ${a.sudahDiabsen === 0 
       ? `<div class="text-center py-6">
@@ -3624,6 +3651,13 @@ function renderKartuAbsensiHariIniGuru() {
               </div>`}
         `}
   </div>`;
+}
+
+async function refreshKartuAbsenHariIni() {
+  const el = document.getElementById("kartu-absen-hari-ini");
+  if (!el) return;
+  el.outerHTML = await renderKartuAbsensiHariIniGuru();
+  showToast("✓ Kartu absensi diperbarui", "success");
 }
 
 /* =========================================================
@@ -3731,7 +3765,7 @@ function renderSiswaDashboard(c) {
 /* =========================================================
    DASHBOARD GURU
    ========================================================= */
-function renderGuruDashboard(c) {
+async function renderGuruDashboard(c) {
   const siswaAll=(appState.db.sw||[]).map(siswaToObj); 
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
   const totalSiswa=siswaAll.length; 
@@ -3768,7 +3802,7 @@ function renderGuruDashboard(c) {
       <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Jurnal</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalJurnal}</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Pengumuman</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalPengumuman}</div></div>
     </div>
-    ${renderKartuAbsensiHariIniGuru()}
+    ${await renderKartuAbsensiHariIniGuru()}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
       <div class="lg:col-span-2 bg-white p-4 sm:p-5 rounded-2xl border shadow-sm"><h3 class="font-bold text-sm mb-3">Statistik Rata-Rata Nilai Per Mapel</h3><div class="h-60"><canvas id="chartGuru"></canvas></div></div>
       ${renderRankingCard({ title:"Top 5 Ranking Sementara", kelasFilter:"ALL", highlightSiswaId: null, showKelasDropdown: true, containerId:"ranking-guru-content" })}
