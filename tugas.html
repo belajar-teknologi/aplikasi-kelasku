@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
+<meta name="theme-color" content="#4338ca">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Kirim Tugas Foto · EduSmart</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: radial-gradient(circle at 20% 30%, rgba(99,102,241,.10) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(16,185,129,.08) 0%, transparent 50%), #f8fafc; min-height: 100vh; }
+button, input, select, textarea { touch-action: manipulation; }
+input[type="text"], input[type="date"], textarea { font-size: 16px; }
+@media (min-width: 768px) { input, textarea { font-size: 13px !important; } }
+.fade-in { animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+.upload-zone { transition: all .2s ease; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #4f46e5; background: #eef2ff; }
+.preview-card { transition: all .2s ease; }
+.preview-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,.1); }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.tugas-card { transition: all .2s ease; }
+.tugas-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,.1); }
+</style>
+</head>
+<body class="text-slate-800 antialiased">
+
+<div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+<!-- HEADER -->
+<header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
+<div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-9 h-9 bg-white text-indigo-700 rounded-full flex items-center justify-center shadow">
+<i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+</div>
+<div>
+<h1 class="font-bold text-sm leading-tight">Kirim Tugas Foto</h1>
+<p class="text-[10px] text-indigo-200" id="hdr-info">EduSmart LMS</p>
+</div>
+</div>
+<button onclick="window.close()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition">
+<i class="fa-solid fa-xmark"></i> Tutup
+</button>
+</div>
+</header>
+
+<main class="max-w-3xl mx-auto p-4 space-y-5 pb-24 fade-in">
+
+<!-- WARNING NOT LOGIN -->
+<div id="not-login-warn" class="hidden bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-3 text-xs">
+<i class="fa-solid fa-triangle-exclamation text-red-600 text-lg shrink-0 mt-0.5"></i>
+<div class="text-red-900">
+<div class="font-bold mb-1">Perlu Login</div>
+Kamu harus login dulu di aplikasi utama. <a href="./index.html" class="underline font-bold">Buka Dashboard</a>
+</div>
+</div>
+
+<!-- INFO BANNER -->
+<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 text-xs">
+<i class="fa-solid fa-circle-info text-amber-600 text-lg shrink-0 mt-0.5"></i>
+<div class="text-amber-900">
+<div class="font-bold mb-1">ℹ️ Info Penyimpanan</div>
+Foto tugas akan tetap tersimpan. Guru akan memeriksa tugasmu. Foto lama akan dibersihkan secara berkala oleh guru.
+</div>
+</div>
+
+<!-- IDENTITAS SISWA -->
+<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+<h2 class="font-bold text-sm flex items-center gap-2">
+<i class="fa-solid fa-user-graduate text-indigo-600"></i> Identitas Pengirim
+</h2>
+<div class="grid grid-cols-2 gap-2 text-xs">
+<div class="p-2 bg-slate-50 rounded-lg"><b class="text-slate-500 block text-[10px]">Nama</b><span id="id-nama" class="font-semibold">-</span></div>
+<div class="p-2 bg-slate-50 rounded-lg"><b class="text-slate-500 block text-[10px]">NIS</b><span id="id-nis" class="font-mono">-</span></div>
+<div class="p-2 bg-slate-50 rounded-lg"><b class="text-slate-500 block text-[10px]">Kelas</b><span id="id-kelas">-</span></div>
+<div class="p-2 bg-slate-50 rounded-lg"><b class="text-slate-500 block text-[10px]">No. Absen</b><span id="id-noabsen">-</span></div>
+</div>
+</div>
+
+<!-- FORM TUGAS -->
+<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+<h2 class="font-bold text-sm flex items-center gap-2">
+<i class="fa-solid fa-file-pen text-emerald-600"></i> Data Tugas
+</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+<div class="sm:col-span-2">
+<label class="block font-semibold mb-1">Judul Tugas *</label>
+<input id="tugas-judul" type="text" placeholder="Contoh: PR Matematika Halaman 25" class="w-full px-3 py-2.5 border rounded-xl">
+</div>
+<div>
+<label class="block font-semibold mb-1">Mata Pelajaran</label>
+<input id="tugas-mapel" type="text" placeholder="Contoh: Matematika" class="w-full px-3 py-2.5 border rounded-xl">
+</div>
+<div>
+<label class="block font-semibold mb-1">Tanggal</label>
+<input id="tugas-tanggal" type="date" class="w-full px-3 py-2.5 border rounded-xl">
+</div>
+<div class="sm:col-span-2">
+<label class="block font-semibold mb-1">Catatan (opsional)</label>
+<textarea id="tugas-catatan" rows="2" placeholder="Keterangan tambahan..." class="w-full px-3 py-2.5 border rounded-xl"></textarea>
+</div>
+</div>
+</div>
+
+<!-- UPLOAD ZONE -->
+<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+<h2 class="font-bold text-sm flex items-center gap-2">
+<i class="fa-solid fa-camera text-purple-600"></i> Foto Tugas <span class="text-[10px] text-slate-400 font-normal">(maks 5 foto, @5MB)</span>
+</h2>
+<div id="upload-zone" class="upload-zone border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer">
+<input id="file-input" type="file" accept="image/*" multiple capture="environment" class="hidden">
+<i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-400 mb-2"></i>
+<div class="text-sm font-semibold text-slate-700">Klik / Tap untuk pilih foto</div>
+<div class="text-[10px] text-slate-500 mt-1">Atau ambil langsung dari kamera HP</div>
+</div>
+<div id="preview-list" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+</div>
+
+<!-- TOMBOL KIRIM -->
+<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
+<button id="btn-kirim" onclick="kirimTugas()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+<i class="fa-solid fa-paper-plane"></i> Kirim Tugas ke Cloud
+</button>
+<p class="text-[10px] text-slate-500 text-center mt-2">
+Foto tersimpan di Cloudinary, tautan di Supabase
+</p>
+</div>
+
+<!-- RIWAYAT -->
+<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+<div class="flex items-center justify-between flex-wrap gap-2">
+<h2 class="font-bold text-sm flex items-center gap-2">
+<i class="fa-solid fa-clock-rotate-left text-slate-600"></i> Tugas Saya
+</h2>
+<button onclick="loadRiwayat()" class="text-slate-400 text-xs p-2" title="Refresh">
+<i class="fa-solid fa-rotate"></i>
+</button>
+</div>
+<div id="riwayat-list" class="space-y-2 text-xs">
+<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>
+</div>
+</div>
+
+</main>
+
+<script>
+/* =========================================================
+   KONFIGURASI HARDCODE
+   ========================================================= */
+const CLOUD_NAME = "mbxbrokn";
+const CLOUD_PRESET = "jajal_loh";
+const CLOUD_FOLDER = "edusmart/tugas";
+const MAX_FILES = 5;
+const MAX_SIZE_MB = 5;
+
+const STORAGE = {
+  USER: "edusmart_user",
+  SB_URL: "edusmart_supabase_url",
+  SB_KEY: "edusmart_supabase_anon_key"
+};
+
+/* =========================================================
+   UTIL
+   ========================================================= */
+function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
+const getLS = (k, d="") => localStorage.getItem(k) || d;
+
+function showToast(msg, type="info") {
+  const c = document.getElementById("toast-container");
+  if (!c) return;
+  const t = document.createElement("div");
+  const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : "bg-indigo-600";
+  t.className = `${bg} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 pointer-events-auto`;
+  t.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4500);
+}
+
+function getSupabaseConfig() {
+  const url = String(getLS(STORAGE.SB_URL)).trim();
+  const key = String(getLS(STORAGE.SB_KEY)).trim();
+  return url && key ? { url, key } : null;
+}
+
+function formatTanggal(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch(e) { return "-"; }
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let filesDraft = [];
+let currentUser = null;
+let supabaseCfg = null;
+
+/* =========================================================
+   INIT
+   ========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  const tgl = document.getElementById("tugas-tanggal");
+  if (tgl) tgl.value = new Date().toISOString().split("T")[0];
+
+  // Cek login
+  currentUser = safeParse(getLS(STORAGE.USER));
+  if (!currentUser || !currentUser.siswaId) {
+    document.getElementById("not-login-warn").classList.remove("hidden");
+    document.getElementById("btn-kirim").disabled = true;
+    document.getElementById("btn-kirim").className = "w-full bg-slate-300 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-sm cursor-not-allowed";
+    return;
+  }
+
+  // Cek Supabase
+  supabaseCfg = getSupabaseConfig();
+  if (!supabaseCfg) {
+    document.getElementById("not-login-warn").classList.remove("hidden");
+    document.getElementById("not-login-warn").innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-600 text-lg shrink-0 mt-0.5"></i><div class="text-red-900"><div class="font-bold mb-1">Supabase belum dikonfigurasi</div>Buka <a href="./index.html" class="underline font-bold">Pengaturan</a> dulu di aplikasi utama.</div>`;
+    document.getElementById("btn-kirim").disabled = true;
+    document.getElementById("btn-kirim").className = "w-full bg-slate-300 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-sm cursor-not-allowed";
+    return;
+  }
+
+  // Isi identitas
+  document.getElementById("id-nama").textContent = currentUser.name || "-";
+  document.getElementById("id-nis").textContent = currentUser.nis || "-";
+  document.getElementById("id-kelas").textContent = currentUser.kelas || "-";
+  document.getElementById("id-noabsen").textContent = currentUser.noAbsen || "-";
+  document.getElementById("hdr-info").textContent = (currentUser.sekolah || "EduSmart LMS") + " · " + (currentUser.kelas || "");
+
+  // Upload zone
+  const zone = document.getElementById("upload-zone");
+  const input = document.getElementById("file-input");
+  zone.addEventListener("click", () => input.click());
+  zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("dragover"); });
+  zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("dragover");
+    handleFiles(e.dataTransfer.files);
+  });
+  input.addEventListener("change", (e) => handleFiles(e.target.files));
+
+  loadRiwayat();
+});
+
+/* =========================================================
+   FILE HANDLING
+   ========================================================= */
+function handleFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+
+  const sisaSlot = MAX_FILES - filesDraft.length;
+  if (sisaSlot <= 0) {
+    showToast(`Maksimal ${MAX_FILES} foto.`, "error");
+    return;
+  }
+
+  const akanDitambah = files.slice(0, sisaSlot);
+  if (files.length > sisaSlot) {
+    showToast(`Hanya ${sisaSlot} foto ditambahkan (batas ${MAX_FILES}).`, "info");
+  }
+
+  akanDitambah.forEach(f => {
+    if (!f.type.startsWith("image/")) {
+      showToast(`"${f.name}" bukan gambar.`, "error");
+      return;
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      showToast(`"${f.name}" > ${MAX_SIZE_MB}MB.`, "error");
+      return;
+    }
+    filesDraft.push({ file: f, urlPreview: URL.createObjectURL(f) });
+  });
+
+  renderPreview();
+}
+
+function renderPreview() {
+  const list = document.getElementById("preview-list");
+  if (!list) return;
+  if (!filesDraft.length) { list.innerHTML = ""; return; }
+  list.innerHTML = filesDraft.map((item, i) => `
+    <div class="preview-card bg-slate-50 border rounded-xl overflow-hidden relative">
+      <img src="${item.urlPreview}" class="w-full h-28 object-cover">
+      <button onclick="hapusFile(${i})" class="absolute top-1 right-1 bg-red-500 text-white w-7 h-7 rounded-full shadow hover:bg-red-600">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+      <div class="p-2 text-[10px] text-slate-600 truncate">${item.file.name}</div>
+    </div>
+  `).join("");
+}
+
+function hapusFile(index) {
+  if (index < 0 || index >= filesDraft.length) return;
+  URL.revokeObjectURL(filesDraft[index].urlPreview);
+  filesDraft.splice(index, 1);
+  renderPreview();
+}
+
+/* =========================================================
+   UPLOAD KE CLOUDINARY
+   ========================================================= */
+async function uploadKeCloudinary(file, folder, tagExtra) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("upload_preset", CLOUD_PRESET);
+  form.append("folder", folder);
+  form.append("tags", `edusmart_tugas,${tagExtra || "umum"}`);
+  form.append("context", `siswa=${tagExtra || "-"}`);
+
+  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const res = await fetch(endpoint, { method: "POST", body: form });
+  const data = await res.json();
+  if (!res.ok || !data.secure_url) {
+    throw new Error(data?.error?.message || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
+/* =========================================================
+   KIRIM TUGAS
+   ========================================================= */
+async function kirimTugas() {
+  if (!currentUser || !currentUser.siswaId) { showToast("Login dulu.", "error"); return; }
+  if (!supabaseCfg) { showToast("Supabase belum dikonfigurasi.", "error"); return; }
+
+  const judul = document.getElementById("tugas-judul").value.trim();
+  const mapel = document.getElementById("tugas-mapel").value.trim() || "-";
+  const tanggal = document.getElementById("tugas-tanggal").value || new Date().toISOString().split("T")[0];
+  const catatan = document.getElementById("tugas-catatan").value.trim() || "";
+
+  if (!judul) { showToast("Judul tugas wajib diisi.", "error"); return; }
+  if (!filesDraft.length) { showToast("Minimal 1 foto.", "error"); return; }
+
+  const btn = document.getElementById("btn-kirim");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Mengunggah ${filesDraft.length} foto...`;
+
+  const kelasFolder = String(currentUser.kelas || "umum").toUpperCase().replace(/[^A-Z0-9]/g, "") || "UMUM";
+  const folder = `${CLOUD_FOLDER}/${kelasFolder}/${currentUser.siswaId}`;
+  const siswaTag = `${kelasFolder}_${currentUser.siswaId}`;
+
+  const berhasil = [];
+  const gagal = [];
+
+  try {
+    for (let i = 0; i < filesDraft.length; i++) {
+      const item = filesDraft[i];
+      btn.innerHTML = `<span class="spinner"></span> Upload ${i + 1}/${filesDraft.length}...`;
+
+      try {
+        const data = await uploadKeCloudinary(item.file, folder, siswaTag);
+        berhasil.push({
+          url: data.secure_url,
+          publicId: data.public_id,
+          nama: item.file.name,
+          size: item.file.size,
+          type: item.file.type,
+          format: data.format,
+          width: data.width,
+          height: data.height
+        });
+      } catch(err) {
+        gagal.push({ nama: item.file.name, error: err.message });
+      }
+    }
+
+    // Simpan metadata ke Supabase
+    if (berhasil.length) {
+      const meta = {
+        id: `${Date.now()}_${currentUser.siswaId}`,
+        siswa_id: String(currentUser.siswaId),
+        siswa_nama: currentUser.name || "",
+        siswa_nis: currentUser.nis || "-",
+        kelas: currentUser.kelas || "-",
+        judul, mapel, catatan, tanggal,
+        files: berhasil,
+        jumlah_foto: berhasil.length,
+        waktu_upload: new Date().toISOString(),
+        sudah_diperiksa: false
+      };
+      try {
+        const res = await fetch(`${supabaseCfg.url}/rest/v1/tugas_siswa`, {
+          method: "POST",
+          headers: {
+            "apikey": supabaseCfg.key,
+            "Authorization": `Bearer ${supabaseCfg.key}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify([meta])
+        });
+        if (!res.ok) {
+          console.warn("Gagal simpan metadata:", await res.text());
+        }
+      } catch(e) { console.warn("Gagal simpan metadata:", e); }
+    }
+
+    // Reset form
+    filesDraft.forEach(item => URL.revokeObjectURL(item.urlPreview));
+    filesDraft = [];
+    renderPreview();
+    document.getElementById("tugas-judul").value = "";
+    document.getElementById("tugas-catatan").value = "";
+
+    if (gagal.length === 0) {
+      showToast(`✓ ${berhasil.length} foto berhasil dikirim!`, "success");
+    } else if (berhasil.length === 0) {
+      showToast(`✗ Semua upload gagal.`, "error");
+      console.error("[Upload] Gagal:", gagal);
+    } else {
+      showToast(`⚠️ ${berhasil.length} berhasil, ${gagal.length} gagal.`, "info");
+    }
+
+    loadRiwayat();
+  } catch(err) {
+    showToast("Error: " + err.message, "error");
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Kirim Tugas ke Cloud`;
+  }
+}
+
+/* =========================================================
+   RIWAYAT (dari Supabase)
+   ========================================================= */
+async function loadRiwayat() {
+  const el = document.getElementById("riwayat-list");
+  if (!el) return;
+  if (!currentUser || !supabaseCfg) {
+    el.innerHTML = `<div class="text-center text-slate-400 py-4">Login dulu.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="text-center text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</div>`;
+
+  try {
+    const url = `${supabaseCfg.url}/rest/v1/tugas_siswa?siswa_id=eq.${encodeURIComponent(currentUser.siswaId)}&order=waktu_upload.desc&limit=20`;
+    const res = await fetch(url, {
+      headers: { "apikey": supabaseCfg.key, "Authorization": `Bearer ${supabaseCfg.key}` }
+    });
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 400) {
+        el.innerHTML = `<div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px]">
+          <b>⚠️ Tabel <code>tugas_siswa</code> belum dibuat.</b><br>
+          Hubungi guru untuk setup database.
+        </div>`;
+        return;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const rows = await res.json();
+    if (!rows.length) {
+      el.innerHTML = `<div class="text-center text-slate-400 py-6 text-[11px]">
+        <i class="fa-solid fa-folder-open text-2xl mb-1 block"></i>
+        Belum ada tugas yang dikirim.
+      </div>`;
+      return;
+    }
+    el.innerHTML = rows.map(r => {
+      const fotoCount = (r.files || []).length;
+      const badge = r.sudah_diperiksa
+        ? '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full text-[9px]">✓ Diperiksa</span>'
+        : '<span class="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full text-[9px]">⏳ Menunggu</span>';
+      return `
+        <div class="tugas-card p-3 border rounded-xl bg-slate-50 space-y-2">
+          <div class="flex justify-between items-start gap-2 flex-wrap">
+            <div class="min-w-0 flex-1">
+              <div class="font-bold text-sm truncate">${r.judul || "(tanpa judul)"}</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">
+                ${r.mapel || "-"} · ${formatTanggal(r.waktu_upload)}
+              </div>
+            </div>
+            ${badge}
+          </div>
+          ${r.catatan ? `<div class="text-[11px] text-slate-600 italic">"${r.catatan}"</div>` : ""}
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="text-[10px] text-slate-500">
+              <i class="fa-solid fa-image"></i> ${fotoCount} foto
+            </div>
+            <div class="flex gap-1">
+              ${(r.files || []).slice(0, 4).map(f => `<a href="${f.url}" target="_blank" class="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow"><img src="${f.url}" class="w-full h-full object-cover" onerror="this.style.display='none'"></a>`).join("")}
+              ${fotoCount > 4 ? `<div class="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">+${fotoCount - 4}</div>` : ""}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch(err) {
+    el.innerHTML = `<div class="text-red-600 text-center py-4 text-xs">Gagal memuat: ${err.message}</div>`;
+  }
+}
+
+/* =========================================================
+   BERSIHKAN PREVIEW SAAT TUTUP
+   ========================================================= */
+window.addEventListener("beforeunload", () => {
+  filesDraft.forEach(item => { try { URL.revokeObjectURL(item.urlPreview); } catch(e) {} });
+});
+</script>
+</body>
+</html>

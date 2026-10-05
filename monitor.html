@@ -111,6 +111,7 @@ const MENU = [
   { id: "absensi", name: "Absensi", icon: "fa-solid fa-calendar-check", warna: "text-teal-600" },
   { id: "jurnal", name: "Jurnal", icon: "fa-solid fa-book-bookmark", warna: "text-purple-600" },
   { id: "game", name: "Game", icon: "fa-solid fa-gamepad", warna: "text-pink-600" },
+  { id: "tugas_masuk", name: "Tugas Masuk", icon: "fa-solid fa-inbox", warna: "text-orange-600" },
   { id: "bank_soal", name: "Bank Soal", icon: "fa-solid fa-database", warna: "text-indigo-600" },
   { id: "paket_soal", name: "Paket Soal", icon: "fa-solid fa-layer-group", warna: "text-blue-600" }
 ];
@@ -225,6 +226,41 @@ function getJsonBinCredential() {
 }
 function getAppConfig() { return safeParse(getLS(STORAGE.APP_CONFIG)); }
 
+/* ⭐ PATCH 1: Primary source + load master dari Supabase dulu */
+function getPrimarySource() {
+  return getLS("edusmart_primary_source", "supabase");
+}
+
+async function loadMasterDB() {
+  const source = getPrimarySource();
+  const sb = getSupabaseConfig();
+  
+  // ─── 1. Coba Supabase dulu (PRIMARY) ───
+  if (source === "supabase" && sb) {
+    try {
+      console.log("[Monitor] Coba Supabase...");
+      const res = await fetch(
+        `${sb.url}/rest/v1/master_config?id=eq.app_master&select=payload`,
+        { headers: sbHeaders() }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows.length && rows[0].payload && Object.keys(rows[0].payload).length > 0) {
+          console.log("[Monitor] ✓ Master dari Supabase");
+          return rows[0].payload;
+        }
+      }
+      console.warn("[Monitor] Supabase kosong, fallback ke JSONBin...");
+    } catch (e) {
+      console.warn("[Monitor] Supabase gagal:", e.message, "→ fallback JSONBin");
+    }
+  }
+  
+  // ─── 2. Fallback: JSONBin ───
+  console.log("[Monitor] Fallback ke JSONBin...");
+  return await loadJsonBinDB();
+}
+
 /* ==== SUPABASE HELPERS ==== */
 function sbHeaders(extra = {}) {
   const sb = getSupabaseConfig();
@@ -290,16 +326,24 @@ function getKelasSiswa(siswaId) {
 }
 /* ⭐ TAMBAHAN — Ambil URL foto siswa dari JSONBin atau Supabase */
 function getFotoSiswa(siswaId) {
-  // 1. Coba dari JSONBin (db.sw) — struktur: [id, noAbsen, nis, nama, kelas, jk, user, pass, ttl, tgl, alamat, foto]
+  // ⭐ PATCH 3: Cek dari sumber utama dulu (appState.db.sw)
+  // Struktur sw: [id, noAbsen, nis, nama, kelas, jk, user, pass, ttl, tgl, alamat, foto]
   if (appState.db?.sw && Array.isArray(appState.db.sw)) {
     const s = appState.db.sw.find(x => String(x[0]) === String(siswaId));
-    if (s && s[11]) return String(s[11]); // index 11 = FOTO
+    if (s && s[11]) {
+      const url = String(s[11]);
+      if (url && url !== "null" && url !== "undefined" && url !== "") {
+        return url;
+      }
+    }
   }
-  // 2. Coba dari cache Supabase siswa (kalau ada kolom foto)
+  // 2. Fallback: cache Supabase siswa (kalau ada kolom foto)
   if (appState.cache.siswa && appState.cache.siswa.length) {
     const s = appState.cache.siswa.find(x => String(x.siswa_id || x.id) === String(siswaId));
     if (s && (s.foto_url || s.foto)) return String(s.foto_url || s.foto);
   }
+  // 3. Debug log (opsional — matikan kalau sudah beres)
+  console.log(`[Monitor] Foto tidak ditemukan untuk siswa ${siswaId} (${getNamaSiswa(siswaId)})`);
   return "";
 }
 
@@ -415,14 +459,15 @@ function renderMainContent() {
   if (!c) return;
   const v = appState.activeView;
   const router = {
-    hasil_kuis: renderHasilKuis,
-    nilai: renderNilai,
-    absensi: renderAbsensi,
-    jurnal: renderJurnal,
-    game: renderGame,
-    bank_soal: renderBankSoal,
-    paket_soal: renderPaketSoal
-  };
+  hasil_kuis: renderHasilKuis,
+  nilai: renderNilai,
+  absensi: renderAbsensi,
+  jurnal: renderJurnal,
+  game: renderGame,
+  tugas_masuk: renderTugasMasuk,
+  bank_soal: renderBankSoal,
+  paket_soal: renderPaketSoal
+};
   if (router[v]) router[v](c);
   else renderHasilKuis(c);
 }
@@ -455,11 +500,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // Load JSONBin (opsional)
+    // ⭐ PATCH 2: Load master dari Supabase dulu, JSONBin fallback
   try {
-    const db = await loadJsonBinDB();
-    if (db) appState.db = db;
-  } catch (e) { console.warn("JSONBin opsional gagal:", e); }
+    const db = await loadMasterDB();
+    if (db) {
+      appState.db = db;
+      console.log("[Monitor] ✓ appState.db terisi, sumber: " + getPrimarySource());
+    } else {
+      console.warn("[Monitor] Tidak ada data master (Supabase & JSONBin kosong)");
+    }
+  } catch (e) {
+    console.warn("[Monitor] Gagal load master DB:", e);
+  }
 
   updateHeaderUI();
   const savedView = getLS(STORAGE.MONITOR_VIEW, "hasil_kuis");
@@ -2741,10 +2793,11 @@ document.addEventListener("keydown", (e) => {
 /* ---------------------------------------------------------
    6L. BOOT LOG & SAFETY CHECK
    --------------------------------------------------------- */
-console.log("[EduSmart] monitor.html v1.0 loaded");
+console.log("[EduSmart] monitor.html v1.1 loaded");
 console.log("  • Mode: Monitor Data (Guru)");
 console.log("  • Menu:", MENU.map(m => m.name).join(", "));
-console.log("  • Data dari Supabase (tidak butuh JSONBin)");
+console.log("  • Primary source: " + getPrimarySource() + " (Supabase dulu, JSONBin fallback)");
+console.log("  • Foto siswa: dibaca dari master_config.payload.sw");
 console.log("  • Modul: Hasil Kuis, Nilai, Absensi, Jurnal, Game, Bank Soal, Paket Soal");
 console.log("  • Export: Excel + PDF (semua modul)");
 console.log("  • KKM:", KKM);
@@ -2776,6 +2829,379 @@ setTimeout(() => {
   if (!window.jspdf) console.warn("[EduSmart] ⚠️ jsPDF tidak terload — export PDF tidak tersedia");
   if (masalah.length) console.warn("[EduSmart] ⚠️ Masalah kompatibilitas:", masalah);
 })();
+/* =========================================================
+   BAGIAN 7 — MODUL TUGAS MASUK
+   ========================================================= */
+
+let __filterTugas = { kelas: "ALL", status: "ALL", search: "", tanggalFrom: "", tanggalTo: "" };
+let __tugasCache = [];
+
+async function loadTugasSiswa() {
+  showLoading(true, "Memuat tugas siswa...");
+  try {
+    const rows = await sbFetch("tugas_siswa", "?order=waktu_upload.desc&limit=500");
+    __tugasCache = rows;
+    appState.cache.tugas = rows;
+    showLoading(false);
+    return rows;
+  } catch (err) {
+    showLoading(false);
+    if (err.message.includes("404") || err.message.includes("400")) {
+      showToast("Tabel tugas_siswa belum dibuat di Supabase.", "error");
+    } else {
+      showToast("Gagal memuat tugas: " + err.message, "error");
+    }
+    return [];
+  }
+}
+
+function hitungStatTugas() {
+  const rows = __tugasCache || [];
+  const total = rows.length;
+  const sudahDiperiksa = rows.filter(r => r.sudah_diperiksa).length;
+  const belumDiperiksa = rows.filter(r => !r.sudah_diperiksa).length;
+  const totalFoto = rows.reduce((sum, r) => sum + (Number(r.jumlah_foto) || 0), 0);
+  const siswaUnik = new Set(rows.map(r => r.siswa_id)).size;
+  const kelasUnik = new Set(rows.map(r => r.kelas).filter(Boolean)).size;
+  return { total, sudahDiperiksa, belumDiperiksa, totalFoto, siswaUnik, kelasUnik };
+}
+
+function filterTugas(rows) {
+  const f = __filterTugas;
+  return rows.filter(r => {
+    if (f.kelas !== "ALL" && r.kelas !== f.kelas) return false;
+    if (f.status === "SUDAH" && !r.sudah_diperiksa) return false;
+    if (f.status === "BELUM" && r.sudah_diperiksa) return false;
+    if (f.search) {
+      const q = f.search.toLowerCase();
+      const haystack = `${r.siswa_nama || ""} ${r.judul || ""} ${r.mapel || ""} ${r.kelas || ""}`.toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    if (f.tanggalFrom) {
+      const tgl = (r.waktu_upload || "").split("T")[0];
+      if (tgl < f.tanggalFrom) return false;
+    }
+    if (f.tanggalTo) {
+      const tgl = (r.waktu_upload || "").split("T")[0];
+      if (tgl > f.tanggalTo) return false;
+    }
+    return true;
+  });
+}
+
+async function renderTugasMasuk(c) {
+  c.innerHTML = `<div class="bg-white p-6 rounded-2xl border shadow-sm text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin"></i> Memuat tugas...</div>`;
+
+  if (!__tugasCache.length) {
+    await loadTugasSiswa();
+  }
+
+  const allTugas = __tugasCache;
+  const filtered = filterTugas(allTugas);
+  const st = hitungStatTugas();
+
+  // Daftar kelas unik
+  const kelasList = [...new Set(allTugas.map(r => r.kelas).filter(Boolean))].sort();
+
+  c.innerHTML = `
+    <div class="space-y-4 fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-inbox text-orange-600"></i> Tugas Masuk</h2>
+          <p class="text-xs text-slate-500 mt-1">Daftar tugas foto yang dikirim siswa. Klik foto untuk preview & download.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="refreshTugasMasuk()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <button onclick="exportTugasExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-file-excel"></i> Excel</button>
+        </div>
+      </div>
+
+      <!-- Statistik -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center text-sm mb-2"><i class="fa-solid fa-inbox"></i></div>
+          <div class="text-2xl font-bold">${st.total}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">Total Tugas</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm mb-2"><i class="fa-solid fa-check-double"></i></div>
+          <div class="text-2xl font-bold">${st.sudahDiperiksa}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">Sudah Diperiksa</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm mb-2"><i class="fa-solid fa-clock"></i></div>
+          <div class="text-2xl font-bold">${st.belumDiperiksa}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">Menunggu</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-sm mb-2"><i class="fa-solid fa-image"></i></div>
+          <div class="text-2xl font-bold">${st.totalFoto}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">Total Foto</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border shadow-sm">
+          <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm mb-2"><i class="fa-solid fa-users"></i></div>
+          <div class="text-2xl font-bold">${st.siswaUnik}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">Siswa Kirim</div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-2">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div class="col-span-2">
+            <input type="text" value="${esc(__filterTugas.search)}" oninput="updateFilterTugas('search', this.value)" placeholder="Cari nama / judul / mapel..." class="w-full px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-orange-500 outline-none">
+          </div>
+          <div>
+            <select onchange="updateFilterTugas('kelas', this.value)" class="w-full px-3 py-2 border rounded-lg text-xs bg-white">
+              <option value="ALL">Semua Kelas</option>
+              ${kelasList.map(k => `<option value="${esc(k)}" ${__filterTugas.kelas === k ? 'selected' : ''}>Kelas ${esc(k)}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <select onchange="updateFilterTugas('status', this.value)" class="w-full px-3 py-2 border rounded-lg text-xs bg-white">
+              <option value="ALL" ${__filterTugas.status === 'ALL' ? 'selected' : ''}>Semua Status</option>
+              <option value="SUDAH" ${__filterTugas.status === 'SUDAH' ? 'selected' : ''}>✓ Sudah Diperiksa</option>
+              <option value="BELUM" ${__filterTugas.status === 'BELUM' ? 'selected' : ''}>⏳ Menunggu</option>
+            </select>
+          </div>
+          <div class="flex gap-1">
+            <input type="date" value="${esc(__filterTugas.tanggalFrom)}" onchange="updateFilterTugas('tanggalFrom', this.value)" class="flex-1 px-2 py-2 border rounded-lg text-[10px]" placeholder="Dari">
+            <input type="date" value="${esc(__filterTugas.tanggalTo)}" onchange="updateFilterTugas('tanggalTo', this.value)" class="flex-1 px-2 py-2 border rounded-lg text-[10px]" placeholder="Sampai">
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button onclick="resetFilterTugas()" class="text-xs text-slate-500 hover:text-slate-700 px-3 py-1">
+            <i class="fa-solid fa-times"></i> Reset Filter
+          </button>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="space-y-3">
+        ${filtered.length ? filtered.map(r => {
+          const fotoCount = (r.files || []).length;
+          const badge = r.sudah_diperiksa
+            ? '<span class="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full text-[9px]">✓ Diperiksa</span>'
+            : '<span class="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full text-[9px]">⏳ Menunggu</span>';
+          return `
+            <div class="bg-white border rounded-xl p-3 hover:border-orange-300 transition">
+              <div class="flex items-start gap-3 mb-2">
+                ${renderAvatarSiswa(r.siswa_id, "w-10 h-10")}
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2 flex-wrap">
+                    <div class="min-w-0">
+                      <div class="font-bold text-sm text-slate-800 truncate">${esc(r.judul || "(tanpa judul)")}</div>
+                      <div class="text-[10px] text-slate-500 mt-0.5">
+                        <b>${esc(r.siswa_nama || "-")}</b> · Kelas ${esc(r.kelas || "-")} · ${esc(r.mapel || "-")}
+                      </div>
+                      <div class="text-[10px] text-slate-400">${formatTanggalWaktu(r.waktu_upload)}</div>
+                    </div>
+                    ${badge}
+                  </div>
+                </div>
+              </div>
+              ${r.catatan ? `<div class="text-[11px] text-slate-600 italic bg-slate-50 p-2 rounded mb-2">"${esc(r.catatan)}"</div>` : ""}
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="text-[10px] text-slate-500"><i class="fa-solid fa-image"></i> ${fotoCount} foto</div>
+                <div class="flex gap-1 flex-wrap">
+                  ${(r.files || []).map((f, i) => `
+                    <button onclick="lihatDetailTugas('${esc(r.id)}', ${i})" class="w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow hover:border-orange-400 transition">
+                      <img src="${esc(f.url)}" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                    </button>
+                  `).join("")}
+                </div>
+                <button onclick="toggleDiperiksa('${esc(r.id)}')" class="${r.sudah_diperiksa ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-600 hover:bg-emerald-700 text-white'} text-[11px] font-bold px-3 py-1.5 rounded-lg transition">
+                  <i class="fa-solid ${r.sudah_diperiksa ? 'fa-undo' : 'fa-check'}"></i> ${r.sudah_diperiksa ? 'Batalkan' : 'Tandai Diperiksa'}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("") : `
+          <div class="bg-white p-12 rounded-2xl border shadow-sm text-center">
+            <i class="fa-solid fa-inbox text-5xl text-slate-300 mb-4"></i>
+            <p class="text-slate-400 text-sm">Belum ada tugas untuk filter ini.</p>
+          </div>
+        `}
+      </div>
+    </div>`;
+}
+
+function updateFilterTugas(key, value) {
+  __filterTugas[key] = value;
+  renderTugasMasuk(document.getElementById("main-view-container"));
+}
+function resetFilterTugas() {
+  __filterTugas = { kelas: "ALL", status: "ALL", search: "", tanggalFrom: "", tanggalTo: "" };
+  renderTugasMasuk(document.getElementById("main-view-container"));
+}
+async function refreshTugasMasuk() {
+  __tugasCache = [];
+  await renderTugasMasuk(document.getElementById("main-view-container"));
+  showToast("✓ Data tugas dimuat ulang.", "success");
+}
+
+/* =========================================================
+   PREVIEW FOTO + DOWNLOAD
+   ========================================================= */
+function lihatDetailTugas(tugasId, indexAwal) {
+  const r = __tugasCache.find(x => String(x.id) === String(tugasId));
+  if (!r) { showToast("Tugas tidak ditemukan.", "error"); return; }
+  
+  const files = r.files || [];
+  if (!files.length) { showToast("Tidak ada foto.", "error"); return; }
+  
+  let idx = indexAwal || 0;
+  
+  const mb = document.getElementById("modal-body");
+  const renderFoto = () => {
+    const f = files[idx];
+    const namaFile = `${(r.siswa_nama || "siswa").replace(/\s+/g, "_")}_${(r.judul || "tugas").replace(/\s+/g, "_").slice(0, 30)}_${idx + 1}.jpg`;
+    return `
+      <div class="space-y-3">
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-3 flex-wrap border-b pb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            ${renderAvatarSiswa(r.siswa_id, "w-12 h-12")}
+            <div class="min-w-0">
+              <div class="font-bold text-sm text-slate-800 truncate">${esc(r.siswa_nama || "-")}</div>
+              <div class="text-[11px] text-slate-500">Kelas ${esc(r.kelas || "-")} · ${esc(r.siswa_nis || "-")}</div>
+            </div>
+          </div>
+          <span class="${r.sudah_diperiksa ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} font-bold px-2.5 py-1 rounded-full text-[10px]">
+            ${r.sudah_diperiksa ? '✓ Diperiksa' : '⏳ Menunggu'}
+          </span>
+        </div>
+
+        <!-- Info Tugas -->
+        <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1">
+          <div><b class="text-slate-600">Judul:</b> ${esc(r.judul || "-")}</div>
+          <div><b class="text-slate-600">Mapel:</b> ${esc(r.mapel || "-")}</div>
+          <div><b class="text-slate-600">Tanggal:</b> ${esc(r.tanggal || "-")}</div>
+          <div><b class="text-slate-600">Diupload:</b> ${formatTanggalWaktu(r.waktu_upload)}</div>
+          ${r.catatan ? `<div><b class="text-slate-600">Catatan:</b> <i>${esc(r.catatan)}</i></div>` : ""}
+        </div>
+
+        <!-- Foto Viewer -->
+        <div class="relative bg-slate-900 rounded-xl overflow-hidden" style="min-height:300px;max-height:60vh;">
+          <img id="foto-viewer" src="${esc(f.url)}" class="w-full h-full object-contain max-h-[60vh]" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27400%27 height=%27300%27%3E%3Ctext x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 fill=%27%23999%27 font-family=%27sans-serif%27 font-size=%2716%27%3EGagal memuat foto%3C/text%3E%3C/svg%3E'">
+          ${files.length > 1 ? `
+            <button onclick="navFotoTugas(${idx - 1})" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 w-10 h-10 rounded-full shadow-lg flex items-center justify-center" ${idx === 0 ? 'disabled style="opacity:0.3"' : ''}>
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button onclick="navFotoTugas(${idx + 1})" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-800 w-10 h-10 rounded-full shadow-lg flex items-center justify-center" ${idx === files.length - 1 ? 'disabled style="opacity:0.3"' : ''}>
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[11px] font-bold px-3 py-1 rounded-full">
+              ${idx + 1} / ${files.length}
+            </div>
+          ` : ""}
+        </div>
+
+        <!-- Tombol Download -->
+        <div class="flex flex-wrap gap-2 justify-end pt-2 border-t">
+          <a href="${esc(f.url)}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl">
+            <i class="fa-solid fa-external-link"></i> Buka
+          </a>
+          <a href="${esc(f.url)}" download="${esc(namaFile)}" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl" onclick="showToast('⏳ Mengunduh foto...', 'info')">
+            <i class="fa-solid fa-download"></i> Download Foto
+          </a>
+          <button onclick="toggleDiperiksaDariModal('${esc(r.id)}')" class="${r.sudah_diperiksa ? 'bg-slate-200 text-slate-700' : 'bg-emerald-600 text-white'} text-xs font-bold px-4 py-2.5 rounded-xl">
+            <i class="fa-solid ${r.sudah_diperiksa ? 'fa-undo' : 'fa-check'}"></i> ${r.sudah_diperiksa ? 'Batalkan' : 'Tandai Diperiksa'}
+          </button>
+          <button onclick="closeModal()" class="bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl">
+            Tutup
+          </button>
+        </div>
+      </div>`;
+  };
+  
+  window.__navFotoTugas = (newIdx) => {
+    if (newIdx < 0 || newIdx >= files.length) return;
+    idx = newIdx;
+    mb.innerHTML = renderFoto();
+  };
+  
+  mb.innerHTML = renderFoto();
+  openModal();
+}
+
+function navFotoTugas(newIdx) {
+  if (window.__navFotoTugas) window.__navFotoTugas(newIdx);
+}
+
+/* =========================================================
+   TOGGLE DIPERIKSA
+   ========================================================= */
+async function toggleDiperiksa(tugasId) {
+  const r = __tugasCache.find(x => String(x.id) === String(tugasId));
+  if (!r) return;
+  const newVal = !r.sudah_diperiksa;
+  try {
+    const sb = getSupabaseConfig();
+    const res = await fetch(`${sb.url}/rest/v1/tugas_siswa?id=eq.${encodeURIComponent(tugasId)}`, {
+      method: "PATCH",
+      headers: sbHeaders({ "Prefer": "return=minimal" }),
+      body: JSON.stringify({ sudah_diperiksa: newVal })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    r.sudah_diperiksa = newVal;
+    showToast(newVal ? "✓ Ditandai sudah diperiksa." : "Ditandai belum diperiksa.", "success");
+    renderTugasMasuk(document.getElementById("main-view-container"));
+  } catch (err) {
+    showToast("Gagal update: " + err.message, "error");
+  }
+}
+
+async function toggleDiperiksaDariModal(tugasId) {
+  await toggleDiperiksa(tugasId);
+  closeModal();
+}
+
+/* =========================================================
+   EXPORT TUGAS KE EXCEL
+   ========================================================= */
+function exportTugasExcel() {
+  const filtered = filterTugas(__tugasCache);
+  const headers = ["No", "Nama Siswa", "NIS", "Kelas", "Judul Tugas", "Mapel", "Tanggal", "Jumlah Foto", "Status Diperiksa", "Waktu Upload", "Link Foto"];
+  const rows = filtered.map((r, i) => [
+    i + 1,
+    r.siswa_nama || "-",
+    r.siswa_nis || "-",
+    r.kelas || "-",
+    r.judul || "-",
+    r.mapel || "-",
+    r.tanggal || "-",
+    r.jumlah_foto || 0,
+    r.sudah_diperiksa ? "Sudah" : "Belum",
+    formatTanggalWaktu(r.waktu_upload),
+    (r.files || []).map(f => f.url).join(" | ")
+  ]);
+  exportExcel(`Tugas_Masuk_${todayStr()}.xlsx`, "Tugas", headers, rows);
+}
+
+/* =========================================================
+   CLEANUP MANUAL — HAPUS TUGAS > 7 HARI
+   ========================================================= */
+async function hapusTugasLamaManual() {
+  if (!confirm("Hapus semua tugas yang sudah lebih dari 7 hari? (Otomatis jalan tiap jam 2 pagi)")) return;
+  showLoading(true, "Menghapus...");
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const sb = getSupabaseConfig();
+    const res = await fetch(`${sb.url}/rest/v1/tugas_siswa?waktu_upload=lt.${cutoff}`, {
+      method: "DELETE",
+      headers: sbHeaders()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showLoading(false);
+    showToast("✓ Tugas lama dihapus.", "success");
+    __tugasCache = [];
+    renderTugasMasuk(document.getElementById("main-view-container"));
+  } catch (err) {
+    showLoading(false);
+    showToast("Gagal hapus: " + err.message, "error");
+  }
+}
 </script>
 </body>
 </html>
