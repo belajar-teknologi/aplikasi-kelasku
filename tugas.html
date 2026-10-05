@@ -112,11 +112,28 @@ Foto tugas akan tetap tersimpan. Guru akan memeriksa tugasmu. Foto lama akan dib
 <h2 class="font-bold text-sm flex items-center gap-2">
 <i class="fa-solid fa-camera text-purple-600"></i> Foto Tugas <span class="text-[10px] text-slate-400 font-normal">(maks 5 foto, @5MB)</span>
 </h2>
-<div id="upload-zone" class="upload-zone border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer">
-<input id="file-input" type="file" accept="image/*" multiple capture="environment" class="hidden">
-<i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-400 mb-2"></i>
-<div class="text-sm font-semibold text-slate-700">Klik / Tap untuk pilih foto</div>
-<div class="text-[10px] text-slate-500 mt-1">Atau ambil langsung dari kamera HP</div>
+<div id="upload-zone" class="upload-zone border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center">
+  <!-- Dua input terpisah: galeri (multiple) & kamera (single) -->
+  <input id="file-input-galeri" type="file" accept="image/*" multiple class="hidden">
+  <input id="file-input-kamera" type="file" accept="image/*" capture="environment" class="hidden">
+
+  <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2"></i>
+  <div class="text-sm font-semibold text-slate-700 mb-3">Tambahkan Foto Tugas</div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-sm mx-auto">
+    <button type="button" onclick="document.getElementById('file-input-galeri').click()"
+            class="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition text-xs">
+      <i class="fa-solid fa-images"></i> Pilih dari Galeri
+    </button>
+    <button type="button" onclick="document.getElementById('file-input-kamera').click()"
+            class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition text-xs">
+      <i class="fa-solid fa-camera"></i> Ambil dari Kamera
+    </button>
+  </div>
+
+  <div class="text-[10px] text-slate-500 mt-3">
+    💡 Galeri bisa pilih banyak foto · Kamera ambil 1 foto per klik
+  </div>
 </div>
 <div id="preview-list" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
 </div>
@@ -234,10 +251,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("id-noabsen").textContent = currentUser.noAbsen || "-";
   document.getElementById("hdr-info").textContent = (currentUser.sekolah || "EduSmart LMS") + " · " + (currentUser.kelas || "");
 
-  // Upload zone
+    // Upload zone — dua input terpisah
   const zone = document.getElementById("upload-zone");
-  const input = document.getElementById("file-input");
-  zone.addEventListener("click", () => input.click());
+  const inputGaleri = document.getElementById("file-input-galeri");
+  const inputKamera = document.getElementById("file-input-kamera");
+
+  // Drag & drop (desktop) — tetap di zone
   zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("dragover"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
   zone.addEventListener("drop", (e) => {
@@ -245,7 +264,16 @@ document.addEventListener("DOMContentLoaded", () => {
     zone.classList.remove("dragover");
     handleFiles(e.dataTransfer.files);
   });
-  input.addEventListener("change", (e) => handleFiles(e.target.files));
+
+  // Event listener untuk kedua input
+  inputGaleri.addEventListener("change", (e) => {
+    handleFiles(e.target.files);
+    e.target.value = ""; // reset biar bisa pilih file sama lagi
+  });
+  inputKamera.addEventListener("change", (e) => {
+    handleFiles(e.target.files);
+    e.target.value = "";
+  });
 
   loadRiwayat();
 });
