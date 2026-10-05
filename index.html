@@ -721,6 +721,19 @@ function restoreCredsFromDb(db) {
 }
 function siswaToObj(a) { const F=FIELD.SISWA; return { id:a[F.ID], noAbsen:a[F.NOABSEN], nis:a[F.NIS], nama:a[F.NAMA], kelas:a[F.KELAS], jk:a[F.JK], username:a[F.USER], password:a[F.PASS], tempatLahir:a[F.TTL], tglLahir:a[F.TGL], alamat:a[F.ALAMAT], fotoUrl:a[F.FOTO] }; }
 function siswaArr(o) { const F=FIELD.SISWA; return [o.id,o.noAbsen,o.nis,o.nama,o.kelas,o.jk,o.username,o.password,o.tempatLahir,o.tglLahir,o.alamat,o.fotoUrl||null]; }
+
+/* ⭐ HELPER: Ambil data siswa yang sedang login (pencocokan fleksibel) */
+function getCurrentSiswa() {
+  const u = appState.currentUser;
+  if (!u || u.role !== "siswa") return null;
+  const list = (appState.db.sw || []).map(siswaToObj);
+  const sid = u.siswaId;
+  return list.find(s =>
+    String(s.id) === String(sid) ||
+    (u.nis && String(s.nis) === String(u.nis)) ||
+    (u.username && String(s.username) === String(u.username))
+  ) || null;
+}
 function mapelToObj(a) { const F=FIELD.MAPEL; return { id:a[F.ID], kode:a[F.KODE], nama:a[F.NAMA], kkm:a[F.KKM], pengampu:a[F.PENGAMPU] }; }
 function mapelArr(o) { const F=FIELD.MAPEL; return [o.id,o.kode,o.nama,o.kkm,o.pengampu]; }
 function nilaiToObj(a, nc) { const F=FIELD.NILAI; const scores={}; (nc||[]).forEach((k,i)=>{ scores[k]=a[F.SCORES]?.[i]??0; }); return { id:a[F.ID], siswaId:a[F.SISWA_ID], mapelKode:a[F.MAPEL_KODE], scores }; }
@@ -1289,6 +1302,11 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!localStorage.getItem(STORAGE.DB)) setLS(STORAGE.DB, JSON.stringify(appState.db));
   ensureMasterData();
   if (!appState.db.km) appState.db.km = [];
+  // ⭐ MIGRASI: pastikan siswaId lama tersimpan sebagai string
+  if (appState.currentUser?.role === "siswa" && appState.currentUser.siswaId != null) {
+    appState.currentUser.siswaId = String(appState.currentUser.siswaId);
+    setLS(STORAGE.USER, JSON.stringify(appState.currentUser));
+  }
   updateHeaderUI(); 
   renderApp(); 
   initNumpadDrag();
@@ -1392,11 +1410,12 @@ function updateHeaderUI() {
     document.getElementById("header-user-role").textContent=appState.currentUser.role;
     const ph=document.getElementById("header-user-photo"); 
     const ic=document.getElementById("header-user-icon");
-    let fu="";
-    if (appState.currentUser.role==="guru") fu=appState.db?.a?.fg||"";
-    else { 
-      const sw=(appState.db.sw||[]).find(s=>String(s[FIELD.SISWA.ID])===String(appState.currentUser.siswaId)); 
-      fu=sw?(sw[FIELD.SISWA.FOTO]||""):""; 
+        let fu="";
+    if (appState.currentUser.role==="guru") {
+      fu = appState.db?.a?.fg || "";
+    } else {
+      const sw = getCurrentSiswa();
+      fu = sw?.fotoUrl || "";
     }
     if (fu && (fu.startsWith("http")||fu.startsWith("data:"))) { 
       ph.referrerPolicy="no-referrer"; 
@@ -1815,7 +1834,7 @@ async function handleLogin(e) {
     restoreCredsFromDb(db); 
     saveAppConfig(cfg); 
     setLS(STORAGE.APP_CODE,code);
-    appState.currentUser={ username: siswa.username, name: siswa.nama, role:"siswa", nis: siswa.nis, noAbsen: siswa.noAbsen, kelas: siswa.kelas, siswaId: siswa.id, sekolah: db.a?.ns||cfg.namaSekolah||"", guru: db.a?.ng||cfg.namaGuru||"" };
+        appState.currentUser={ username: siswa.username, name: siswa.nama, role:"siswa", nis: siswa.nis, noAbsen: siswa.noAbsen, kelas: siswa.kelas, siswaId: String(siswa.id), sekolah: db.a?.ns||cfg.namaSekolah||"", guru: db.a?.ng||cfg.namaGuru||"" };
     setLS(STORAGE.USER, JSON.stringify(appState.currentUser)); 
     setLS(STORAGE.DB, JSON.stringify(appState.db));
     appState.activeView="dashboard_siswa";
@@ -4223,8 +4242,8 @@ function getStatusAbsenInfo(status) {
 function renderSiswaDashboard(c) {
   const sid=appState.currentUser.siswaId; 
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
-  const swObj=(appState.db.sw||[]).map(siswaToObj).find(s=>String(s.id)===String(sid));
-  const fotoSiswa=swObj?.fotoUrl||"";
+  const swObj = getCurrentSiswa();
+  const fotoSiswa = swObj?.fotoUrl || "";
   let total=0, count=0;
   (appState.db.nl||[]).filter(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)).forEach(arr=>{ 
     const mk=arr[FIELD.NILAI.MAPEL_KODE]; 
@@ -4376,8 +4395,8 @@ async function renderGuruDashboard(c) {
    PROFIL SISWA
    ========================================================= */
 function renderProfilSiswa(c) {
-  const s=(appState.db.sw||[]).map(siswaToObj).find(x=>String(x.id)===String(appState.currentUser.siswaId))||{};
-  const fotoUrl=s.fotoUrl||"";
+  const s = getCurrentSiswa() || {};
+  const fotoUrl = s.fotoUrl || "";
   c.innerHTML=`<div class="max-w-md mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 text-center fade-in">
     <div>${fotoUrl?`<img src="${fotoUrl}" referrerpolicy="no-referrer" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-emerald-100" onerror="this.style.display='none'">`:`<div class="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl mx-auto"><i class="fa-solid fa-user-graduate"></i></div>`}</div>
     <label class="inline-block text-[10px] text-slate-500 cursor-pointer"><i class="fa-solid fa-camera"></i> Ganti Foto<input type="file" accept="image/*" class="hidden" onchange="uploadFotoProfil('siswa',event)"></label>
