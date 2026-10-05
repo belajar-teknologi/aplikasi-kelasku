@@ -922,25 +922,71 @@ async function loadJsonBinDB(binId, cred) {
   if (!res.ok) throw new Error(data?.message||`HTTP ${res.status}`);
   return data?.record && typeof data.record==="object" ? data.record : data;
 }
+/* ═══════════════════════════════════════════════════════════
+   ⭐ PATCH MINIMALKAN JSONBIN
+   Prioritaskan Supabase → JSONBin cuma fallback kalau Supabase error
+   ═══════════════════════════════════════════════════════════ */
+
 async function updateJsonBinDB() {
-  const cfg=getAppConfig(); 
-  const cred=getJsonBinCredential(); 
+  const sb = getSupabaseConfig();
+  const cfg = getAppConfig();
+  const cred = getJsonBinCredential();
+  
+  // ⭐ PRIORITAS 1: Supabase
+  if (sb) {
+    try {
+      appState.db.mn = appState.menus;
+      const kodeApp = cfg?.kodeAplikasi || appState.db?.a?.k || null;
+      await sbSaveMasterConfig("app_master", appState.db, kodeApp);
+      console.log("[Save] ✓ Supabase OK — skip JSONBin");
+      setLS("edusmart_last_sync", new Date().toISOString());
+      return true;
+    } catch(e) {
+      console.warn("[Save] Supabase gagal, coba JSONBin:", e.message);
+    }
+  }
+  
+  // ⭐ FALLBACK: JSONBin (cuma dipakai kalau Supabase down)
   if (!cfg?.binId || !cred) return false;
   try {
-    appState.db.mn=appState.menus;
-    const res=await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`, { 
-      method:"PUT", 
-      headers: getJsonBinHeaders(cred,true), 
+    appState.db.mn = appState.menus;
+    const res = await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`, { 
+      method: "PUT", 
+      headers: getJsonBinHeaders(cred, true), 
       body: JSON.stringify(appState.db) 
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`); 
+    console.log("[Save] ⚠️ Tersimpan di JSONBin (Supabase down)");
     setLS("edusmart_last_sync", new Date().toISOString()); 
     return true;
   } catch(err) { console.warn("JSONBin sync gagal:", err); return false; }
 }
+
 async function updateJsonBinDB_Lite() {
+  const sb = getSupabaseConfig();
   const cfg = getAppConfig();
   const cred = getJsonBinCredential();
+  
+  // ⭐ PRIORITAS 1: Supabase
+  if (sb) {
+    try {
+      const dbLite = {
+        v: appState.db.v, a: appState.db.a, cfg: appState.db.cfg, mn: appState.menus,
+        md: appState.db.md, sw: appState.db.sw, mp: appState.db.mp, nc: appState.db.nc,
+        ncPerMapel: appState.db.ncPerMapel, pg: appState.db.pg || [], hk: appState.db.hk || [],
+        al: appState.db.al || [], ll: appState.db.ll || [], km: appState.db.km || []
+      };
+      const kodeApp = cfg?.kodeAplikasi || appState.db?.a?.k || null;
+      await sbSaveMasterConfig("app_master", dbLite, kodeApp);
+      console.log("[Save Lite] ✓ Supabase OK — skip JSONBin");
+      setLS("edusmart_last_sync", new Date().toISOString());
+      return true;
+    } catch(e) {
+      console.warn("[Save Lite] Supabase gagal, coba JSONBin:", e.message);
+    }
+  }
+  
+  // ⭐ FALLBACK: JSONBin
   if (!cfg?.binId || !cred) return false;
   try {
     const dbLite = {
@@ -953,6 +999,7 @@ async function updateJsonBinDB_Lite() {
       method: "PUT", headers: getJsonBinHeaders(cred, true), body: JSON.stringify(dbLite)
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    console.log("[Save Lite] ⚠️ Tersimpan di JSONBin (Supabase down)");
     setLS("edusmart_last_sync", new Date().toISOString());
     return true;
   } catch(err) { console.warn("[JSONBin Lite] Gagal:", err); return false; }
