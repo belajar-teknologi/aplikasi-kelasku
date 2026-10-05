@@ -3550,6 +3550,103 @@ async function refreshLeaderboardGame(kelas) {
 }
 
 /* =========================================================
+   ⭐ FUNGSI BARU: ABSENSI HARI INI (GURU)
+   ========================================================= */
+function getAbsensiHariIni(kelasFilter) {
+  const today = new Date().toISOString().split('T')[0];
+  const siswaAll = (appState.db.sw || []).map(siswaToObj);
+  const siswaList = (!kelasFilter || kelasFilter === "ALL") 
+    ? siswaAll 
+    : siswaAll.filter(s => s.kelas === kelasFilter);
+  const absenHariIni = (appState.db.ab || []).filter(a => {
+    const o = absenToObj(a);
+    return o.tanggal === today;
+  });
+  const map = { H: 0, I: 0, S: 0, A: 0 };
+  absenHariIni.forEach(a => {
+    const o = absenToObj(a);
+    const st = o.status;
+    if (map[st] !== undefined) map[st]++;
+  });
+  const sudahDiabsen = absenHariIni.length;
+  const belumDiabsen = Math.max(0, siswaList.length - sudahDiabsen);
+  return { ...map, total: siswaList.length, sudahDiabsen, belumDiabsen, tanggal: today };
+}
+
+function renderKartuAbsensiHariIniGuru() {
+  const a = getAbsensiHariIni("ALL");
+  const statusColor = {
+    H: { bg: "bg-emerald-50", border: "border-emerald-100", text: "text-emerald-600", value: "text-emerald-700" },
+    I: { bg: "bg-amber-50", border: "border-amber-100", text: "text-amber-600", value: "text-amber-700" },
+    S: { bg: "bg-orange-50", border: "border-orange-100", text: "text-orange-600", value: "text-orange-700" },
+    A: { bg: "bg-red-50", border: "border-red-100", text: "text-red-600", value: "text-red-700" }
+  };
+  return `<div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <h3 class="font-bold text-sm flex items-center gap-2">
+        <i class="fa-solid fa-calendar-check text-emerald-600"></i> Absensi Hari Ini
+      </h3>
+      <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">${a.tanggal}</span>
+    </div>
+    ${a.sudahDiabsen === 0 
+      ? `<div class="text-center py-6">
+           <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
+           <div class="text-slate-500 text-xs">Belum ada absensi hari ini.</div>
+           <button onclick="appState.activeView='absensi';renderSidebarNav();renderMainContent()" class="mt-3 bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">
+             <i class="fa-solid fa-plus"></i> Input Absensi
+           </button>
+         </div>`
+      : `<div class="grid grid-cols-4 gap-2 text-center">
+           <div class="p-3 ${statusColor.H.bg} border ${statusColor.H.border} rounded-xl">
+             <div class="text-[10px] ${statusColor.H.text} font-bold uppercase">Hadir</div>
+             <div class="text-2xl font-black ${statusColor.H.value}">${a.H}</div>
+           </div>
+           <div class="p-3 ${statusColor.I.bg} border ${statusColor.I.border} rounded-xl">
+             <div class="text-[10px] ${statusColor.I.text} font-bold uppercase">Izin</div>
+             <div class="text-2xl font-black ${statusColor.I.value}">${a.I}</div>
+           </div>
+           <div class="p-3 ${statusColor.S.bg} border ${statusColor.S.border} rounded-xl">
+             <div class="text-[10px] ${statusColor.S.text} font-bold uppercase">Sakit</div>
+             <div class="text-2xl font-black ${statusColor.S.value}">${a.S}</div>
+           </div>
+           <div class="p-3 ${statusColor.A.bg} border ${statusColor.A.border} rounded-xl">
+             <div class="text-[10px] ${statusColor.A.text} font-bold uppercase">Alpa</div>
+             <div class="text-2xl font-black ${statusColor.A.value}">${a.A}</div>
+           </div>
+         </div>
+         ${a.belumDiabsen > 0 
+           ? `<div class="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 text-center">
+                <i class="fa-solid fa-triangle-exclamation"></i> 
+                ${a.belumDiabsen} dari ${a.total} siswa belum diabsen.
+              </div>`
+           : `<div class="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-800 text-center">
+                <i class="fa-solid fa-circle-check"></i> Semua ${a.total} siswa sudah diabsen.
+              </div>`}
+        `}
+  </div>`;
+}
+
+/* =========================================================
+   ⭐ FUNGSI BARU: STATUS ABSENSI SISWA HARI INI
+   ========================================================= */
+function getStatusAbsenSiswaHariIni(sid) {
+  const today = new Date().toISOString().split('T')[0];
+  const arr = (appState.db.ab || []).find(a => {
+    const o = absenToObj(a);
+    return o.tanggal === today && String(o.siswaId) === String(sid);
+  });
+  return arr ? arr[FIELD.ABSEN.STATUS] : null;
+}
+
+function getStatusAbsenInfo(status) {
+  if (status === "H") return { label: "Hadir", warna: "text-emerald-700", icon: "fa-solid fa-circle-check", bg: "bg-emerald-50 border-emerald-100" };
+  if (status === "I") return { label: "Izin", warna: "text-amber-700", icon: "fa-solid fa-envelope-circle-check", bg: "bg-amber-50 border-amber-100" };
+  if (status === "S") return { label: "Sakit", warna: "text-orange-700", icon: "fa-solid fa-notes-medical", bg: "bg-orange-50 border-orange-100" };
+  if (status === "A") return { label: "Alpa", warna: "text-red-700", icon: "fa-solid fa-circle-xmark", bg: "bg-red-50 border-red-100" };
+  return { label: "Belum", warna: "text-slate-400", icon: "fa-solid fa-clock", bg: "bg-slate-50 border-slate-200" };
+}
+
+/* =========================================================
    DASHBOARD SISWA
    ========================================================= */
 function renderSiswaDashboard(c) {
@@ -3568,6 +3665,8 @@ function renderSiswaDashboard(c) {
   const absenArr=(appState.db.ab||[]).filter(a=>Number(a[FIELD.ABSEN.SISWA_ID])===Number(sid));
   const hadir=absenArr.filter(a=>a[FIELD.ABSEN.STATUS]==="H").length;
   const persen=absenArr.length?((hadir/absenArr.length)*100).toFixed(0):100;
+  const statusHariIni = getStatusAbsenSiswaHariIni(sid);
+  const statusInfo = getStatusAbsenInfo(statusHariIni);
   const menu=[
     { id:"profil_siswa", name:"Profil Saya", icon:"fa-solid fa-user-gear", warna:"bg-indigo-100 text-indigo-700" },
     { id:"nilai_siswa", name:"Nilai Saya", icon:"fa-solid fa-star", warna:"bg-amber-100 text-amber-700" },
@@ -3596,7 +3695,7 @@ function renderSiswaDashboard(c) {
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Rata Nilai</div><div class="text-xl sm:text-2xl font-bold mt-1">${avg}</div></div>
-      <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Kehadiran</div><div class="text-xl sm:text-2xl font-bold mt-1 text-emerald-700">${persen}%</div></div>
+      <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm ${statusInfo.bg}"><div class="text-[10px] sm:text-xs font-semibold flex items-center gap-1 ${statusInfo.warna.replace('text-','text-')}"><i class="${statusInfo.icon}"></i> Absen Hari Ini</div><div class="text-xl sm:text-2xl font-bold mt-1 ${statusInfo.warna}">${statusInfo.label}</div><div class="text-[10px] text-slate-400 mt-0.5">Total: ${persen}%</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Mapel</div><div class="text-xl sm:text-2xl font-bold mt-1 text-purple-700">${mapelAll.length}</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">No. Absen</div><div class="text-xl sm:text-2xl font-bold mt-1 text-pink-700">${appState.currentUser.noAbsen||"-"}</div></div>
     </div>
@@ -3669,6 +3768,7 @@ function renderGuruDashboard(c) {
       <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Jurnal</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalJurnal}</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Pengumuman</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalPengumuman}</div></div>
     </div>
+    ${renderKartuAbsensiHariIniGuru()}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
       <div class="lg:col-span-2 bg-white p-4 sm:p-5 rounded-2xl border shadow-sm"><h3 class="font-bold text-sm mb-3">Statistik Rata-Rata Nilai Per Mapel</h3><div class="h-60"><canvas id="chartGuru"></canvas></div></div>
       ${renderRankingCard({ title:"Top 5 Ranking Sementara", kelasFilter:"ALL", highlightSiswaId: null, showKelasDropdown: true, containerId:"ranking-guru-content" })}
@@ -3781,9 +3881,22 @@ function renderAbsensiSiswa(c) {
   const list=(appState.db.ab||[]).filter(a=>Number(a[FIELD.ABSEN.SISWA_ID])===Number(sid)).map(absenToObj).reverse();
   const hadir=list.filter(a=>a.status==="H").length; 
   const persen=list.length?((hadir/list.length)*100).toFixed(0):100;
+  const statusHariIni = getStatusAbsenSiswaHariIni(sid);
+  const statusInfo = getStatusAbsenInfo(statusHariIni);
   c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
     <h2 class="text-base sm:text-lg font-bold">Absensi Saya</h2>
-    <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-900 font-bold">Kehadiran: ${persen}% (${hadir}/${list.length})</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="p-4 ${statusInfo.bg} border rounded-xl text-xs">
+        <div class="font-bold ${statusInfo.warna} flex items-center gap-2"><i class="${statusInfo.icon}"></i> Status Hari Ini</div>
+        <div class="text-2xl font-black mt-1 ${statusInfo.warna}">${statusInfo.label}</div>
+        <div class="text-[10px] text-slate-500 mt-1">${new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
+      </div>
+      <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs">
+        <div class="font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> Kehadiran Total</div>
+        <div class="text-2xl font-black mt-1 text-emerald-700">${persen}%</div>
+        <div class="text-[10px] text-emerald-700 mt-1">Hadir ${hadir} dari ${list.length} hari</div>
+      </div>
+    </div>
     <div class="table-scroll"><table class="w-full text-xs border-collapse">
       <thead><tr class="bg-slate-100 font-bold"><th class="p-2 text-left">Tanggal</th><th class="p-2 text-left">Status</th></tr></thead>
       <tbody class="divide-y">${list.map(a=>`<tr><td class="p-2">${a.tanggal}</td><td class="p-2"><span class="font-bold ${a.status==='H'?'text-emerald-700':a.status==='A'?'text-red-700':'text-amber-700'}">${a.status}</span></td></tr>`).join("")||'<tr><td colspan="2" class="text-center py-3 text-slate-400">Belum ada absensi.</td></tr>'}</tbody>
