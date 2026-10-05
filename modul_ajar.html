@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generator Modul Ajar & RPP AI</title>
+    <!-- Tailwind CSS untuk tata letak modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons untuk ikon visual yang menarik -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&family=Inter:wght=300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .heading-font {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Aturan Cetak (Print Styles) agar dokumen terlihat sangat formal */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                font-family: "Times New Roman", Times, serif !important;
+                font-size: 11pt !important;
+            }
+            
+            header, footer, .no-print, #panel-settings, #tab-btn-settings, #tab-btn-preview, #empty-state, #loading-state {
+                display: none !important;
+            }
+            
+            .print-paper {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                background-color: #ffffff !important;
+            }
+
+            #panel-preview {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            @page {
+                size: A4;
+                margin: 2cm;
+            }
+
+            .edit-indicator {
+                display: none !important;
+            }
+
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+
+            .no-break-inside {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+        }
+
+        @keyframes loading-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col antialiased">
+
+    <!-- Header Aplikasi (Disembunyikan saat cetak) -->
+    <header class="bg-white border-b border-slate-200 py-3 px-4 sm:px-6 sticky top-0 z-20 no-print shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-100 shrink-0">
+                    <i data-lucide="award" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold heading-font text-slate-900 leading-tight">EduPrint RPP AI</h1>
+                    <p class="text-[10px] sm:text-xs text-slate-500">Generator Modul Ajar Kurikulum Merdeka Terintegrasi Cover & Lampiran</p>
+                </div>
+            </div>
+            
+            <div class="hidden sm:flex items-center gap-2 text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full font-medium border border-emerald-100">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Koneksi Stabil: Gemini 2.5 Flash
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigasi Tab khusus Layar HP (Hanya muncul di Layar < lg, disembunyikan saat cetak) -->
+    <div class="lg:hidden flex bg-white border-b border-slate-200 sticky top-[61px] z-10 no-print shadow-sm">
+        <button id="tab-btn-settings" onclick="switchMobileTab('settings')" class="flex-1 py-3 text-center text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center justify-center gap-1.5 transition-all">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            Parameter Modul
+        </button>
+        <button id="tab-btn-preview" onclick="switchMobileTab('preview')" class="flex-1 py-3 text-center text-sm font-semibold border-b-2 border-transparent text-slate-500 flex items-center justify-center gap-1.5 transition-all">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            Pratinjau A4
+        </button>
+    </div>
+
+    <!-- Konten Utama -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-4 lg:gap-8">
+        
+        <!-- Panel Konfigurasi RPP (Kiri) -->
+        <section id="panel-settings" class="w-full lg:w-[420px] shrink-0 space-y-4 sm:space-y-6 no-print block">
+            
+            <!-- Notifikasi Status -->
+            <div id="status-banner" class="hidden p-4 rounded-xl text-sm border flex items-start gap-3 shadow-sm transition-all">
+                <i id="status-icon" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                <div class="flex-1">
+                    <p id="status-text" class="font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Form Isi Modul -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
+                <h2 class="text-base sm:text-lg font-bold heading-font text-slate-900 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+                    Detail Modul Ajar
+                </h2>
+
+                <div class="space-y-3.5">
+                    <!-- API KEY -->
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                            <span>Gemini API Key</span>
+                            <a href="https://aistudio.google.com/" target="_blank" class="text-xs text-indigo-600 hover:underline flex items-center gap-0.5">
+                                Dapatkan Key <i data-lucide="external-link" class="w-3 h-3"></i>
+                            </a>
+                        </label>
+                        <input type="password" id="input-api-key" 
+                            class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                            placeholder="Masukkan AIzaSy...">
+                    </div>
+
+                    <!-- DATA SEKOLAH -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Nama Sekolah</label>
+                            <input type="text" id="input-school" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" placeholder="SDN 1 Batu" value="SD Negeri 3 Ngantru">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Mata Pelajaran</label>
+                            <select id="input-subject" class="w-full px-2 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+                                <option value="Bahasa Indonesia" selected>Bahasa Indonesia</option>
+                                <option value="Matematika">Matematika</option>
+                                <option value="IPAS (Sains & Sosial)">IPAS</option>
+                                <option value="Pendidikan Pancasila">Pendidikan Pancasila</option>
+                                <option value="Seni Budaya">Seni Budaya</option>
+                                <option value="Bahasa Inggris">Bahasa Inggris</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- IDENTITAS GURU -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Nama Guru</label>
+                            <input type="text" id="input-guru-name" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" placeholder="Nama Guru" value="Aburrizal Hamdani Lubis, S.Pd.">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">NIP Guru</label>
+                            <input type="text" id="input-guru-nip" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" placeholder="NIP Guru (Opsional)" value="199507022020121009">
+                        </div>
+                    </div>
+
+                    <!-- IDENTITAS KEPALA SEKOLAH -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Nama Kepsek</label>
+                            <input type="text" id="input-kepsek-name" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" placeholder="Nama Kepala Sekolah" value="JOKO PRAYITNO, S.Pd.SD.">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">NIP Kepsek</label>
+                            <input type="text" id="input-kepsek-nip" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs" placeholder="NIP Kepala Sekolah" value="198408242014081004">
+                        </div>
+                    </div>
+
+                    <!-- PARAMETER RPP -->
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1">Topik / Tema Utama Pembelajaran</label>
+                        <input type="text" id="input-topic" 
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm transition-all"
+                            placeholder="Contoh: Energi Alternatif, Perkalian Bilangan Cacah, Pancasila">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Tingkat Kelas</label>
+                            <select id="input-level" class="w-full px-2 py-2 border border-slate-300 rounded-xl text-xs bg-white" onchange="autoFillFase()">
+                                <option value="Kelas 1 SD">Kelas 1 SD</option>
+                                <option value="Kelas 2 SD">Kelas 2 SD</option>
+                                <option value="Kelas 3 SD">Kelas 3 SD</option>
+                                <option value="Kelas 4 SD">Kelas 4 SD</option>
+                                <option value="Kelas 5 SD" selected >Kelas 5 SD</option>
+                                <option value="Kelas 6 SD">Kelas 6 SD</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Fase</label>
+                            <input type="text" id="input-fase" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 font-semibold" value="Fase B" readonly>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Alokasi Waktu</label>
+                            <select id="input-duration" class="w-full px-2 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+                                <option value="2 x 35 Menit (1 Pertemuan)">2 x 35 Menit</option>
+                                <option value="3 x 35 Menit (1 Pertemuan)">3 x 35 Menit</option>
+                                <option value="4 x 35 Menit (2 Pertemuan)" selected>4 x 35 Menit</option>
+                                <option value="6 x 35 Menit (3 Pertemuan)">6 x 35 Menit</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] sm:text-xs font-semibold text-slate-700 mb-1">Model Pembelajaran</label>
+                            <select id="input-model" class="w-full px-2 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+                                <option value="Problem Based Learning (PBL)" selected>PBL (Pemecahan Masalah)</option>
+                                <option value="Project Based Learning (PjBL)">PjBL (Proyek Kreatif)</option>
+                                <option value="Discovery / Inquiry Learning">Inkuiri / Penemuan</option>
+                                <option value="Cooperative Learning">Kooperatif / Kelompok</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tombol Buat Modul -->
+                <button type="button" id="btn-generate" onclick="generateModul()" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 text-sm">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    Buat Modul Ajar AI
+                </button>
+            </div>
+        </section>
+
+        <!-- Area Hasil Dokumen (Kanan) -->
+        <section id="panel-preview" class="flex-1 flex-col gap-4 hidden lg:flex">
+            
+            <!-- Bilah Kontrol Dokumen -->
+            <div id="preview-controls" class="hidden bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3 no-print animate-fade-in">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <p class="text-xs text-slate-600 font-medium">Modul Lengkap + Cover & Lampiran siap dicetak ukuran A4</p>
+                </div>
+                <button onclick="window.print()" class="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-100">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    Cetak Modul Ajar
+                </button>
+            </div>
+
+            <!-- Lembar Cetak A4 Simulasi -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-12 lg:p-16 print-paper relative min-h-[500px] flex flex-col justify-between">
+                
+                <!-- Tampilan Awal Kosong -->
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-white rounded-2xl">
+                    <div class="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-3 border border-slate-100">
+                        <i data-lucide="book-open" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800 heading-font">Dokumen Modul Belum Disusun</h3>
+                    <p class="text-xs text-slate-500 max-w-sm mt-1">Masukkan API Key Anda, tentukan detail sekolah, guru, serta tema pembelajaran di panel kiri, kemudian klik tombol untuk menyusun dokumen lengkap.</p>
+                </div>
+
+                <!-- Tampilan Efek Loading -->
+                <div id="loading-state" class="hidden absolute inset-0 bg-white/95 z-10 flex flex-col items-center justify-center p-6 text-center rounded-2xl">
+                    <div class="w-12 h-12 relative flex items-center justify-center mb-4">
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
+                        <i data-lucide="award" class="w-5 h-5 text-indigo-600 animate-pulse"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 heading-font">Menyusun Struktur Kurikulum Merdeka</h3>
+                    <p class="text-xs text-slate-500 max-w-md mt-1 animate-pulse">Menghasilkan cover formal, info modul, tujuan pembelajaran, skenario model pembelajaran terpilih, asesmen formatif, hingga lembar instrumen penilaian...</p>
+                </div>
+
+                <!-- Konten Utama Dokumen -->
+                <div id="modul-content" class="hidden space-y-8 text-slate-900 text-xs sm:text-sm">
+                    
+                    <!-- HALAMAN 1: COVER RESMI MODUL AJAR (Khas Kurikulum Merdeka) -->
+                    <div class="flex flex-col justify-between min-h-[840px] border-b-2 border-slate-200 pb-12">
+                        <div class="text-center pt-8 space-y-6">
+                            <h4 class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-indigo-600">DOKUMEN PERENCANAAN PEMBELAJARAN</h4>
+                            <div class="space-y-2">
+                                <h1 class="text-lg sm:text-2xl font-extrabold uppercase tracking-tight heading-font text-slate-900">MODUL AJAR (RPP PLUS)</h1>
+                                <h2 class="text-sm sm:text-lg font-bold text-slate-700" id="display-cover-subject">MATA PELAJARAN</h2>
+                            </div>
+                            <div class="w-16 h-1 bg-indigo-600 mx-auto rounded-full"></div>
+                        </div>
+
+                        <!-- Logo Garuda / Dekorasi Cetak Formal -->
+                        <div class="flex justify-center my-12">
+                            <div class="p-6 border-4 border-double border-slate-400 rounded-3xl opacity-80">
+                                <i data-lucide="award" class="w-20 h-20 text-slate-700"></i>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 max-w-md mx-auto text-center font-medium bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                            <div class="grid grid-cols-2 text-left gap-y-2 text-[11px] sm:text-xs text-slate-600">
+                                <span class="font-bold">Topik / Tema</span>
+                                <span id="display-cover-topic" class="text-slate-900 font-semibold">: Memuat...</span>
+                                
+                                <span class="font-bold">Sasaran Siswa</span>
+                                <span id="display-cover-level" class="text-slate-900">: Memuat...</span>
+                                
+                                <span class="font-bold">Model Belajar</span>
+                                <span id="display-cover-model" class="text-slate-900">: Memuat...</span>
+                                
+                                <span class="font-bold">Penyusun</span>
+                                <span id="display-cover-guru" class="text-slate-900 font-bold">: Memuat...</span>
+                            </div>
+                        </div>
+
+                        <div class="text-center pt-8 border-t border-slate-100">
+                            <h3 class="text-xs sm:text-sm font-bold uppercase text-slate-900 tracking-wider" id="display-cover-school">NAMA SEKOLAH</h3>
+                            <p class="text-[10px] text-slate-400">Tahun Pelajaran 2025/2026</p>
+                        </div>
+                    </div>
+
+                    <!-- HALAMAN 2: KOMPONEN INTI MODUL AJAR (Page Break) -->
+                    <div class="page-break pt-8 space-y-6">
+                        <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-2 flex items-center gap-2">
+                            <span class="p-1 bg-slate-900 text-white rounded">I</span>
+                            INFORMASI UMUM & IDENTITAS MODUL
+                        </h2>
+                        
+                        <!-- Tabel Identitas Modul -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                            <div class="space-y-2">
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Penyusun</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-guru">Budi Utomo</span></div>
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Satuan Pendidikan</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-school">SD Negeri</span></div>
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Tingkat Kelas / Fase</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-level">Kelas 4 / Fase B</span></div>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Mata Pelajaran</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-subject">Bahasa Indonesia</span></div>
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Alokasi Waktu</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-duration">4 JP</span></div>
+                                <div class="flex border-b border-slate-100 pb-1"><span class="w-28 font-bold text-slate-600">Model Pembelajaran</span><span class="mr-2">:</span><span class="flex-1 font-semibold" id="display-info-model">PBL</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Struktur dari AI (Kompetensi Awal, Profil Pancasila, dll) -->
+                        <div id="section-komponen-umum" class="space-y-4">
+                            <!-- Dimuat dinamis -->
+                        </div>
+                    </div>
+
+                    <!-- HALAMAN 3: SKENARIO KEGIATAN PEMBELAJARAN (Page Break) -->
+                    <div class="page-break pt-8 space-y-6">
+                        <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-2 flex items-center gap-2">
+                            <span class="p-1 bg-slate-900 text-white rounded">II</span>
+                            KOMPONEN INTI & LANGKAH PEMBELAJARAN
+                        </h2>
+
+                        <div id="section-komponen-inti" class="space-y-4">
+                            <!-- Dimuat dinamis -->
+                        </div>
+                    </div>
+
+                    <!-- HALAMAN 4: LAMPIRAN, ASESMEN, & RUBRIK PENILAIAN (Page Break) -->
+                    <div class="page-break pt-8 space-y-6">
+                        <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-2 flex items-center gap-2">
+                            <span class="p-1 bg-slate-900 text-white rounded">III</span>
+                            LAMPIRAN DAN ASESMEN EVALUASI
+                        </h2>
+
+                        <div id="section-lampiran" class="space-y-6">
+                            <!-- Dimuat dinamis -->
+                        </div>
+
+                        <!-- TANDA TANGAN LEGALISASI DOKUMEN -->
+                        <div class="pt-12 no-break-inside">
+                            <div class="grid grid-cols-2 text-center text-xs font-semibold gap-12">
+                                <div class="space-y-16">
+                                    <div class="space-y-1">
+                                        <p>Mengetahui,</p>
+                                        <p>Kepala Sekolah <span id="display-ttd-school">SD Negeri</span></p>
+                                    </div>
+                                    <div class="space-y-0.5">
+                                        <p class="font-bold underline" id="display-kepsek-name" contenteditable="true">Siti Aminah, M.Pd.</p>
+                                        <p>NIP. <span id="display-kepsek-nip" contenteditable="true">197805142005012003</span></p>
+                                    </div>
+                                </div>
+                                <div class="space-y-16">
+                                    <div class="space-y-1">
+                                        <p id="display-ttd-date">Batu, 21 Juni 2026</p>
+                                        <p>Guru Kelas / Bidang Studi,</p>
+                                    </div>
+                                    <div class="space-y-0.5">
+                                        <p class="font-bold underline" id="display-guru-name" contenteditable="true">Budi Utomo, S.Pd.</p>
+                                        <p>NIP. <span id="display-guru-nip" contenteditable="true">199008122018031002</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer Lembar Ujian -->
+                <div id="worksheet-footer" class="hidden border-t border-slate-200 pt-4 mt-8 flex justify-between text-[9px] text-slate-400 uppercase tracking-wider font-semibold no-print">
+                    <span>EduPrint RPP AI Modul Generator</span>
+                    <span>Modul Kurikulum Merdeka Belajar</span>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-400 no-print">
+        <p>&copy; 2026 EduPrint AI. Dibuat dengan integrasi Gemini API & Tailwind CSS.</p>
+    </footer>
+
+    <!-- Logika Aplikasi (JavaScript) -->
+    <script>
+        // MENGGUNAKAN MODEL PRODUKSI STABIL YANG DIDUKUNG PENUH UNTUK v1beta
+        const modelName = "gemini-2.5-flash"; 
+
+        // Auto isi fase berdasarkan tingkat kelas yang dipilih
+        function autoFillFase() {
+            const level = document.getElementById('input-level').value;
+            const faseInput = document.getElementById('input-fase');
+
+            if (level === "Kelas 1 SD" || level === "Kelas 2 SD") {
+                faseInput.value = "Fase A";
+            } else if (level === "Kelas 3 SD" || level === "Kelas 4 SD") {
+                faseInput.value = "Fase B";
+            } else if (level === "Kelas 5 SD" || level === "Kelas 6 SD") {
+                faseInput.value = "Fase C";
+            }
+        }
+
+        // Fungsi khusus Mobile Tab Switcher untuk layar sentuh seluler
+        function switchMobileTab(tab) {
+            const panelSettings = document.getElementById('panel-settings');
+            const panelPreview = document.getElementById('panel-preview');
+            const btnSettings = document.getElementById('tab-btn-settings');
+            const btnPreview = document.getElementById('tab-btn-preview');
+
+            if (tab === 'settings') {
+                panelSettings.classList.remove('hidden');
+                panelSettings.classList.add('block');
+                panelPreview.classList.add('hidden');
+                panelPreview.classList.remove('flex');
+                
+                btnSettings.className = "flex-1 py-3 text-center text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center justify-center gap-1.5 transition-all";
+                btnPreview.className = "flex-1 py-3 text-center text-sm font-semibold border-b-2 border-transparent text-slate-500 flex items-center justify-center gap-1.5 transition-all";
+            } else {
+                panelSettings.classList.add('hidden');
+                panelSettings.classList.remove('block');
+                panelPreview.classList.remove('hidden');
+                panelPreview.classList.add('flex');
+
+                btnSettings.className = "flex-1 py-3 text-center text-sm font-semibold border-b-2 border-transparent text-slate-500 flex items-center justify-center gap-1.5 transition-all";
+                btnPreview.className = "flex-1 py-3 text-center text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center justify-center gap-1.5 transition-all";
+            }
+        }
+
+        // Tampilkan Banner Informasi Status Sederhana
+        function showStatus(message, type = "info") {
+            const banner = document.getElementById('status-banner');
+            const icon = document.getElementById('status-icon');
+            const text = document.getElementById('status-text');
+
+            banner.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-rose-50', 'border-rose-200', 'text-rose-800', 'bg-indigo-50', 'border-indigo-200', 'text-indigo-800');
+            
+            text.innerText = message;
+
+            if (type === "success") {
+                banner.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+                icon.setAttribute('data-lucide', 'check-circle-2');
+                icon.className = 'w-5 h-5 shrink-0 mt-0.5 text-emerald-600';
+            } else if (type === "error") {
+                banner.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-800');
+                icon.setAttribute('data-lucide', 'alert-circle');
+                icon.className = 'w-5 h-5 shrink-0 mt-0.5 text-rose-600';
+            } else {
+                banner.classList.add('bg-indigo-50', 'border-indigo-200', 'text-indigo-800');
+                icon.setAttribute('data-lucide', 'info');
+                icon.className = 'w-5 h-5 shrink-0 mt-0.5 text-indigo-600';
+            }
+
+            banner.classList.remove('hidden');
+            lucide.createIcons();
+
+            if (type !== "error") {
+                setTimeout(() => {
+                    banner.classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        // Fungsi fetch Gemini dengan Exponential Backoff (Mendukung hingga 5 percobaan tunda jika limit terlewati)
+        async function fetchGeminiWithBackoff(apiKey, prompt, systemPrompt, maxRetries = 5) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            kompetensiAwal: { type: "STRING" },
+                            profilPancasila: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            },
+                            mediaBelajar: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            },
+                            tujuanPembelajaran: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            },
+                            pemahamanBermakna: { type: "STRING" },
+                            pertanyaanPemantik: {
+                                type: "ARRAY",
+                                items: { type: "STRING" }
+                            },
+                            langkahLangkah: {
+                                type: "OBJECT",
+                                properties: {
+                                    pendahuluan: { type: "STRING" },
+                                    inti: { type: "STRING" },
+                                    penutup: { type: "STRING" }
+                                },
+                                required: ["pendahuluan", "inti", "penutup"]
+                            },
+                            asesmen: {
+                                type: "OBJECT",
+                                properties: {
+                                    diagnostik: { type: "STRING" },
+                                    formatif: { type: "STRING" },
+                                    sumatif: { type: "STRING" }
+                                },
+                                required: ["diagnostik", "formatif", "sumatif"]
+                            },
+                            rubrikPenilaian: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        kriteria: { type: "STRING" },
+                                        sangatBaik: { type: "STRING" },
+                                        baik: { type: "STRING" },
+                                        cukup: { type: "STRING" },
+                                        perluBimbingan: { type: "STRING" }
+                                    },
+                                    required: ["kriteria", "sangatBaik", "baik", "cukup", "perluBimbingan"]
+                                }
+                            }
+                        },
+                        required: ["kompetensiAwal", "profilPancasila", "mediaBelajar", "tujuanPembelajaran", "langkahLangkah", "asesmen", "rubrikPenilaian"]
+                    }
+                }
+            };
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        return await response.json();
+                    }
+
+                    if (response.status === 429 || response.status >= 500) {
+                        const delay = Math.pow(2, i) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+
+                    const errorText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errorText}`);
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        // Jalankan pembuatan RPP baru
+        async function generateModul() {
+            const apiKey = document.getElementById('input-api-key').value.trim();
+            const school = document.getElementById('input-school').value.trim();
+            const subject = document.getElementById('input-subject').value;
+            const guruName = document.getElementById('input-guru-name').value.trim();
+            const guruNip = document.getElementById('input-guru-nip').value.trim();
+            const kepsekName = document.getElementById('input-kepsek-name').value.trim();
+            const kepsekNip = document.getElementById('input-kepsek-nip').value.trim();
+            const topic = document.getElementById('input-topic').value.trim();
+            const level = document.getElementById('input-level').value;
+            const fase = document.getElementById('input-fase').value;
+            const duration = document.getElementById('input-duration').value;
+            const model = document.getElementById('input-model').value;
+            const btn = document.getElementById('btn-generate');
+
+            if (!apiKey) {
+                showStatus("Silakan masukkan Gemini API Key Anda terlebih dahulu!", "error");
+                return;
+            }
+
+            if (!topic) {
+                showStatus("Silakan masukkan topik atau tema utama pembelajaran terlebih dahulu!", "error");
+                return;
+            }
+
+            localStorage.setItem('gemini_api_key', apiKey);
+
+            if (window.innerWidth < 1024) {
+                switchMobileTab('preview');
+            }
+
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('loading-state').classList.remove('hidden');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></span> Menyusun Modul Ajar...`;
+
+            // Prompt Engineering untuk Modul Ajar Kurikulum Merdeka
+            const systemPrompt = `Anda adalah seorang ahli pengembang kurikulum Merdeka Belajar sekolah dasar (SD) di Indonesia, perancang RPP inspiratif, dan penyusun asesmen otentik.
+            Tugas Anda adalah memproduksi rancangan Modul Ajar / RPP Plus yang komprehensif, logis, aplikatif, dan sesuai dengan skema JSON yang telah didefinisikan secara presisi.`;
+
+            const prompt = `Susunlah rencana modul ajar pembelajaran Kurikulum Merdeka secara detail dengan informasi berikut:
+            - **Satuan Pendidikan**: ${school}
+            - **Mata Pelajaran**: ${subject}
+            - **Tingkat Kelas / Fase**: ${level} (${fase})
+            - **Topik / Tema Utama**: ${topic}
+            - **Alokasi Waktu**: ${duration}
+            - **Model Pembelajaran**: ${model}
+
+            Aturan Detil Penyusunan Konten:
+            1. Kompetensi Awal (kompetensiAwal): Jelaskan kemampuan dasar apa yang sudah wajib dimiliki siswa sebelum mempelajari topik ${topic} ini.
+            2. Profil Pelajar Pancasila (profilPancasila): Tentukan 3 dimensi utama yang paling relevan dengan materi ini (misal: Bernalar Kritis, Mandiri, Gotong Royong) serta alasan penerapannya secara ringkas.
+            3. Media Belajar (mediaBelajar): Rancang daftar alat peraga, slide, video, atau bahan konkrit manipulatif yang menarik dan mudah diperoleh di sekolah dasar.
+            4. Tujuan Pembelajaran (tujuanPembelajaran): Tuliskan setidaknya 2-3 butir tujuan pembelajaran konkret yang diukur berdasarkan taksonomi kognitif dan keterampilan anak SD.
+            5. Pemahaman Bermakna (pemahamanBermakna): Jelaskan apa manfaat jangka panjang yang akan didapat siswa setelah menguasai materi ${topic} dalam kehidupan sehari-hari.
+            6. Pertanyaan Pemantik (pertanyaanPemantik): Rancang 2-3 pertanyaan terbuka yang menarik minat dan rasa penasaran anak saat pendahuluan kelas dimulai.
+            7. Langkah-langkah Pembelajaran (langkahLangkah): 
+               - Bagian "pendahuluan": Tuliskan urutan salam, motivasi, apersepsi, dan penyampaian tujuan.
+               - Bagian "inti": Rancang sintaks pembelajaran yang sangat detail, interaktif, dan runut, yang WAJIB mengimplementasikan sintaks resmi dari model pembelajaran terpilih: ${model}.
+               - Bagian "penutup": Rancang refleksi siswa, kesimpulan bersama, tindak lanjut, serta doa penutup kelas.
+            8. Asesmen (asesmen): Tuliskan teknik dan instrumen asesmen diagnostik, formatif (proses), dan sumatif (akhir pembelajaran).
+            9. Rubrik Penilaian (rubrikPenilaian): Susunlah rubrik penilaian dengan kriteria yang jelas, lengkap dengan penjelasan pencapaian siswa untuk kategori Sangat Baik, Baik, Cukup, dan Perlu Bimbingan.`;
+
+            try {
+                const responseData = await fetchGeminiWithBackoff(apiKey, prompt, systemPrompt);
+                
+                const rawText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!rawText) {
+                    throw new Error("Gagal memperoleh respons teks dari AI.");
+                }
+
+                const parsedData = JSON.parse(rawText);
+
+                // --- RENDERING DOKUMEN MODUL AJAR ---
+                
+                // 1. Sinkronisasi Data Cover (Halaman 1)
+                document.getElementById('display-cover-subject').innerText = subject;
+                document.getElementById('display-cover-topic').innerText = `: ${topic}`;
+                document.getElementById('display-cover-level').innerText = `: ${level} (${fase})`;
+                document.getElementById('display-cover-model').innerText = `: ${model}`;
+                document.getElementById('display-cover-guru').innerText = `: ${guruName}`;
+                document.getElementById('display-cover-school').innerText = school;
+
+                // 2. Sinkronisasi Identitas Modul (Halaman 2)
+                document.getElementById('display-info-guru').innerText = guruName;
+                document.getElementById('display-info-school').innerText = school;
+                document.getElementById('display-info-level').innerText = `${level} / ${fase}`;
+                document.getElementById('display-info-subject').innerText = subject;
+                document.getElementById('display-info-duration').innerText = duration;
+                document.getElementById('display-info-model').innerText = model;
+
+                // 3. Render Komponen Informasi Umum (Halaman 2)
+                const umumContainer = document.getElementById('section-komponen-umum');
+                umumContainer.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="check-square" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                A. Kompetensi Awal Siswa
+                            </h3>
+                            <p class="text-slate-700 leading-relaxed text-justify" contenteditable="true">${parsedData.kompetensiAwal}</p>
+                        </div>
+
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="heart" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                B. Profil Pelajar Pancasila
+                            </h3>
+                            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                                ${parsedData.profilPancasila.map(p => `<li contenteditable="true">${p}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="layers" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                C. Sarana dan Prasarana (Media Pembelajaran)
+                            </h3>
+                            <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                                ${parsedData.mediaBelajar.map(m => `<li contenteditable="true">${m}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="compass" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                D. Tujuan Pembelajaran
+                            </h3>
+                            <ul class="list-decimal pl-5 space-y-1 text-slate-700">
+                                ${parsedData.tujuanPembelajaran.map(t => `<li contenteditable="true">${t}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+                // 4. Render Komponen Inti & Langkah Belajar (Halaman 3)
+                const intiContainer = document.getElementById('section-komponen-inti');
+                intiContainer.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
+                            <div class="no-break-inside">
+                                <h4 class="font-bold text-indigo-900 border-b border-indigo-100 pb-1 mb-1.5 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                                    <i data-lucide="lightbulb" class="w-3.5 h-3.5 no-print"></i> Pemahaman Bermakna
+                                </h4>
+                                <p class="text-slate-700 leading-normal text-justify" contenteditable="true">${parsedData.pemahamanBermakna}</p>
+                            </div>
+                            <div class="no-break-inside">
+                                <h4 class="font-bold text-indigo-900 border-b border-indigo-100 pb-1 mb-1.5 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                                    <i data-lucide="message-square" class="w-3.5 h-3.5 no-print"></i> Pertanyaan Pemantik
+                                </h4>
+                                <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                                    ${parsedData.pertanyaanPemantik.map(pp => `<li contenteditable="true">${pp}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="no-break-inside">
+                                <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                    <span class="p-0.5 bg-indigo-600 text-white rounded text-[10px] px-1">1</span>
+                                    Kegiatan Pendahuluan
+                                </h4>
+                                <div class="text-slate-700 leading-relaxed text-justify space-y-1.5 pl-6" contenteditable="true">
+                                    ${parsedData.langkahLangkah.pendahuluan.split('\n').map(p => `<p class="mb-1">${p}</p>`).join('')}
+                                </div>
+                            </div>
+
+                            <div class="no-break-inside">
+                                <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                    <span class="p-0.5 bg-indigo-600 text-white rounded text-[10px] px-1">2</span>
+                                    Kegiatan Inti (Sintaks ${model})
+                                </h4>
+                                <div class="text-slate-700 leading-relaxed text-justify space-y-1.5 pl-6" contenteditable="true">
+                                    ${parsedData.langkahLangkah.inti.split('\n').map(p => `<p class="mb-1">${p}</p>`).join('')}
+                                </div>
+                            </div>
+
+                            <div class="no-break-inside">
+                                <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1.5 text-xs sm:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                    <span class="p-0.5 bg-indigo-600 text-white rounded text-[10px] px-1">3</span>
+                                    Kegiatan Penutup & Tindak Lanjut
+                                </h4>
+                                <div class="text-slate-700 leading-relaxed text-justify space-y-1.5 pl-6" contenteditable="true">
+                                    ${parsedData.langkahLangkah.penutup.split('\n').map(p => `<p class="mb-1">${p}</p>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // 5. Render Lampiran & Rubrik Penilaian (Halaman 4)
+                const lampiranContainer = document.getElementById('section-lampiran');
+                lampiranContainer.innerHTML = `
+                    <div class="space-y-5">
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-2 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="clipboard-list" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                A. Rencana Asesmen Pembelajaran
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                    <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-0.5 mb-1 text-[11px] uppercase tracking-wider">1. Diagnostik</h4>
+                                    <p class="text-slate-600 leading-relaxed" contenteditable="true">${parsedData.asesmen.diagnostik}</p>
+                                </div>
+                                <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                    <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-0.5 mb-1 text-[11px] uppercase tracking-wider">2. Formatif (Proses)</h4>
+                                    <p class="text-slate-600 leading-relaxed" contenteditable="true">${parsedData.asesmen.formatif}</p>
+                                </div>
+                                <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                    <h4 class="font-bold text-slate-800 border-b border-slate-200 pb-0.5 mb-1 text-[11px] uppercase tracking-wider">3. Sumatif (Akhir)</h4>
+                                    <p class="text-slate-600 leading-relaxed" contenteditable="true">${parsedData.asesmen.sumatif}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rubrik Penilaian Formal -->
+                        <div class="no-break-inside">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-1 mb-2 text-xs sm:text-sm uppercase tracking-wide">
+                                <i data-lucide="table-properties" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                B. Rubrik Kriteria Ketercapaian Tujuan Pembelajaran (KKTP)
+                            </h3>
+                            <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                                <table class="w-full text-left border-collapse text-[11px] sm:text-xs">
+                                    <thead>
+                                        <tr class="bg-indigo-600 text-white font-bold">
+                                            <th class="p-2.5 border-r border-indigo-500">Aspek / Kriteria</th>
+                                            <th class="p-2.5 border-r border-indigo-500">Sangat Baik (4)</th>
+                                            <th class="p-2.5 border-r border-indigo-500">Baik (3)</th>
+                                            <th class="p-2.5 border-r border-indigo-500">Cukup (2)</th>
+                                            <th class="p-2.5">Perlu Bimbingan (1)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200 text-slate-700 leading-relaxed">
+                                        ${parsedData.rubrikPenilaian.map(rub => `
+                                            <tr>
+                                                <td class="p-2.5 font-bold border-r border-slate-200 bg-slate-50 focus:outline-none" contenteditable="true">${rub.kriteria}</td>
+                                                <td class="p-2.5 border-r border-slate-200 focus:outline-none" contenteditable="true">${rub.sangatBaik}</td>
+                                                <td class="p-2.5 border-r border-slate-200 focus:outline-none" contenteditable="true">${rub.baik}</td>
+                                                <td class="p-2.5 border-r border-slate-200 focus:outline-none" contenteditable="true">${rub.cukup}</td>
+                                                <td class="p-2.5 focus:outline-none" contenteditable="true">${rub.perluBimbingan}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // 6. Sinkronisasi Info Tanda Tangan Komite/Sekolah
+                document.getElementById('display-ttd-school').innerText = school;
+                document.getElementById('display-ttd-date').innerText = `Batu, ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+                document.getElementById('display-kepsek-name').innerText = kepsekName;
+                document.getElementById('display-kepsek-nip').innerText = kepsekNip;
+                document.getElementById('display-guru-name').innerText = guruName;
+                document.getElementById('display-guru-nip').innerText = guruNip;
+
+                // Tampilkan Konten Dokumen Utama
+                document.getElementById('modul-content').classList.remove('hidden');
+                document.getElementById('worksheet-footer').classList.remove('hidden');
+                document.getElementById('preview-controls').classList.remove('hidden');
+
+                showStatus("Modul Ajar Kurikulum Merdeka berhasil disusun lengkap dengan halaman Cover! Lakukan edit manual jika diperlukan sebelum mencetak.", "success");
+
+            } catch (error) {
+                console.error(error);
+                showStatus(`Gagal merancang modul: ${error.message}`, "error");
+                document.getElementById('empty-state').classList.remove('hidden');
+
+                if (window.innerWidth < 1024) {
+                    switchMobileTab('settings');
+                }
+            } finally {
+                document.getElementById('loading-state').classList.add('hidden');
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4"></i> Buat Modul Ajar AI`;
+                lucide.createIcons();
+            }
+        }
+    </script>
+
+</body>
+</html>
