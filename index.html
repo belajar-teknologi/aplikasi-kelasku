@@ -1,3 +1,6 @@
+<!-- ═══════════════════════════════════════════════════════
+     BAGIAN 1/4 — HEAD, CSS, HTML BODY, KONSTANTA GLOBAL
+     ═══════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -77,9 +80,6 @@ input[type="text"], input[type="number"], input[type="date"], input[type="passwo
 .migrasi-step.done { background: #d1fae5 !important; border-color: #10b981 !important; }
 .migrasi-step.error { background: #fee2e2 !important; border-color: #ef4444 !important; }
 
-/* ══════════════════════════════════════════════════════════
-   GLASSMORPHISM PATCH
-   ══════════════════════════════════════════════════════════ */
 body {
   background: 
     radial-gradient(circle at 20% 30%, rgba(99,102,241,.10) 0%, transparent 50%),
@@ -95,54 +95,9 @@ body {
   -webkit-backdrop-filter: blur(5px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   position: relative;
   overflow: hidden;
-}
-.glass-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
-  pointer-events: none;
-}
-.glass-card::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 1px; height: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.8), transparent, rgba(255,255,255,0.3));
-  pointer-events: none;
-}
-
-#main-view-container div.bg-white.rounded-2xl.border,
-#main-view-container div.bg-white.rounded-2xl.shadow-sm,
-#main-view-container div.bg-white.rounded-xl.border,
-#main-view-container div.bg-white.rounded-xl.shadow-sm {
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  position: relative;
-  overflow: hidden;
-}
-#main-view-container div.bg-white.rounded-2xl.border::before,
-#main-view-container div.bg-white.rounded-2xl.shadow-sm::before,
-#main-view-container div.bg-white.rounded-xl.border::before,
-#main-view-container div.bg-white.rounded-xl.shadow-sm::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
-  pointer-events: none;
 }
 
 header.bg-indigo-700 {
@@ -166,30 +121,128 @@ aside#sidebar {
   -webkit-backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
 }
-.menu-card:hover {
-  background: rgba(255, 255, 255, 0.6) !important;
-}
-
-#main-view-container input[data-numpad="nilai"] {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-#toast-container > div {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-#main-view-container canvas {
-  backdrop-filter: none !important;
-}
+.menu-card:hover { background: rgba(255, 255, 255, 0.6) !important; }
+#toast-container > div { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#main-view-container canvas { backdrop-filter: none !important; }
 
 @supports not (backdrop-filter: blur(5px)) {
   #main-view-container div.bg-white.rounded-2xl,
   #main-view-container div.bg-white.rounded-xl,
-  .menu-card {
-    background: rgba(255, 255, 255, 0.95) !important;
-  }
+  .menu-card { background: rgba(255, 255, 255, 0.95) !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   PATCH: MODE EDIT PENILAIAN (Read-Only Default)
+   ═══════════════════════════════════════════════════════════ */
+
+.nilai-locked {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  border-color: #e2e8f0 !important;
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
+}
+
+.banner-readonly {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 2px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.banner-editmode {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  animation: pulseEdit 2s ease-in-out infinite;
+}
+
+@keyframes pulseEdit {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+
+.btn-unlock {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: white;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+.btn-unlock:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45); }
+.btn-unlock:active { transform: translateY(0); }
+
+.btn-lock {
+  background: #dc2626;
+  color: white;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-lock:hover { background: #b91c1c; }
+
+.modal-notif-besar { text-align: center; padding: 8px 4px; }
+.modal-notif-besar .notif-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; margin: 0 auto 16px;
+}
+.modal-notif-besar .notif-icon.sukses { background: #d1fae5; color: #059669; }
+.modal-notif-besar .notif-icon.gagal { background: #fee2e2; color: #dc2626; }
+.modal-notif-besar .notif-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.modal-notif-besar .notif-title.sukses { color: #059669; }
+.modal-notif-besar .notif-title.gagal { color: #dc2626; }
+.modal-notif-besar .notif-detail {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 12px; padding: 12px; margin: 16px 0;
+  text-align: left; font-size: 12px; max-height: 200px; overflow-y: auto;
+}
+.modal-notif-besar .notif-detail-row {
+  display: flex; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px dashed #e2e8f0;
+}
+.modal-notif-besar .notif-detail-row:last-child { border-bottom: none; }
+.modal-notif-besar .notif-btn {
+  width: 100%; padding: 14px; border-radius: 12px;
+  border: none; font-weight: 800; font-size: 14px;
+  cursor: pointer; margin-top: 8px; min-height: 48px;
+}
+.modal-notif-besar .notif-btn.sukses { background: #059669; color: white; }
+.modal-notif-besar .notif-btn.gagal { background: #dc2626; color: white; }
+.modal-notif-besar .notif-btn.retry { background: #f59e0b; color: white; }
+.modal-notif-besar .notif-btn.tutup { background: #e2e8f0; color: #475569; }
+
+.info-refresh { font-size: 10px; color: #64748b; display: inline-flex; align-items: center; gap: 4px; }
+.info-refresh i { color: #10b981; }
 </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex flex-col">
@@ -284,9 +337,9 @@ aside#sidebar {
 <main class="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto max-w-full min-w-0"><div id="main-view-container"></div></main>
 </div>
 <script>
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    KONSTANTA GLOBAL
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 const JSONBIN_API_BASE = "https://api.jsonbin.io/v3";
 const CLOUDINARY_JSON_CLOUD = "mbxbrokn";
 const CLOUDINARY_JSON_PRESET = "DATA_CONFIG";
@@ -314,9 +367,9 @@ const STORAGE = {
 const FIELD = {
   SISWA: { ID: 0, NOABSEN: 1, NIS: 2, NAMA: 3, KELAS: 4, JK: 5, USER: 6, PASS: 7, TTL: 8, TGL: 9, ALAMAT: 10, FOTO: 11 },
   MAPEL: { ID: 0, KODE: 1, NAMA: 2, KKM: 3, PENGAMPU: 4 },
-  NILAI: { ID: 0, SISWA_ID: 1, MAPEL_KODE: 2, SCORES: 3 },
+  NILAI: { ID: 0, SISWA_ID: 1, MAPEL_KODE: 2, SCORES: 3, UPDATED_AT: 4 },
   ABSEN: { ID: 0, TGL: 1, SISWA_ID: 2, STATUS: 3 },
-  JURNAL: { ID: 0, TGL: 1, KELAS: 2, MAPEL: 3, TOPIK: 4, CATATAN: 5 },
+  JURNAL: { ID: 0, TGL: 1, KELAS: 2, MAPEL: 3, TOPIK: 4, CATATAN: 5, UPDATED_AT: 6 },
   PENGUMUMAN: { ID: 0, JUDUL: 1, TGL: 2, ISI: 3, TARGET: 4 },
   HASILKUIS: { ID: 0, SISWA_ID: 1, KUIS_ID: 2, JUDUL: 3, NILAI: 4, WAKTU: 5 },
   LOG: { ID: 0, TIPE: 1, USER: 2, ROLE: 3, DETAIL: 4, WAKTU: 5, SENT: 6 },
@@ -330,7 +383,6 @@ const SUPABASE_SQL_MIGRASI_FASE1 = `-- =========================================
 -- Data JSONBin TIDAK disentuh — ini tabel baru.
 -- ============================================================
 
--- ─── 1. TABEL MASTER CONFIG ───
 CREATE TABLE IF NOT EXISTS public.master_config (
     id            TEXT PRIMARY KEY,
     payload       JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -343,7 +395,6 @@ INSERT INTO public.master_config (id, payload, kode_aplikasi)
 VALUES ('app_master', '{}'::jsonb, NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- ─── 2. TABEL APP REGISTRY ───
 CREATE TABLE IF NOT EXISTS public.app_registry (
     kode_aplikasi  TEXT PRIMARY KEY,
     bin_id         TEXT,
@@ -650,35 +701,41 @@ let appState = {
   db: safeParse(localStorage.getItem(STORAGE.DB)) || JSON.parse(JSON.stringify(DEFAULT_DB))
 };
 
+/* ⭐ STATE MODE EDIT PENILAIAN */
+window.__editModePenilaian = false;
+window.__mapelBerubah = new Set();
+window.__nilaiDraftBeforeLock = null;
+window.__penilaianSudahRefresh = false;
+/* ═══════════════════════════════════════════════════════════
+   BAGIAN 2/4 — UTILITY, DATA HELPER, SUPABASE, JSONBIN
+   ═══════════════════════════════════════════════════════════ */
+
 function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
 const getLS = (k, d="") => localStorage.getItem(k) || d;
 const setLS = (k, v) => localStorage.setItem(k, v);
 const delLS = (k) => localStorage.removeItem(k);
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-/* ⭐ FUNGSI GLOBAL: applyBgLoginToBody */
+/* ⭐ BACKGROUND LOGIN */
 function applyBgLoginToBody() {
   const bgLogin = appState.db?.a?.bgLogin || "";
   const body = document.body;
-  
   if (bgLogin) {
-    body.style.backgroundImage = 
-      `linear-gradient(rgba(248,250,252,0.45), rgba(248,250,252,0.55)), url('${bgLogin}')`;
+    body.style.backgroundImage = `linear-gradient(rgba(248,250,252,0.45), rgba(248,250,252,0.55)), url('${bgLogin}')`;
     body.style.backgroundSize = "cover";
     body.style.backgroundPosition = "center";
     body.style.backgroundAttachment = "fixed";
     body.style.backgroundRepeat = "no-repeat";
-    console.log("[BG] Background login diterapkan:", bgLogin.slice(0, 60) + "...");
   } else {
     body.style.backgroundImage = "";
     body.style.backgroundSize = "";
     body.style.backgroundPosition = "";
     body.style.backgroundAttachment = "";
     body.style.backgroundRepeat = "";
-    console.log("[BG] Pakai gradient default");
   }
 }
 
+/* ⭐ MASTER DATA */
 function ensureMasterData() {
   if (!appState.db.md) appState.db.md = JSON.parse(JSON.stringify(DEFAULT_DB.md));
   if (!appState.db.cfg) appState.db.cfg = JSON.parse(JSON.stringify(DEFAULT_DB.cfg));
@@ -697,8 +754,16 @@ function getMasterKKM() { return Number(getMasterData().ak?.kd) || 75; }
 function getKomponenByMapel(mapelKode) {
   if (!mapelKode) return [...(appState.db.nc || ["UH1","UH2","UTS","UAS"])];
   if (!appState.db.ncPerMapel) appState.db.ncPerMapel = {};
-  if (!Array.isArray(appState.db.ncPerMapel[mapelKode])) {
-    appState.db.ncPerMapel[mapelKode] = [...(appState.db.nc || ["UH1","UH2","UTS","UAS"])];
+  if (!Array.isArray(appState.db.ncPerMapel[mapelKode]) || appState.db.ncPerMapel[mapelKode].length === 0) {
+    // Fallback dari nilai yang sudah ada
+    const nilaiMapelIni = (appState.db.nl || []).filter(a => a[FIELD.NILAI.MAPEL_KODE] === mapelKode);
+    if (nilaiMapelIni.length) {
+      const scoresArr = nilaiMapelIni[0][FIELD.NILAI.SCORES] || [];
+      const komponen = scoresArr.map((_, i) => `K${i+1}`);
+      appState.db.ncPerMapel[mapelKode] = komponen;
+    } else {
+      appState.db.ncPerMapel[mapelKode] = [...(appState.db.nc || ["UH1","UH2","UTS","UAS"])];
+    }
   }
   return appState.db.ncPerMapel[mapelKode];
 }
@@ -708,6 +773,7 @@ function setKomponenByMapel(mapelKode, arr) {
   appState.db.ncPerMapel[mapelKode] = arr;
 }
 
+/* ⭐ RESTORE DARI DB */
 function restoreMenusFromDb(db) {
   if (Array.isArray(db?.mn) && db.mn.length) { appState.menus = db.mn; setLS(STORAGE.MENUS, JSON.stringify(appState.menus)); }
 }
@@ -719,10 +785,29 @@ function restoreCredsFromDb(db) {
   if (cfg.sbKey) setLS(STORAGE.SB_KEY, cfg.sbKey);
   if (cfg.geminiKey) setLS(STORAGE.GEMINI_KEY, cfg.geminiKey);
 }
+
+/* ⭐ CONVERTER OBJECT ↔ ARRAY */
 function siswaToObj(a) { const F=FIELD.SISWA; return { id:a[F.ID], noAbsen:a[F.NOABSEN], nis:a[F.NIS], nama:a[F.NAMA], kelas:a[F.KELAS], jk:a[F.JK], username:a[F.USER], password:a[F.PASS], tempatLahir:a[F.TTL], tglLahir:a[F.TGL], alamat:a[F.ALAMAT], fotoUrl:a[F.FOTO] }; }
 function siswaArr(o) { const F=FIELD.SISWA; return [o.id,o.noAbsen,o.nis,o.nama,o.kelas,o.jk,o.username,o.password,o.tempatLahir,o.tglLahir,o.alamat,o.fotoUrl||null]; }
+function mapelToObj(a) { const F=FIELD.MAPEL; return { id:a[F.ID], kode:a[F.KODE], nama:a[F.NAMA], kkm:a[F.KKM], pengampu:a[F.PENGAMPU] }; }
+function mapelArr(o) { const F=FIELD.MAPEL; return [o.id,o.kode,o.nama,o.kkm,o.pengampu]; }
+function nilaiToObj(a, nc) { const F=FIELD.NILAI; const scores={}; (nc||[]).forEach((k,i)=>{ scores[k]=a[F.SCORES]?.[i]??0; }); return { id:a[F.ID], siswaId:a[F.SISWA_ID], mapelKode:a[F.MAPEL_KODE], scores, updatedAt: a[F.UPDATED_AT] || 0 }; }
+function nilaiArr(o, nc) { const F=FIELD.NILAI; return [o.id,o.siswaId,o.mapelKode,(nc||[]).map(k=>Number(o.scores?.[k]??0)), o.updatedAt || Date.now()]; }
+function nilaiArrWithTime(o, nc) { const base = nilaiArr(o, nc); base[4] = Date.now(); return base; }
+function absenToObj(a) { const F=FIELD.ABSEN; return { id:a[F.ID], tanggal:a[F.TGL], siswaId:a[F.SISWA_ID], status:a[F.STATUS] }; }
+function absenArr(o) { const F=FIELD.ABSEN; return [o.id,o.tanggal,o.siswaId,o.status]; }
+function jurnalToObj(a) { const F=FIELD.JURNAL; return { id:a[F.ID], tanggal:a[F.TGL], kelas:a[F.KELAS], mapel:a[F.MAPEL], topik:a[F.TOPIK], catatan:a[F.CATATAN], updatedAt: a[F.UPDATED_AT] || 0 }; }
+function jurnalArr(o) { const F=FIELD.JURNAL; return [o.id,o.tanggal,o.kelas,o.mapel,o.topik,o.catatan, o.updatedAt || Date.now()]; }
+function pengumumanToObj(a) { const F=FIELD.PENGUMUMAN; return { id:a[F.ID], judul:a[F.JUDUL], tanggal:a[F.TGL], isi:a[F.ISI], target:a[F.TARGET] }; }
+function pengumumanArr(o) { const F=FIELD.PENGUMUMAN; return [o.id,o.judul,o.tanggal,o.isi,o.target]; }
+function hasilKuisToObj(a) { const F=FIELD.HASILKUIS; return { id:a[F.ID], siswaId:a[F.SISWA_ID], kuisId:a[F.KUIS_ID], judul:a[F.JUDUL], nilai:a[F.NILAI], waktu:a[F.WAKTU] }; }
+function hasilKuisArr(o) { const F=FIELD.HASILKUIS; return [o.id,o.siswaId,o.kuisId,o.judul,o.nilai,o.waktu]; }
+function logToObj(a) { const F=FIELD.LOG; return { id:a[F.ID], tipe:a[F.TIPE], user:a[F.USER], role:a[F.ROLE], detail:a[F.DETAIL], waktu:a[F.WAKTU], sent:a[F.SENT] }; }
+function logArr(o) { const F=FIELD.LOG; return [o.id,o.tipe,o.user,o.role,o.detail,o.waktu,o.sent]; }
+function loginToObj(a) { const F=FIELD.LOGIN; return { id:a[F.ID], siswaId:a[F.SISWA_ID], nama:a[F.NAMA], nis:a[F.NIS], kelas:a[F.KELAS], waktu:a[F.WAKTU] }; }
+function loginArr(o) { const F=FIELD.LOGIN; return [o.id,o.siswaId,o.nama,o.nis,o.kelas,o.waktu]; }
+function nextId(arr) { if (!arr || !arr.length) return 1; let max=0; arr.forEach(r=>{ const id=Number(r[0])||0; if (id>max) max=id; }); return max+1; }
 
-/* ⭐ HELPER: Ambil data siswa yang sedang login (pencocokan fleksibel) */
 function getCurrentSiswa() {
   const u = appState.currentUser;
   if (!u || u.role !== "siswa") return null;
@@ -734,24 +819,8 @@ function getCurrentSiswa() {
     (u.username && String(s.username) === String(u.username))
   ) || null;
 }
-function mapelToObj(a) { const F=FIELD.MAPEL; return { id:a[F.ID], kode:a[F.KODE], nama:a[F.NAMA], kkm:a[F.KKM], pengampu:a[F.PENGAMPU] }; }
-function mapelArr(o) { const F=FIELD.MAPEL; return [o.id,o.kode,o.nama,o.kkm,o.pengampu]; }
-function nilaiToObj(a, nc) { const F=FIELD.NILAI; const scores={}; (nc||[]).forEach((k,i)=>{ scores[k]=a[F.SCORES]?.[i]??0; }); return { id:a[F.ID], siswaId:a[F.SISWA_ID], mapelKode:a[F.MAPEL_KODE], scores }; }
-function nilaiArr(o, nc) { const F=FIELD.NILAI; return [o.id,o.siswaId,o.mapelKode,(nc||[]).map(k=>Number(o.scores?.[k]??0))]; }
-function absenToObj(a) { const F=FIELD.ABSEN; return { id:a[F.ID], tanggal:a[F.TGL], siswaId:a[F.SISWA_ID], status:a[F.STATUS] }; }
-function absenArr(o) { const F=FIELD.ABSEN; return [o.id,o.tanggal,o.siswaId,o.status]; }
-function jurnalToObj(a) { const F=FIELD.JURNAL; return { id:a[F.ID], tanggal:a[F.TGL], kelas:a[F.KELAS], mapel:a[F.MAPEL], topik:a[F.TOPIK], catatan:a[F.CATATAN] }; }
-function jurnalArr(o) { const F=FIELD.JURNAL; return [o.id,o.tanggal,o.kelas,o.mapel,o.topik,o.catatan]; }
-function pengumumanToObj(a) { const F=FIELD.PENGUMUMAN; return { id:a[F.ID], judul:a[F.JUDUL], tanggal:a[F.TGL], isi:a[F.ISI], target:a[F.TARGET] }; }
-function pengumumanArr(o) { const F=FIELD.PENGUMUMAN; return [o.id,o.judul,o.tanggal,o.isi,o.target]; }
-function hasilKuisToObj(a) { const F=FIELD.HASILKUIS; return { id:a[F.ID], siswaId:a[F.SISWA_ID], kuisId:a[F.KUIS_ID], judul:a[F.JUDUL], nilai:a[F.NILAI], waktu:a[F.WAKTU] }; }
-function hasilKuisArr(o) { const F=FIELD.HASILKUIS; return [o.id,o.siswaId,o.kuisId,o.judul,o.nilai,o.waktu]; }
-function logToObj(a) { const F=FIELD.LOG; return { id:a[F.ID], tipe:a[F.TIPE], user:a[F.USER], role:a[F.ROLE], detail:a[F.DETAIL], waktu:a[F.WAKTU], sent:a[F.SENT] }; }
-function logArr(o) { const F=FIELD.LOG; return [o.id,o.tipe,o.user,o.role,o.detail,o.waktu,o.sent]; }
-function loginToObj(a) { const F=FIELD.LOGIN; return { id:a[F.ID], siswaId:a[F.SISWA_ID], nama:a[F.NAMA], nis:a[F.NIS], kelas:a[F.KELAS], waktu:a[F.WAKTU] }; }
-function loginArr(o) { const F=FIELD.LOGIN; return [o.id,o.siswaId,o.nama,o.nis,o.kelas,o.waktu]; }
-function nextId(arr) { if (!arr || !arr.length) return 1; let max=0; arr.forEach(r=>{ const id=Number(r[0])||0; if (id>max) max=id; }); return max+1; }
 
+/* ⭐ CREDENTIALS */
 function getJsonBinCredential() { const key=String(getLS(STORAGE.JSONBIN_KEY)).trim(); const type=String(getLS(STORAGE.JSONBIN_TYPE,"master")).toLowerCase(); return key ? { key, type: type==="access"?"access":"master" } : null; }
 function saveJsonBinCredential(key, type) { key=String(key||"").trim(); if (!key) { delLS(STORAGE.JSONBIN_KEY); delLS(STORAGE.JSONBIN_TYPE); return; } setLS(STORAGE.JSONBIN_KEY, key); setLS(STORAGE.JSONBIN_TYPE, type==="access"?"access":"master"); }
 function getAppConfig() { return safeParse(getLS(STORAGE.APP_CONFIG)); }
@@ -762,6 +831,21 @@ function getGeminiKey() { const d=String(getLS(STORAGE.GEMINI_KEY)).trim(); if (
 function saveGeminiKey(key) { const k=String(key||"").trim(); if (k) setLS(STORAGE.GEMINI_KEY,k); else delLS(STORAGE.GEMINI_KEY); }
 function saveLocal() { setLS(STORAGE.MENUS, JSON.stringify(appState.menus)); appState.db.mn = appState.menus; setLS(STORAGE.DB, JSON.stringify(appState.db)); }
 
+/* ⭐ DIRTY FLAG */
+const DIRTY_KEY = "edusmart_dirty_v1";
+function isDirty() { return getLS(DIRTY_KEY, "") === "1"; }
+function markDirty(reason) {
+  const wasDirty = isDirty();
+  setLS(DIRTY_KEY, "1");
+  setSyncBadge(true, "BELUM DISIMPAN");
+  if (!wasDirty) console.log("[Dirty] ⚠️ Data ditandai belum disimpan:", reason || "");
+}
+function clearDirty() {
+  delLS(DIRTY_KEY);
+  setSyncBadge(false, "SIAP");
+  console.log("[Dirty] ✓ Data sudah tersimpan ke cloud");
+}
+
 function setSyncBadge(on, text) {
   const el = document.getElementById("sync-badge"); if (!el) return;
   const label = text || (on ? "BELUM DISIMPAN" : "SIAP");
@@ -769,6 +853,7 @@ function setSyncBadge(on, text) {
   else { el.className="px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-400 text-slate-900 flex items-center gap-1.5 shadow-sm"; el.innerHTML=`<span class="w-2 h-2 rounded-full bg-slate-900"></span><span class="hidden sm:inline">${label}</span><span class="sm:hidden">✓</span>`; }
 }
 
+/* ⭐ SUPABASE HEADERS & FETCH */
 function sbHeaders(extra={}) { 
   const sb=getSupabaseConfig(); 
   if (!sb) throw new Error("Supabase belum dikonfigurasi."); 
@@ -839,6 +924,7 @@ async function sbSaveMasterConfig(id, payload, kodeAplikasi) {
   return true;
 }
 
+/* ⭐ LOG AKTIVITAS */
 async function kirimLogKeSupabase(log) {
   const sb = getSupabaseConfig();
   if (!sb) return false;
@@ -850,7 +936,6 @@ async function kirimLogKeSupabase(log) {
     return true;
   } catch(e) { console.warn("Log ke Supabase gagal:", e.message); return false; }
 }
-
 async function ambilLogDariSupabase(limit) {
   limit = limit || 20;
   const sb = getSupabaseConfig();
@@ -860,7 +945,6 @@ async function ambilLogDariSupabase(limit) {
     return { id: r.id, tipe: r.tipe, user: r.user_name, role: r.role, detail: r.detail, waktu: r.created_at, extra: r.extra || {} };
   });
 }
-
 async function getMergedActivityAsync(limit) {
   limit = limit || 10;
   try {
@@ -870,6 +954,7 @@ async function getMergedActivityAsync(limit) {
   return getMergedActivity();
 }
 
+/* ⭐ PRIMARY SOURCE */
 function getPrimarySource() {
   const userChoice = getLS(STORAGE.PRIMARY_SOURCE, "");
   const sb = getSupabaseConfig();
@@ -883,13 +968,12 @@ function getPrimarySource() {
   setLS(STORAGE.PRIMARY_SOURCE, "jsonbin");
   return "jsonbin";
 }
-
 function setPrimarySource(src) {
   const newSrc = src === "jsonbin" ? "jsonbin" : "supabase";
   setLS(STORAGE.PRIMARY_SOURCE, newSrc);
-  console.log("[Primary] Manual set ke:", newSrc);
 }
 
+/* ⭐ MASTER CACHE */
 function getMasterCache() {
   try { const raw = getLS(STORAGE.MASTER_CACHE, ""); return raw ? JSON.parse(raw) : null; } catch(e) { return null; }
 }
@@ -904,6 +988,7 @@ function isMasterCacheFresh(maxAgeMs) {
 }
 function clearMasterCache() { delLS(STORAGE.MASTER_CACHE); delLS(STORAGE.MASTER_CACHE_TS); }
 
+/* ⭐ JSONBIN */
 function getJsonBinHeaders(cred, withCT=false) { 
   const h={}; 
   if (withCT) h["Content-Type"]="application/json"; 
@@ -935,17 +1020,12 @@ async function loadJsonBinDB(binId, cred) {
   if (!res.ok) throw new Error(data?.message||`HTTP ${res.status}`);
   return data?.record && typeof data.record==="object" ? data.record : data;
 }
-/* ═══════════════════════════════════════════════════════════
-   ⭐ PATCH MINIMALKAN JSONBIN
-   Prioritaskan Supabase → JSONBin cuma fallback kalau Supabase error
-   ═══════════════════════════════════════════════════════════ */
 
+/* ⭐ UPDATE JSONBIN (SIMPAN UTAMA) */
 async function updateJsonBinDB() {
   const sb = getSupabaseConfig();
   const cfg = getAppConfig();
   const cred = getJsonBinCredential();
-  
-  // ⭐ PRIORITAS 1: Supabase
   if (sb) {
     try {
       appState.db.mn = appState.menus;
@@ -958,8 +1038,6 @@ async function updateJsonBinDB() {
       console.warn("[Save] Supabase gagal, coba JSONBin:", e.message);
     }
   }
-  
-  // ⭐ FALLBACK: JSONBin (cuma dipakai kalau Supabase down)
   if (!cfg?.binId || !cred) return false;
   try {
     appState.db.mn = appState.menus;
@@ -969,7 +1047,6 @@ async function updateJsonBinDB() {
       body: JSON.stringify(appState.db) 
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`); 
-    console.log("[Save] ⚠️ Tersimpan di JSONBin (Supabase down)");
     setLS("edusmart_last_sync", new Date().toISOString()); 
     return true;
   } catch(err) { console.warn("JSONBin sync gagal:", err); return false; }
@@ -979,45 +1056,35 @@ async function updateJsonBinDB_Lite() {
   const sb = getSupabaseConfig();
   const cfg = getAppConfig();
   const cred = getJsonBinCredential();
-  
-  // ⭐ PRIORITAS 1: Supabase
+  const dbLite = {
+    v: appState.db.v, a: appState.db.a, cfg: appState.db.cfg, mn: appState.menus,
+    md: appState.db.md, sw: appState.db.sw, mp: appState.db.mp, nc: appState.db.nc,
+    ncPerMapel: appState.db.ncPerMapel, pg: appState.db.pg || [], hk: appState.db.hk || [],
+    al: appState.db.al || [], ll: appState.db.ll || [], km: appState.db.km || []
+  };
   if (sb) {
     try {
-      const dbLite = {
-        v: appState.db.v, a: appState.db.a, cfg: appState.db.cfg, mn: appState.menus,
-        md: appState.db.md, sw: appState.db.sw, mp: appState.db.mp, nc: appState.db.nc,
-        ncPerMapel: appState.db.ncPerMapel, pg: appState.db.pg || [], hk: appState.db.hk || [],
-        al: appState.db.al || [], ll: appState.db.ll || [], km: appState.db.km || []
-      };
       const kodeApp = cfg?.kodeAplikasi || appState.db?.a?.k || null;
       await sbSaveMasterConfig("app_master", dbLite, kodeApp);
-      console.log("[Save Lite] ✓ Supabase OK — skip JSONBin");
+      console.log("[Save Lite] ✓ Supabase OK");
       setLS("edusmart_last_sync", new Date().toISOString());
       return true;
     } catch(e) {
       console.warn("[Save Lite] Supabase gagal, coba JSONBin:", e.message);
     }
   }
-  
-  // ⭐ FALLBACK: JSONBin
   if (!cfg?.binId || !cred) return false;
   try {
-    const dbLite = {
-      v: appState.db.v, a: appState.db.a, cfg: appState.db.cfg, mn: appState.menus,
-      md: appState.db.md, sw: appState.db.sw, mp: appState.db.mp, nc: appState.db.nc,
-      ncPerMapel: appState.db.ncPerMapel, pg: appState.db.pg || [], hk: appState.db.hk || [],
-      al: appState.db.al || [], ll: appState.db.ll || [], km: appState.db.km || []
-    };
     const res = await fetch(`${JSONBIN_API_BASE}/b/${encodeURIComponent(cfg.binId)}`, {
       method: "PUT", headers: getJsonBinHeaders(cred, true), body: JSON.stringify(dbLite)
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    console.log("[Save Lite] ⚠️ Tersimpan di JSONBin (Supabase down)");
     setLS("edusmart_last_sync", new Date().toISOString());
     return true;
   } catch(err) { console.warn("[JSONBin Lite] Gagal:", err); return false; }
 }
 
+/* ⭐ LOAD MASTER DB */
 async function loadMasterDB(binId, cred) {
   const source = getPrimarySource();
   const sb = getSupabaseConfig();
@@ -1075,161 +1142,7 @@ async function saveMasterDB(payload, options) {
   };
 }
 
-async function simpanFotoSiswaKeCloud(siswaId, fotoUrl) {
-  const sb = getSupabaseConfig();
-  if (!sb) throw new Error("Supabase belum dikonfigurasi.");
-  const sw = appState.db.sw.find(s => Number(s[FIELD.SISWA.ID]) === Number(siswaId));
-  if (sw) sw[FIELD.SISWA.FOTO] = fotoUrl;
-  saveLocal();
-  const payload = { ...appState.db, mn: appState.menus, _lastPhotoUpdate: { siswaId, fotoUrl, at: new Date().toISOString() } };
-  await sbSaveMasterConfig("app_master", payload, appState.db?.a?.k || null);
-  return true;
-}
-
-async function mulaiMigrasiKeSupabase() {
-  const cfg = getAppConfig();
-  const sb = getSupabaseConfig();
-  const cred = getJsonBinCredential();
-  if (!sb) { showToast("Supabase belum di-setup.", "error"); return; }
-  if (!cfg?.binId) { showToast("Bin ID JSONBin tidak ditemukan.", "error"); return; }
-  if (!confirm("⚠️ MIGRASI DATA ⚠️\n\nData dari JSONBin akan disalin ke Supabase.\nData JSONBin TIDAK akan dihapus.\n\nLanjutkan?")) return;
-  showLoading(true, "Membaca JSONBin...");
-  try {
-    const jsonbinData = await loadJsonBinDB(cfg.binId, cred);
-    if (!jsonbinData || typeof jsonbinData !== "object") throw new Error("Data JSONBin kosong atau tidak valid.");
-    const jumlahField = Object.keys(jsonbinData).length;
-    showLoading(true, `Menyalin ${jumlahField} field ke Supabase...`);
-    const payload = { ...jsonbinData };
-    if (appState.menus && appState.menus.length) payload.mn = appState.menus;
-    await sbSaveMasterConfig("app_master", payload, jsonbinData?.a?.k || cfg.kodeAplikasi || null);
-    const stats = { nilai: 0, absensi: 0, jurnal: 0 };
-    if ((jsonbinData.nl || []).length) {
-      try {
-        const nilaiRows = jsonbinData.nl.map(arr => {
-          const mk = arr[FIELD.NILAI.MAPEL_KODE];
-          const nc = getKomponenByMapel(mk);
-          const o = nilaiToObj(arr, nc);
-          return { id: String(o.id), siswa_id: String(o.siswaId), mapel_kode: o.mapelKode, scores: o.scores, updated_at: new Date().toISOString() };
-        });
-        await sbUpsert("nilai", nilaiRows);
-        stats.nilai = nilaiRows.length;
-      } catch(e) { console.warn("[Migrasi] Nilai gagal:", e.message); }
-    }
-    if ((jsonbinData.ab || []).length) {
-      try {
-        const absenRows = jsonbinData.ab.map(arr => {
-          const o = absenToObj(arr);
-          return { id: String(o.id), tanggal: o.tanggal, siswa_id: String(o.siswaId), status: o.status, updated_at: new Date().toISOString() };
-        });
-        await sbUpsert("absensi", absenRows);
-        stats.absensi = absenRows.length;
-      } catch(e) { console.warn("[Migrasi] Absensi gagal:", e.message); }
-    }
-    if ((jsonbinData.jr || []).length) {
-      try {
-        const jurnalRows = jsonbinData.jr.map(arr => {
-          const o = jurnalToObj(arr);
-          return { id: String(o.id), tanggal: o.tanggal, kelas: o.kelas, mapel: o.mapel, topik: o.topik, catatan: o.catatan, updated_at: new Date().toISOString() };
-        });
-        await sbUpsert("jurnal", jurnalRows);
-        stats.jurnal = jurnalRows.length;
-      } catch(e) { console.warn("[Migrasi] Jurnal gagal:", e.message); }
-    }
-    setPrimarySource("supabase");
-    setMasterCache(payload);
-    setLS(STORAGE.LAST_AUTO_REFRESH, String(Date.now()));
-    saveLocal();
-    showLoading(false);
-    showToast("✓ Migrasi selesai!", "success");
-    const mb = document.getElementById("modal-body");
-    mb.innerHTML = `<div class="text-center space-y-4 p-4"><div class="w-20 h-20 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-xl font-extrabold text-emerald-700">Migrasi Berhasil!</h3><div class="grid grid-cols-2 gap-2 text-xs text-left bg-slate-50 rounded-xl p-4"><div class="font-semibold text-slate-600">Field:</div><div class="font-bold text-indigo-600">${jumlahField}</div><div class="font-semibold text-slate-600">Nilai:</div><div class="font-bold text-indigo-600">${stats.nilai}</div><div class="font-semibold text-slate-600">Absensi:</div><div class="font-bold text-indigo-600">${stats.absensi}</div><div class="font-semibold text-slate-600">Jurnal:</div><div class="font-bold text-indigo-600">${stats.jurnal}</div></div><button onclick="closeModal();renderMainContent()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">Selesai</button></div>`;
-    addActivity("migrasi_ke_supabase", `Migrasi ${jumlahField} field dari JSONBin ke Supabase`);
-  } catch(err) { showLoading(false); showToast("Migrasi gagal: " + err.message, "error"); console.error("[Migrasi] Error:", err); }
-}
-
-function addActivity(tipe, detail, extra={}) {
-  const user = appState.currentUser; 
-  if (!user) return;
-  const log = { id: Date.now() + Math.floor(Math.random() * 1000), tipe, user: user.name, role: user.role, detail, waktu: new Date().toISOString(), sent: false, ...extra };
-  appState.db.al = appState.db.al || [];
-  appState.db.al.push(logArr(log));
-  if (appState.db.al.length > 50) appState.db.al = appState.db.al.slice(-50);
-  const userId = user.siswaId || user.username || user.name;
-  kirimLogKeSupabase({ ...log, userId }).then(function(ok) { if (ok) log.sent = true; }).catch(function(){});
-  saveLocal();
-}
-
-function getMergedActivity() { 
-  const arr=appState.db.al||[]; 
-  const objs=arr.map(logToObj); 
-  objs.sort((a,b)=>new Date(b.waktu)-new Date(a.waktu)); 
-  return objs.slice(0,10); 
-}
-
-async function refreshDataDariCloud(force) {
-  const cfg = getAppConfig();
-  const sb = getSupabaseConfig();
-  if (!cfg?.binId && !sb) return false;
-  if (!force) {
-    const lastRefresh = Number(localStorage.getItem(STORAGE.LAST_AUTO_REFRESH) || 0);
-    const elapsed = Date.now() - lastRefresh;
-    const TTL = MASTER_CACHE_TTL_MS;
-    if (elapsed < TTL) return false;
-  }
-  try {
-    const freshDb = await loadMasterDB(cfg.binId);
-    if (!freshDb) return false;
-    if (freshDb.ab) appState.db.ab = freshDb.ab;
-    if (freshDb.nl) appState.db.nl = freshDb.nl;
-    if (freshDb.jr) appState.db.jr = freshDb.jr;
-    if (freshDb.sw) appState.db.sw = freshDb.sw;
-    if (freshDb.mp) appState.db.mp = freshDb.mp;
-    if (freshDb.pg) appState.db.pg = freshDb.pg;
-    if (freshDb.hk) appState.db.hk = freshDb.hk;
-    if (freshDb.ncPerMapel) appState.db.ncPerMapel = freshDb.ncPerMapel;
-    if (freshDb.md) appState.db.md = freshDb.md;
-    if (freshDb.a) appState.db.a = { ...appState.db.a, ...freshDb.a };
-    if (Array.isArray(freshDb.mn) && freshDb.mn.length) {
-      const menulokal = appState.menus || [];
-      const menuCloud = freshDb.mn || [];
-      const customCloud = menuCloud.filter(m => m.isCustom);
-      const customLokal = menulokal.filter(m => m.isCustom);
-      customCloud.forEach(mc => { if (!customLokal.find(ml => ml.id === mc.id)) menulokal.push(mc); });
-      const idCloud = customCloud.map(m => m.id);
-      appState.menus = menulokal.filter(m => !m.isCustom || idCloud.includes(m.id));
-      setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
-    }
-    saveLocal();
-    setLS(STORAGE.LAST_AUTO_REFRESH, String(Date.now()));
-    return true;
-  } catch(e) { console.warn("[Refresh] ✗ Gagal:", e.message); return false; }
-}
-
-async function forceRefreshData() {
-  showLoading(true, "Memperbarui data...");
-  const ok = await refreshDataDariCloud(true);
-  showLoading(false);
-  if (ok) { applyBgLoginToBody(); showToast("✓ Data diperbarui", "success"); renderMainContent(); }
-  else showToast("Gagal refresh, coba lagi", "error");
-}
-
-async function saveWithFallback(namaOperasi, supabaseFn, jsonbinFn) {
-  const hasil = { supabase: false, jsonbin: false, local: false, sumber: "none" };
-  try {
-    await supabaseFn();
-    hasil.supabase = true; hasil.sumber = "supabase";
-    return hasil;
-  } catch(e) { console.warn("[Save] Supabase gagal: " + e.message); }
-  try {
-    await jsonbinFn();
-    hasil.jsonbin = true; hasil.sumber = "jsonbin";
-    return hasil;
-  } catch(e) { console.warn("[Save] JSONBin gagal: " + e.message); }
-  saveLocal();
-  hasil.local = true; hasil.sumber = "local";
-  return hasil;
-}
-
+/* ⭐ CLOUDINARY */
 function getConfigUrl(kode) { return CLOUDINARY_RAW_BASE + encodeURIComponent(`edusmart-${kode}.json`); }
 async function uploadConfigCloudinary(configObj, kode) {
   const endpoint=`https://api.cloudinary.com/v1_1/${CLOUDINARY_JSON_CLOUD}/raw/upload`;
@@ -1294,15 +1207,351 @@ async function sha256(text) {
   const hash=await crypto.subtle.digest("SHA-256", buf); 
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join(""); 
 }
-/* =========================================================
-   INIT & ROUTER
-   ========================================================= */
+
+/* ═══════════════════════════════════════════════════════════
+   ⭐ PATCH: MODE EDIT PENILAIAN — PASSWORD GATE
+   ═══════════════════════════════════════════════════════════ */
+
+function isGuru() {
+  return appState.currentUser?.role === "guru";
+}
+
+/* ⭐ Minta password edit — verifikasi dengan password login guru */
+function mintaPasswordEdit(kontek) {
+  return new Promise((resolve) => {
+    const mb = document.getElementById("modal-body");
+    mb.innerHTML = `
+      <div class="space-y-4 text-xs">
+        <div class="border-b pb-3 text-center">
+          <div class="w-16 h-16 mx-auto rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-3xl mb-2">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <h3 class="font-bold text-base">Buka Mode Edit</h3>
+          <p class="text-slate-500 mt-1 text-[11px]">
+            Masukkan <b>password login guru</b> untuk mengaktifkan input ${kontek || "nilai"}.
+          </p>
+        </div>
+        <div>
+          <label class="block font-semibold mb-1">Password Login Guru</label>
+          <input id="pwd-edit-input" type="password" placeholder="Password Anda"
+            class="w-full px-3 py-3 border-2 border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:outline-none"
+            autocomplete="current-password">
+          <div id="pwd-edit-err" class="hidden text-red-600 text-[11px] mt-2">
+            <i class="fa-solid fa-circle-xmark"></i> <span id="pwd-edit-err-msg">Password salah.</span>
+          </div>
+        </div>
+        <div class="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-800">
+          <i class="fa-solid fa-info-circle"></i>
+          Password ini sama dengan yang Anda pakai untuk login. Jika lupa, hubungi pengembang.
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="window.__pwdEditResolve(false)" class="px-4 py-2.5 bg-slate-100 rounded-xl font-semibold">Batal</button>
+          <button type="button" id="pwd-edit-ok" onclick="window.__pwdEditSubmit()" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl">
+            <i class="fa-solid fa-unlock"></i> Buka
+          </button>
+        </div>
+      </div>`;
+
+    window.__pwdEditResolve = (ok) => {
+      window.__pwdEditResolve = null;
+      window.__pwdEditSubmit = null;
+      closeModal();
+      resolve(ok);
+    };
+
+    window.__pwdEditSubmit = async () => {
+      const input = document.getElementById("pwd-edit-input");
+      const err = document.getElementById("pwd-edit-err");
+      const errMsg = document.getElementById("pwd-edit-err-msg");
+      const btn = document.getElementById("pwd-edit-ok");
+      if (!input) return;
+      const pwd = input.value;
+      if (!pwd) {
+        err.classList.remove("hidden");
+        errMsg.textContent = "Password tidak boleh kosong.";
+        return;
+      }
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memeriksa...';
+      try {
+        const gc = appState.db?.a?.gc || [];
+        let guruHash = "";
+        if (Array.isArray(gc)) guruHash = gc[2] || "";
+        else if (gc && typeof gc === "object") guruHash = gc.passwordHash || "";
+        if (!guruHash) {
+          err.classList.remove("hidden");
+          errMsg.textContent = "Hash password guru tidak ditemukan. Hubungi pengembang.";
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-unlock"></i> Buka';
+          return;
+        }
+        const inputHash = await sha256(pwd);
+        if (inputHash === guruHash) {
+          window.__pwdEditResolve(true);
+        } else {
+          err.classList.remove("hidden");
+          errMsg.textContent = "Password salah. Coba lagi.";
+          input.value = "";
+          input.focus();
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-unlock"></i> Buka';
+        }
+      } catch (e) {
+        err.classList.remove("hidden");
+        errMsg.textContent = "Error: " + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-unlock"></i> Buka';
+      }
+    };
+
+    openModal();
+    setTimeout(() => {
+      const inp = document.getElementById("pwd-edit-input");
+      if (inp) {
+        inp.focus();
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); window.__pwdEditSubmit && window.__pwdEditSubmit(); }
+        });
+      }
+    }, 150);
+  });
+}
+
+/* ⭐ Modal notifikasi besar setelah simpan */
+function showNotifSimpan(opts) {
+  const { sukses, judul, pesan, detailMapel, onTutup, onRetry } = opts;
+  const mb = document.getElementById("modal-body");
+  const iconClass = sukses ? "sukses" : "gagal";
+  const iconFA = sukses ? "fa-circle-check" : "fa-circle-xmark";
+  const titleClass = sukses ? "sukses" : "gagal";
+  let detailHtml = "";
+  if (detailMapel && detailMapel.length) {
+    detailHtml = `<div class="notif-detail">
+      <div class="font-bold text-slate-700 mb-2">📋 Detail Tersimpan:</div>
+      ${detailMapel.map(d => `
+        <div class="notif-detail-row">
+          <span class="font-semibold text-slate-700">${d.mapel}</span>
+          <span class="font-bold text-indigo-700">${d.jumlah} nilai</span>
+        </div>
+      `).join("")}
+      <div class="notif-detail-row" style="border-top:2px solid #cbd5e1;margin-top:6px;padding-top:6px;">
+        <span class="font-bold text-slate-800">TOTAL</span>
+        <span class="font-bold text-emerald-700">${detailMapel.reduce((a,b)=>a+b.jumlah,0)} nilai</span>
+      </div>
+    </div>`;
+  }
+  mb.innerHTML = `
+    <div class="modal-notif-besar">
+      <div class="notif-icon ${iconClass}">
+        <i class="fa-solid ${iconFA}"></i>
+      </div>
+      <div class="notif-title ${titleClass}">${judul}</div>
+      <p class="text-slate-600 text-xs px-4">${pesan}</p>
+      ${detailHtml}
+      <button class="notif-btn ${sukses ? 'sukses' : 'tutup'}" onclick="closeModal(); ${sukses && onTutup ? onTutup : ''}">
+        ${sukses ? '<i class="fa-solid fa-check"></i> OK, Tutup' : '<i class="fa-solid fa-xmark"></i> Tutup'}
+      </button>
+      ${!sukses && onRetry ? `
+        <button class="notif-btn retry" onclick="closeModal(); ${onRetry}">
+          <i class="fa-solid fa-rotate"></i> Coba Lagi
+        </button>
+      ` : ""}
+    </div>`;
+  openModal();
+}
+
+/* ⭐ MERGE ARRAYS (untuk refresh aman) */
+function mergeNilaiArrays(localArr, cloudArr) {
+  const map = new Map();
+  (localArr || []).forEach(item => {
+    const id = String(item[FIELD.NILAI.ID] ?? "");
+    if (!id) return;
+    const updatedAt = Number(item[FIELD.NILAI.UPDATED_AT]) || 0;
+    map.set(id, { arr: item, updatedAt: updatedAt });
+  });
+  (cloudArr || []).forEach(cloudItem => {
+    const id = String(cloudItem[FIELD.NILAI.ID] ?? "");
+    if (!id) return;
+    const cloudTime = Number(cloudItem[FIELD.NILAI.UPDATED_AT]) || 0;
+    if (map.has(id)) {
+      const localEntry = map.get(id);
+      if (cloudTime > localEntry.updatedAt) {
+        map.set(id, { arr: cloudItem, updatedAt: cloudTime });
+      }
+    } else {
+      map.set(id, { arr: cloudItem, updatedAt: cloudTime });
+    }
+  });
+  return Array.from(map.values()).map(e => e.arr);
+}
+
+function mergeAbsensiArrays(localArr, cloudArr) {
+  const map = new Map();
+  (localArr || []).forEach(item => {
+    const id = String(item[FIELD.ABSEN.ID] ?? "");
+    if (!id) return;
+    map.set(id, item);
+  });
+  (cloudArr || []).forEach(cloudItem => {
+    const id = String(cloudItem[FIELD.ABSEN.ID] ?? "");
+    if (!id) return;
+    if (!map.has(id)) map.set(id, cloudItem);
+  });
+  return Array.from(map.values());
+}
+
+function mergeJurnalArrays(localArr, cloudArr) {
+  const map = new Map();
+  (localArr || []).forEach(item => {
+    const id = String(item[FIELD.JURNAL.ID] ?? "");
+    if (!id) return;
+    const updatedAt = Number(item[FIELD.JURNAL.UPDATED_AT]) || 0;
+    map.set(id, { arr: item, updatedAt: updatedAt });
+  });
+  (cloudArr || []).forEach(cloudItem => {
+    const id = String(cloudItem[FIELD.JURNAL.ID] ?? "");
+    if (!id) return;
+    const cloudTime = Number(cloudItem[FIELD.JURNAL.UPDATED_AT]) || 0;
+    if (map.has(id)) {
+      const localEntry = map.get(id);
+      if (cloudTime > localEntry.updatedAt) {
+        map.set(id, { arr: cloudItem, updatedAt: cloudTime });
+      }
+    } else {
+      map.set(id, { arr: cloudItem, updatedAt: cloudTime });
+    }
+  });
+  return Array.from(map.values()).map(e => e.arr);
+}
+
+/* ⭐ ACTIVITY LOG LOCAL */
+function addActivity(tipe, detail, extra={}) {
+  const user = appState.currentUser; 
+  if (!user) return;
+  const log = { id: Date.now() + Math.floor(Math.random() * 1000), tipe, user: user.name, role: user.role, detail, waktu: new Date().toISOString(), sent: false, ...extra };
+  appState.db.al = appState.db.al || [];
+  appState.db.al.push(logArr(log));
+  if (appState.db.al.length > 50) appState.db.al = appState.db.al.slice(-50);
+  const userId = user.siswaId || user.username || user.name;
+  kirimLogKeSupabase({ ...log, userId }).then(function(ok) { if (ok) log.sent = true; }).catch(function(){});
+  saveLocal();
+}
+function getMergedActivity() { 
+  const arr=appState.db.al||[]; 
+  const objs=arr.map(logToObj); 
+  objs.sort((a,b)=>new Date(b.waktu)-new Date(a.waktu)); 
+  return objs.slice(0,10); 
+}
+
+/* ⭐ REFRESH DARI CLOUD — MERGE MODE */
+async function refreshDataDariCloud(force) {
+  const cfg = getAppConfig();
+  const sb = getSupabaseConfig();
+  if (!cfg?.binId && !sb) return false;
+  if (!force) {
+    const lastRefresh = Number(localStorage.getItem(STORAGE.LAST_AUTO_REFRESH) || 0);
+    const elapsed = Date.now() - lastRefresh;
+    if (elapsed < MASTER_CACHE_TTL_MS) return false;
+  }
+  // Cek dirty — kalau ada data belum disimpan, JANGAN auto-refresh
+  if (isDirty() && !force) {
+    console.warn("[Refresh] ⚠️ Data lokal belum disimpan, skip auto-refresh.");
+    return false;
+  }
+  try {
+    const freshDb = await loadMasterDB(cfg.binId);
+    if (!freshDb) return false;
+    // MERGE nilai, absensi, jurnal (bukan replace!)
+    if (freshDb.nl) appState.db.nl = mergeNilaiArrays(appState.db.nl || [], freshDb.nl);
+    if (freshDb.ab) appState.db.ab = mergeAbsensiArrays(appState.db.ab || [], freshDb.ab);
+    if (freshDb.jr) appState.db.jr = mergeJurnalArrays(appState.db.jr || [], freshDb.jr);
+    // Master data lain replace biasa
+    if (freshDb.sw) appState.db.sw = freshDb.sw;
+    if (freshDb.mp) appState.db.mp = freshDb.mp;
+    if (freshDb.pg) appState.db.pg = freshDb.pg;
+    if (freshDb.hk) appState.db.hk = freshDb.hk;
+    if (freshDb.md) appState.db.md = freshDb.md;
+    if (freshDb.a) appState.db.a = { ...appState.db.a, ...freshDb.a };
+    // ncPerMapel — merge union
+    if (freshDb.ncPerMapel) {
+      const mergedNc = { ...(appState.db.ncPerMapel || {}) };
+      Object.keys(freshDb.ncPerMapel).forEach(mk => {
+        const lokalNc = mergedNc[mk] || [];
+        const cloudNc = freshDb.ncPerMapel[mk] || [];
+        mergedNc[mk] = [...new Set([...lokalNc, ...cloudNc])];
+      });
+      appState.db.ncPerMapel = mergedNc;
+    }
+    if (freshDb.nc) appState.db.nc = freshDb.nc;
+    // Menus
+    if (Array.isArray(freshDb.mn) && freshDb.mn.length) {
+      const menulokal = appState.menus || [];
+      const customCloud = freshDb.mn.filter(m => m.isCustom);
+      const customLokal = menulokal.filter(m => m.isCustom);
+      customCloud.forEach(mc => { if (!customLokal.find(ml => ml.id === mc.id)) menulokal.push(mc); });
+      const idCloud = customCloud.map(m => m.id);
+      appState.menus = menulokal.filter(m => !m.isCustom || idCloud.includes(m.id));
+      setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
+    }
+    saveLocal();
+    setLS(STORAGE.LAST_AUTO_REFRESH, String(Date.now()));
+    return true;
+  } catch(e) { console.warn("[Refresh] ✗ Gagal:", e.message); return false; }
+}
+
+async function forceRefreshData() {
+  if (isDirty()) {
+    const lanjut = confirm(
+      "⚠️ PERHATIAN ⚠️\n\n" +
+      "Ada nilai/absensi/jurnal yang BELUM DISIMPAN ke cloud.\n\n" +
+      "Jika Anda refresh sekarang:\n" +
+      "• Data lokal akan DIGABUNG dengan cloud (tidak hilang)\n" +
+      "• Tapi sebaiknya simpan dulu sebelum refresh\n\n" +
+      "Klik OK untuk refresh (aman, merge).\n" +
+      "Klik Cancel untuk simpan dulu."
+    );
+    if (!lanjut) {
+      showToast("Batal refresh. Silakan simpan dulu.", "info");
+      return;
+    }
+  }
+  showLoading(true, "Memperbarui data...");
+  const ok = await refreshDataDariCloud(true);
+  showLoading(false);
+  if (ok) { 
+    applyBgLoginToBody(); 
+    showToast("✓ Data diperbarui (merge aman)", "success"); 
+    renderMainContent(); 
+  } else showToast("Gagal refresh, coba lagi", "error");
+}
+
+/* ⭐ SAVE WITH FALLBACK */
+async function saveWithFallback(namaOperasi, supabaseFn, jsonbinFn) {
+  const hasil = { supabase: false, jsonbin: false, local: false, sumber: "none" };
+  try {
+    await supabaseFn();
+    hasil.supabase = true; hasil.sumber = "supabase";
+    return hasil;
+  } catch(e) { console.warn("[Save] Supabase gagal: " + e.message); }
+  try {
+    await jsonbinFn();
+    hasil.jsonbin = true; hasil.sumber = "jsonbin";
+    return hasil;
+  } catch(e) { console.warn("[Save] JSONBin gagal: " + e.message); }
+  saveLocal();
+  hasil.local = true; hasil.sumber = "local";
+  return hasil;
+}
+/* ═══════════════════════════════════════════════════════════
+   BAGIAN 3/4 — ROUTER, LOGIN, DASHBOARD, DATA, ABSENSI, NUMPAD
+   ═══════════════════════════════════════════════════════════ */
+
+/* ⭐ INIT */
 document.addEventListener("DOMContentLoaded", () => {
   if (!localStorage.getItem(STORAGE.MENUS)) setLS(STORAGE.MENUS, JSON.stringify(appState.menus));
   if (!localStorage.getItem(STORAGE.DB)) setLS(STORAGE.DB, JSON.stringify(appState.db));
   ensureMasterData();
   if (!appState.db.km) appState.db.km = [];
-  // ⭐ MIGRASI: pastikan siswaId lama tersimpan sebagai string
   if (appState.currentUser?.role === "siswa" && appState.currentUser.siswaId != null) {
     appState.currentUser.siswaId = String(appState.currentUser.siswaId);
     setLS(STORAGE.USER, JSON.stringify(appState.currentUser));
@@ -1312,15 +1561,13 @@ document.addEventListener("DOMContentLoaded", () => {
   initNumpadDrag();
   applyBgLoginToBody();
   
-  setTimeout(() => {
-    refreshDataDariCloud(false).then(ok => {
-      if (ok) {
-        console.log("[Init] Auto-refresh berhasil");
-        applyBgLoginToBody();
-        renderMainContent();
-      }
-    });
-  }, 2000);
+  // ⭐ Auto-refresh DIHAPUS — refresh hanya manual
+  console.log("[Init] Auto-refresh dimatikan (anti data hilang)");
+  if (isDirty() && appState.currentUser) {
+    setTimeout(() => {
+      showToast("⚠️ Ada data yang BELUM DISIMPAN ke cloud. Klik Simpan sebelum refresh.", "error");
+    }, 1500);
+  }
 });
 
 function renderApp() { 
@@ -1329,6 +1576,7 @@ function renderApp() {
   updateHeaderUI(); 
 }
 
+/* ⭐ SIDEBAR */
 function renderSidebarNav() {
   const nav=document.getElementById("sidebar-nav-list"); 
   if (!nav) return; 
@@ -1352,6 +1600,7 @@ function renderSidebarNav() {
       if (item.dataSource==="url" && item.url) window.open(item.url,"_blank"); 
       else { 
         appState.activeView=item.id; 
+        window.__penilaianSudahRefresh = false; // reset auto-refresh penilaian
         renderSidebarNav(); 
         renderMainContent(); 
         closeSidebarMobile(); 
@@ -1375,6 +1624,7 @@ function closeSidebarMobile() {
   } 
 }
 
+/* ⭐ HEADER */
 function updateHeaderUI() {
   const brandLogo=document.getElementById("header-brand-logo"); 
   const brandIcon=document.getElementById("header-brand-icon"); 
@@ -1410,13 +1660,9 @@ function updateHeaderUI() {
     document.getElementById("header-user-role").textContent=appState.currentUser.role;
     const ph=document.getElementById("header-user-photo"); 
     const ic=document.getElementById("header-user-icon");
-        let fu="";
-    if (appState.currentUser.role==="guru") {
-      fu = appState.db?.a?.fg || "";
-    } else {
-      const sw = getCurrentSiswa();
-      fu = sw?.fotoUrl || "";
-    }
+    let fu="";
+    if (appState.currentUser.role==="guru") fu = appState.db?.a?.fg || "";
+    else { const sw = getCurrentSiswa(); fu = sw?.fotoUrl || ""; }
     if (fu && (fu.startsWith("http")||fu.startsWith("data:"))) { 
       ph.referrerPolicy="no-referrer"; 
       ph.classList.add("hidden"); 
@@ -1436,6 +1682,7 @@ function updateHeaderUI() {
   }
 }
 
+/* ⭐ MODAL & TOAST */
 function openModal() { 
   document.getElementById("modal-backdrop").classList.remove("hidden"); 
   document.getElementById("modal-container").classList.remove("hidden"); 
@@ -1500,9 +1747,9 @@ function fallbackCopy(text,msg) {
   document.body.removeChild(ta); 
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    NUMPAD
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__numpad = { target: null, value: "", cells: [], totalRows: 0, totalCols: 0 };
 function getAllNilaiInputs() { return Array.from(document.querySelectorAll('input[data-numpad="nilai"]')); }
 function computeNumpadGeometry(cells) {
@@ -1570,9 +1817,8 @@ function npPress(v) {
   updateNumpadDisplay();
 }
 function npBack() { window.__numpad.value=window.__numpad.value.slice(0,-1); updateNumpadDisplay(); }
-/* ⭐ FUNGSI BARU: Navigasi keyboard untuk input nilai */
+
 function handleNilaiKeydown(event, inputEl) {
-  // ⭐ Enter → pindah ke BAWAH (seperti Excel)
   if (event.key === "Enter") {
     event.preventDefault();
     inputEl.blur();
@@ -1587,8 +1833,6 @@ function handleNilaiKeydown(event, inputEl) {
     }
     return;
   }
-  
-  // ⭐ Arrow Down → ke bawah (baris berikutnya, kolom sama)
   if (event.key === "ArrowDown") {
     event.preventDefault();
     const currentTr = inputEl.closest('tr');
@@ -1607,8 +1851,6 @@ function handleNilaiKeydown(event, inputEl) {
     }
     return;
   }
-  
-  // ⭐ Arrow Up → ke atas
   if (event.key === "ArrowUp") {
     event.preventDefault();
     const currentTr = inputEl.closest('tr');
@@ -1627,8 +1869,6 @@ function handleNilaiKeydown(event, inputEl) {
     }
     return;
   }
-  
-  // ⭐ Arrow Right → kolom berikutnya (baris sama)
   if (event.key === "ArrowRight") {
     event.preventDefault();
     const currentTr = inputEl.closest('tr');
@@ -1641,8 +1881,6 @@ function handleNilaiKeydown(event, inputEl) {
     }
     return;
   }
-  
-  // ⭐ Arrow Left → kolom sebelumnya
   if (event.key === "ArrowLeft") {
     event.preventDefault();
     const currentTr = inputEl.closest('tr');
@@ -1655,8 +1893,6 @@ function handleNilaiKeydown(event, inputEl) {
     }
     return;
   }
-  
-  // ⭐ Filter: hanya izinkan angka + tombol navigasi
   if (!/^[0-9]$/.test(event.key) && 
       !["Backspace", "Delete", "Tab", "Home", "End"].includes(event.key) && 
       !event.ctrlKey && !event.metaKey) {
@@ -1666,20 +1902,14 @@ function handleNilaiKeydown(event, inputEl) {
 function nextNumpadTarget() {
   const t = window.__numpad.target;
   if (!t) return null;
-  
   const currentTr = t.closest('tr');
   if (!currentTr) return null;
-  
   const tbody = currentTr.parentElement;
   const allRows = Array.from(tbody.querySelectorAll('tr'));
   const currentRowIdx = allRows.indexOf(currentTr);
-  
   const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
   const currentColIdx = tdsInRow.findIndex(td => td.contains(t));
-  
   if (currentColIdx < 0) return null;
-  
-  // ⭐ 1. Cari baris BERIKUTNYA (ke bawah) di kolom yang sama
   for (let r = currentRowIdx + 1; r < allRows.length; r++) {
     const tds = Array.from(allRows[r].querySelectorAll('td'));
     if (currentColIdx < tds.length) {
@@ -1687,8 +1917,6 @@ function nextNumpadTarget() {
       if (input) return input;
     }
   }
-  
-  // ⭐ 2. Kalau baris terakhir, pindah ke kolom berikutnya dari baris pertama
   for (let c = currentColIdx + 1; c < tdsInRow.length; c++) {
     for (let r = 0; r < allRows.length; r++) {
       const tds = Array.from(allRows[r].querySelectorAll('td'));
@@ -1698,7 +1926,6 @@ function nextNumpadTarget() {
       }
     }
   }
-  
   return null;
 }
 function npOk() {
@@ -1768,9 +1995,9 @@ function initNumpadDrag() {
   el.addEventListener("touchstart",onDown,{passive:true});
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    ROUTER
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 function renderMainContent() {
   const c=document.getElementById("main-view-container"); 
   if (!c) return;
@@ -1793,9 +2020,9 @@ function renderMainContent() {
   else renderCustomMenuView(c,v);
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    LOGIN
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 function renderLoginView(c) {
   const cred=getJsonBinCredential(); 
   const cfg=getAppConfig();
@@ -1950,7 +2177,7 @@ async function handleLogin(e) {
     restoreCredsFromDb(db); 
     saveAppConfig(cfg); 
     setLS(STORAGE.APP_CODE,code);
-        appState.currentUser={ username: siswa.username, name: siswa.nama, role:"siswa", nis: siswa.nis, noAbsen: siswa.noAbsen, kelas: siswa.kelas, siswaId: String(siswa.id), sekolah: db.a?.ns||cfg.namaSekolah||"", guru: db.a?.ng||cfg.namaGuru||"" };
+    appState.currentUser={ username: siswa.username, name: siswa.nama, role:"siswa", nis: siswa.nis, noAbsen: siswa.noAbsen, kelas: siswa.kelas, siswaId: String(siswa.id), sekolah: db.a?.ns||cfg.namaSekolah||"", guru: db.a?.ng||cfg.namaGuru||"" };
     setLS(STORAGE.USER, JSON.stringify(appState.currentUser)); 
     setLS(STORAGE.DB, JSON.stringify(appState.db));
     appState.activeView="dashboard_siswa";
@@ -1965,15 +2192,22 @@ async function handleLogin(e) {
 }
 
 function logout() {
+  if (isDirty()) {
+    if (!confirm("⚠️ Ada data belum disimpan ke cloud.\n\nYakin logout? Data lokal akan HILANG.")) return;
+  }
   appState.currentUser = null;
   delLS(STORAGE.USER); 
   delLS(STORAGE.DB); 
   delLS(STORAGE.APP_CONFIG);
+  // ⭐ Reset mode edit
+  window.__editModePenilaian = false;
+  window.__mapelBerubah = new Set();
+  window.__nilaiDraftBeforeLock = null;
+  window.__penilaianSudahRefresh = false;
+  delLS("edusmart_dirty_v1");
   appState.activeView = "dashboard"; 
   appState.db = JSON.parse(JSON.stringify(DEFAULT_DB));
   applyBgLoginToBody();
-  const primary = localStorage.getItem(STORAGE.PRIMARY_SOURCE);
-  console.log("[Logout] ✓ Primary source preserved:", primary);
   showToast("Anda telah keluar.", "info"); 
   renderApp();
 }
@@ -2021,6 +2255,7 @@ function showInfoPengembang() {
   openModal();
 }
 
+/* ⭐ SETUP MODAL (Pengaturan) */
 function showSetupModal() {
   const cfg=getAppConfig(); 
   const cred=getJsonBinCredential(); 
@@ -2099,7 +2334,6 @@ function gantiPrimarySource(src) {
   closeModal();
   renderMainContent();
 }
-
 function toggleGeminiVisibility() { 
   const el=document.getElementById("gemini-key-input"); 
   const eye=document.getElementById("gemini-eye"); 
@@ -2241,6 +2475,7 @@ function importBackup(e) {
   r.readAsText(f);
 }
 
+/* ⭐ BUAT DATABASE BARU */
 function showBuatDatabaseForm() {
   const cred=getJsonBinCredential(); 
   const gk=getGeminiKey();
@@ -2340,9 +2575,9 @@ async function executeBuatDatabase() {
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    MASTER DATA
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__masterTab="umum";
 function renderMasterData(c) {
   ensureMasterData(); 
@@ -2422,9 +2657,9 @@ async function simpanMasterData() {
   renderMainContent();
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    DATA SISWA
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__bulkSiswaDraft=[]; 
 window.__filterKelasSiswa="ALL";
 
@@ -2550,9 +2785,9 @@ function downloadTemplateSiswa() {
   showToast("✓ Template siswa diunduh.","success");
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    MAPEL
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__bulkMapelDraft=[];
 function renderMapel(c) {
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
@@ -2617,9 +2852,9 @@ async function saveBulkMapel() {
   renderMainContent();
 }
 
-/* =========================================================
-   ABSENSI
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   ABSENSI (TIDAK DIUBAH - tetap seperti sebelumnya)
+   ═══════════════════════════════════════════════════════════ */
 window.__absensiDraft={};
 function renderAbsensi(c) {
   const today=new Date().toISOString().split('T')[0]; 
@@ -2672,80 +2907,23 @@ async function saveAbsen() {
   else showToast(`❌ Gagal simpan absensi.`, "error");
   renderMainContent();
 }
+/* ═══════════════════════════════════════════════════════════
+   BAGIAN 4/4 — PENILAIAN (PASSWORD GATE), HASIL BELAJAR, DLL
+   ═══════════════════════════════════════════════════════════ */
 
-/* =========================================================
-   PENILAIAN
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   ⭐ PENILAIAN — VERSI BARU DENGAN PASSWORD GATE
+   ═══════════════════════════════════════════════════════════ */
 window.__penilaianMapel=""; 
 window.__penilaianKelas="ALL";
 
-function renderPenilaian(c) {
-  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
-  const siswaAll=(appState.db.sw||[]).map(siswaToObj);
-  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))].sort();
-  if (!mapelAll.length) { c.innerHTML=`<div class="bg-white p-8 rounded-2xl border text-center text-slate-400 text-sm">Belum ada mapel.</div>`; return; }
-  const selectedMapel=window.__penilaianMapel||mapelAll[0].kode; 
-  window.__penilaianMapel=selectedMapel;
-  const mapel=mapelAll.find(m=>m.kode===selectedMapel)||mapelAll[0];
-  const nc=getKomponenByMapel(mapel.kode);
-  const selectedKelas=kelasList.length>1?(window.__penilaianKelas||"ALL"):"ALL";
-  const siswaFiltered=selectedKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===selectedKelas);
-  c.innerHTML=`<div class="bg-white p-3 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
-    <div class="flex flex-col md:flex-row justify-between gap-3 border-b pb-3">
-      <div><h2 class="text-base sm:text-lg font-bold">Lembar Penilaian</h2><p class="text-xs text-slate-500">Klik kotak nilai → numpad. OK otomatis turun ke siswa berikutnya.</p></div>
-      <div class="flex flex-wrap gap-2 items-center">
-        ${kelasList.length>1?`<select onchange="window.__penilaianKelas=this.value;renderMainContent()" class="text-xs px-3 py-2 border-2 border-emerald-300 rounded-xl bg-white font-semibold"><option value="ALL" ${selectedKelas==="ALL"?"selected":""}>Semua Kelas</option>${kelasList.map(k=>`<option value="${k}" ${selectedKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}</select>`:""}
-        <select onchange="window.__penilaianMapel=this.value;renderMainContent()" class="text-xs px-3 py-2 border-2 border-indigo-300 rounded-xl bg-white font-semibold max-w-[200px]">${mapelAll.map(m=>`<option value="${m.kode}" ${m.kode===selectedMapel?"selected":""}>${m.nama} (${m.kode})</option>`).join("")}</select>
-        <button onclick="showAddKomponen()" class="bg-purple-600 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-plus"></i> Komponen</button>
-        <button onclick="downloadTemplateNilai('${mapel.kode}')" class="bg-teal-600 text-white text-xs px-3 py-2 rounded-xl font-bold"><i class="fa-solid fa-file-excel"></i> Template</button>
-        <label class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-bold cursor-pointer"><i class="fa-solid fa-file-import"></i> Import<input type="file" accept=".xlsx,.xls" onchange="importNilaiExcel(event,'${mapel.kode}')" class="hidden"></label>
-      </div>
-    </div>
-    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs">
-      <div class="font-bold text-indigo-900">📘 ${mapel.nama} (${mapel.kode})</div>
-      <div class="text-indigo-700 mt-1">KKM: ${mapel.kkm} | Pengampu: ${mapel.pengampu}</div>
-    </div>
-    <div class="flex items-center gap-2 flex-wrap text-xs bg-slate-50 p-3 rounded-xl border">
-      <span class="font-bold">Komponen mapel ini:</span>
-      ${nc.map(cc=>`<span class="bg-indigo-100 text-indigo-800 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">${cc}<button onclick="removeKomponen('${cc}')" class="text-indigo-500 hover:text-red-600 ml-1"><i class="fa-solid fa-xmark"></i></button></span>`).join("")||'<span class="text-slate-400 italic">Belum ada komponen. Klik "+ Komponen".</span>'}
-    </div>
-    <div class="table-scroll"><table class="w-full text-xs border-collapse">
-      <thead><tr class="bg-slate-100 font-bold border-b"><th class="p-3 w-12 text-left">No</th><th class="p-3 text-left">Nama</th><th class="p-3 text-left">Kelas</th>${nc.map(cc=>`<th class="p-3 text-center whitespace-nowrap">${cc}</th>`).join("")}<th class="p-3 text-center bg-indigo-50 text-indigo-800">Rata²</th></tr></thead>
-      <tbody class="divide-y">${siswaFiltered.map((s,idx)=>{
-        const nlArr=(appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(s.id)&&n[FIELD.NILAI.MAPEL_KODE]===mapel.kode);
-        const rec=nlArr?nilaiToObj(nlArr,nc):{ scores:{} };
-        let total=0; 
-        nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); });
-        const avg=nc.length?(total/nc.length).toFixed(1):"0.0";
-        return `<tr class="hover:bg-slate-50"><td class="p-3 text-slate-400">${s.noAbsen||idx+1}</td><td class="p-3 font-semibold">${s.nama}</td><td class="p-3 text-slate-500">${s.kelas}</td>${nc.map(cc=>{ 
-          const v=rec.scores?.[cc]??0; 
-          return `<td class="p-2 text-center">
-  <div class="relative inline-flex items-center gap-0.5">
-    <input type="text" inputmode="numeric" value="${v}" 
-      data-numpad="nilai" 
-      data-nama-siswa="${s.nama}" 
-      data-konteks="${mapel.nama} • ${cc}"
-      onfocus="openNumpad(this)"
-      onchange="updateNilai(${s.id},'${mapel.kode}','${cc}',this.value)"
-      onkeydown="handleNilaiKeydown(event, this)"
-      class="w-16 text-center py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono font-semibold text-sm"
-    >
-    <button type="button" tabindex="-1" onclick="event.preventDefault(); openNumpad(this.previousElementSibling)" 
-      class="text-slate-400 hover:text-indigo-600 p-1" title="Buka kalkulator">
-      <i class="fa-solid fa-calculator text-xs"></i>
-    </button>
-  </div>
-</td>`; 
-        }).join("")}<td class="p-3 text-center font-bold ${Number(avg)>=mapel.kkm?'text-emerald-700':'text-red-600'} bg-indigo-50/50">${avg}</td></tr>`;
-      }).join("")||`<tr><td colspan="${nc.length+4}" class="text-center py-4 text-slate-400">Belum ada siswa.</td></tr>`}</tbody>
-    </table></div>
-    <div class="flex justify-between items-center pt-2 border-t gap-2 flex-wrap">
-      <div class="text-xs text-slate-500"><i class="fa-solid fa-circle-info"></i> Klik Simpan untuk kirim ke cloud.</div>
-      <button onclick="saveAllNilai('${mapel.kode}')" class="bg-indigo-600 text-white font-bold text-xs px-5 py-3 rounded-xl">Simpan Semua Nilai</button>
-    </div>
-  </div>`;
+function tandaiMapelBerubah(mk) {
+  if (!window.__mapelBerubah) window.__mapelBerubah = new Set();
+  window.__mapelBerubah.add(mk);
 }
+
 function updateNilai(sid, mk, col, val) {
+  if (!window.__editModePenilaian) return;
   const nc=getKomponenByMapel(mk); 
   const idxCol=nc.indexOf(col); 
   if (idxCol<0) return;
@@ -2756,43 +2934,391 @@ function updateNilai(sid, mk, col, val) {
     const newId=nextId(appState.db.nl); 
     const scores=new Array(nc.length).fill(0); 
     scores[idxCol]=n; 
-    nlArr=[newId,sid,mk,scores]; 
+    nlArr=[newId,sid,mk,scores,Date.now()]; 
     appState.db.nl=appState.db.nl||[]; 
     appState.db.nl.push(nlArr); 
   } else { 
     if (!Array.isArray(nlArr[FIELD.NILAI.SCORES])) nlArr[FIELD.NILAI.SCORES]=new Array(nc.length).fill(0); 
     while (nlArr[FIELD.NILAI.SCORES].length<nc.length) nlArr[FIELD.NILAI.SCORES].push(0); 
     nlArr[FIELD.NILAI.SCORES][idxCol]=n; 
+    nlArr[FIELD.NILAI.UPDATED_AT]=Date.now();
   }
   saveLocal(); 
-  setSyncBadge(true);
+  tandaiMapelBerubah(mk);
+  markDirty(`nilai ${mk} - siswa ${sid}`);
+  // Update tombol simpan kalau ada
+  const badgeCount = document.getElementById("jumlah-mapel-berubah");
+  if (badgeCount) badgeCount.textContent = (window.__mapelBerubah || new Set()).size;
 }
-async function saveAllNilai(mk) {
-  saveLocal();
-  addActivity("input_nilai", `Input nilai ${mk}`);
-  showLoading(true, "Menyimpan...");
-  const nc = getKomponenByMapel(mk);
-  const rowsToUpsert = appState.db.nl.filter(arr => arr[FIELD.NILAI.MAPEL_KODE] === mk).map(arr => {
-    const o = nilaiToObj(arr, nc);
-    return { id: String(o.id), siswa_id: String(o.siswaId), mapel_kode: o.mapelKode, scores: o.scores, updated_at: new Date().toISOString() };
-  });
-  const hasil = await saveWithFallback(
-    `Nilai ${mk}`,
-    async () => {
-      const sb = getSupabaseConfig();
-      if (!sb) throw new Error("Supabase belum dikonfigurasi");
-      const res = await fetch(`${sb.url}/rest/v1/nilai`, { method: "POST", headers: { "apikey": sb.key, "Authorization": `Bearer ${sb.key}`, "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rowsToUpsert) });
-      if (!res.ok) { const err = await res.text(); throw new Error(`HTTP ${res.status}: ${err}`); }
-    },
-    async () => { const ok = await updateJsonBinDB(); if (!ok) throw new Error("JSONBin sync gagal"); }
-  );
-  showLoading(false);
-  if (hasil.sumber === "supabase") { setSyncBadge(false, "SUPABASE"); showToast(`✓ Nilai ${mk} (${rowsToUpsert.length} baris) tersimpan.`, "success"); }
-  else if (hasil.sumber === "jsonbin") { setSyncBadge(false, "JSONBIN"); showToast(`⚠️ Supabase down, nilai tersimpan JSONBin.`, "info"); }
-  else if (hasil.sumber === "local") { setSyncBadge(true, "OFFLINE"); showToast(`❌ Cloud down, nilai tersimpan LOKAL.`, "error"); }
-  else showToast(`❌ Gagal simpan nilai.`, "error");
+
+function renderPenilaian(c) {
+  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
+  const siswaAll=(appState.db.sw||[]).map(siswaToObj);
+  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))].sort();
+
+  // ⭐ AUTO-REFRESH dari cloud saat buka halaman (hanya sekali)
+  if (!window.__penilaianSudahRefresh) {
+    c.innerHTML = `
+      <div class="bg-white p-8 rounded-2xl border text-center fade-in">
+        <i class="fa-solid fa-spinner fa-spin text-indigo-600 text-3xl mb-3"></i>
+        <div class="text-sm font-semibold text-slate-700">Memuat data terbaru dari Supabase...</div>
+        <div class="text-xs text-slate-400 mt-1">Mohon tunggu</div>
+      </div>`;
+    (async () => {
+      try {
+        await refreshDataDariCloud(true);
+        window.__penilaianSudahRefresh = true;
+      } catch(e) {
+        console.warn("[Penilaian] Auto-refresh gagal:", e.message);
+      }
+      renderPenilaian(c);
+    })();
+    return;
+  }
+
+  if (!mapelAll.length) {
+    c.innerHTML = `<div class="bg-white p-8 rounded-2xl border text-center text-slate-400 text-sm">
+      <i class="fa-solid fa-book text-3xl mb-2"></i>
+      <div>Belum ada mapel.</div>
+    </div>`;
+    return;
+  }
+
+  const selectedMapel=window.__penilaianMapel||mapelAll[0].kode; 
+  window.__penilaianMapel=selectedMapel;
+  const mapel=mapelAll.find(m=>m.kode===selectedMapel)||mapelAll[0];
+  const nc=getKomponenByMapel(mapel.kode);
+  const selectedKelas=kelasList.length>1?(window.__penilaianKelas||"ALL"):"ALL";
+  const siswaFiltered=selectedKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===selectedKelas);
+  const isUnlocked = window.__editModePenilaian === true;
+  const mapelBerubahArr = Array.from(window.__mapelBerubah || []);
+  const jumlahPerubahan = mapelBerubahArr.length;
+  const refreshTime = new Date().toLocaleTimeString("id-ID");
+
+  const bannerHtml = isUnlocked ? `
+    <div class="banner-editmode">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-unlock"></i>
+        </div>
+        <div>
+          <div class="font-bold text-sm text-amber-900">🔓 MODE EDIT AKTIF</div>
+          <div class="text-[10px] text-amber-800">
+            ${jumlahPerubahan > 0 
+              ? `<b id="jumlah-mapel-berubah">${jumlahPerubahan}</b> mapel sudah diubah — jangan lupa klik Simpan.`
+              : "Silakan input nilai. Bebas ganti-ganti mapel."}
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        ${jumlahPerubahan > 0 ? `
+          <button onclick="saveAllNilaiBaru()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan (${jumlahPerubahan} mapel)
+          </button>
+        ` : ""}
+        <button onclick="kunciEditManual()" class="btn-lock">
+          <i class="fa-solid fa-lock"></i> Kunci
+        </button>
+      </div>
+    </div>
+  ` : `
+    <div class="banner-readonly">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-slate-400 text-white flex items-center justify-center text-lg shrink-0">
+          <i class="fa-solid fa-lock"></i>
+        </div>
+        <div>
+          <div class="font-bold text-sm text-slate-700">🔒 MODE BACA</div>
+          <div class="text-[10px] text-slate-500">
+            Data dari Supabase • ${refreshTime}
+          </div>
+        </div>
+      </div>
+      <button onclick="bukaEditManual()" class="btn-unlock">
+        <i class="fa-solid fa-unlock"></i> Buka Mode Edit Nilai
+      </button>
+    </div>
+  `;
+
+  c.innerHTML = `
+    <div class="bg-white p-3 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
+      ${bannerHtml}
+      
+      <div class="flex flex-col md:flex-row justify-between gap-3 border-b pb-3">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold">Lembar Penilaian</h2>
+          <p class="text-xs text-slate-500">
+            ${isUnlocked 
+              ? "Klik kotak nilai → numpad. Bebas ganti mapel. Klik Simpan untuk kirim ke cloud."
+              : "Mode baca. Klik <b>Buka Mode Edit</b> untuk mulai input nilai."}
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          ${kelasList.length>1?`
+            <select onchange="window.__penilaianKelas=this.value;renderMainContent()" 
+              class="text-xs px-3 py-2 border-2 border-emerald-300 rounded-xl bg-white font-semibold">
+              <option value="ALL" ${selectedKelas==="ALL"?"selected":""}>Semua Kelas</option>
+              ${kelasList.map(k=>`<option value="${k}" ${selectedKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}
+            </select>
+          `:""}
+          <select onchange="window.__penilaianMapel=this.value;renderMainContent()" 
+            class="text-xs px-3 py-2 border-2 border-indigo-300 rounded-xl bg-white font-semibold max-w-[200px]">
+            ${mapelAll.map(m=>{
+              const berubah = (window.__mapelBerubah || new Set()).has(m.kode);
+              return `<option value="${m.kode}" ${m.kode===selectedMapel?"selected":""}>${m.nama} (${m.kode})${berubah?" ✏️":""}</option>`;
+            }).join("")}
+          </select>
+          ${isUnlocked?`
+            <button onclick="showAddKomponen()" class="bg-purple-600 text-white text-xs px-3 py-2 rounded-xl font-bold">
+              <i class="fa-solid fa-plus"></i> Komponen
+            </button>
+          `:""}
+          <button onclick="downloadTemplateNilai('${mapel.kode}')" class="bg-teal-600 text-white text-xs px-3 py-2 rounded-xl font-bold">
+            <i class="fa-solid fa-file-excel"></i> Template
+          </button>
+          ${isUnlocked?`
+            <label class="bg-emerald-600 text-white text-xs px-3 py-2 rounded-xl font-bold cursor-pointer">
+              <i class="fa-solid fa-file-import"></i> Import
+              <input type="file" accept=".xlsx,.xls" onchange="importNilaiExcel(event,'${mapel.kode}')" class="hidden">
+            </label>
+          `:""}
+        </div>
+      </div>
+      
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs">
+        <div class="font-bold text-indigo-900">📘 ${mapel.nama} (${mapel.kode})</div>
+        <div class="text-indigo-700 mt-1">KKM: ${mapel.kkm} | Pengampu: ${mapel.pengampu}</div>
+      </div>
+      
+      <div class="flex items-center gap-2 flex-wrap text-xs bg-slate-50 p-3 rounded-xl border">
+        <span class="font-bold">Komponen mapel ini:</span>
+        ${nc.map(cc=>`
+          <span class="bg-indigo-100 text-indigo-800 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1">
+            ${cc}
+            ${isUnlocked?`<button onclick="removeKomponen('${cc}')" class="text-indigo-500 hover:text-red-600 ml-1"><i class="fa-solid fa-xmark"></i></button>`:""}
+          </span>
+        `).join("")||'<span class="text-slate-400 italic">Belum ada komponen. Klik "+ Komponen".</span>'}
+      </div>
+      
+      <div class="table-scroll">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="bg-slate-100 font-bold border-b">
+              <th class="p-3 w-12 text-left">No</th>
+              <th class="p-3 text-left">Nama</th>
+              <th class="p-3 text-left">Kelas</th>
+              ${nc.map(cc=>`<th class="p-3 text-center whitespace-nowrap">${cc}</th>`).join("")}
+              <th class="p-3 text-center bg-indigo-50 text-indigo-800">Rata²</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            ${siswaFiltered.map((s,idx)=>{
+              const nlArr=(appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(s.id)&&n[FIELD.NILAI.MAPEL_KODE]===mapel.kode);
+              const rec=nlArr?nilaiToObj(nlArr,nc):{ scores:{} };
+              let total=0; 
+              nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); });
+              const avg=nc.length?(total/nc.length).toFixed(1):"0.0";
+              return `<tr class="hover:bg-slate-50">
+                <td class="p-3 text-slate-400">${s.noAbsen||idx+1}</td>
+                <td class="p-3 font-semibold">${s.nama}</td>
+                <td class="p-3 text-slate-500">${s.kelas}</td>
+                ${nc.map(cc=>{
+                  const v=rec.scores?.[cc]??0;
+                  if (!isUnlocked) {
+                    // MODE TERKUNCI: teks saja
+                    const warnaNilai = Number(v)>=(mapel.kkm||70)?"text-emerald-700":Number(v)>0?"text-amber-700":"text-slate-400";
+                    return `<td class="p-2 text-center">
+                      <span class="inline-block w-16 py-2 font-mono font-semibold text-sm ${warnaNilai}">${v}</span>
+                    </td>`;
+                  }
+                  // MODE EDIT: input aktif
+                  return `<td class="p-2 text-center">
+                    <div class="relative inline-flex items-center gap-0.5">
+                      <input type="text" inputmode="numeric" value="${v}"
+                        data-numpad="nilai"
+                        data-nama-siswa="${s.nama}"
+                        data-konteks="${mapel.nama} • ${cc}"
+                        onfocus="openNumpad(this)"
+                        onchange="updateNilai(${s.id},'${mapel.kode}','${cc}',this.value)"
+                        onkeydown="handleNilaiKeydown(event, this)"
+                        class="w-16 text-center py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono font-semibold text-sm"
+                      >
+                      <button type="button" tabindex="-1" onclick="event.preventDefault(); openNumpad(this.previousElementSibling)" 
+                        class="text-slate-400 hover:text-indigo-600 p-1" title="Buka kalkulator">
+                        <i class="fa-solid fa-calculator text-xs"></i>
+                      </button>
+                    </div>
+                  </td>`;
+                }).join("")}
+                <td class="p-3 text-center font-bold ${Number(avg)>=mapel.kkm?'text-emerald-700':'text-red-600'} bg-indigo-50/50">${avg}</td>
+              </tr>`;
+            }).join("")||`<tr><td colspan="${nc.length+4}" class="text-center py-4 text-slate-400">Belum ada siswa.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      
+      ${isUnlocked?`
+        <div class="flex justify-between items-center pt-2 border-t gap-2 flex-wrap">
+          <div class="text-xs text-slate-500">
+            <i class="fa-solid fa-circle-info"></i>
+            ${jumlahPerubahan>0 
+              ? `<b class="text-amber-700">${jumlahPerubahan} mapel</b> sudah diubah, belum disimpan.` 
+              : "Belum ada perubahan."}
+          </div>
+          <button onclick="saveAllNilaiBaru()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl shadow-lg">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan Semua Nilai
+          </button>
+        </div>
+      `:""}
+    </div>`;
+}
+
+/* ⭐ Buka mode edit (minta password) */
+async function bukaEditManual() {
+  if (!isGuru()) {
+    showToast("Hanya guru yang bisa edit nilai.", "error");
+    return;
+  }
+  const ok = await mintaPasswordEdit("nilai");
+  if (!ok) {
+    showToast("Dibatalkan. Mode tetap baca.", "info");
+    return;
+  }
+  window.__editModePenilaian = true;
+  window.__mapelBerubah = new Set();
+  window.__nilaiDraftBeforeLock = JSON.parse(JSON.stringify(appState.db.nl || []));
+  showToast("🔓 Mode edit aktif. Bebas ganti mapel. Jangan lupa simpan!", "success");
   renderMainContent();
 }
+
+/* ⭐ Kunci manual */
+function kunciEditManual() {
+  const jumlah = (window.__mapelBerubah || new Set()).size;
+  if (jumlah > 0) {
+    if (!confirm(`⚠️ Ada ${jumlah} mapel yang sudah diubah tapi BELUM DISIMPAN.\n\nYakin kunci? Perubahan akan HILANG (kembali ke data cloud).`)) {
+      return;
+    }
+  }
+  // Revert perubahan lokal
+  if (window.__nilaiDraftBeforeLock) {
+    appState.db.nl = JSON.parse(JSON.stringify(window.__nilaiDraftBeforeLock));
+    window.__nilaiDraftBeforeLock = null;
+  }
+  window.__editModePenilaian = false;
+  window.__mapelBerubah = new Set();
+  clearDirty();
+  saveLocal();
+  showToast("🔒 Mode edit dikunci. Perubahan lokal dibuang.", "info");
+  renderMainContent();
+}
+
+/* ⭐ SIMPAN SEMUA NILAI — versi baru */
+async function saveAllNilaiBaru() {
+  const mapelBerubahArr = Array.from(window.__mapelBerubah || []);
+  if (!mapelBerubahArr.length) {
+    showToast("Tidak ada perubahan untuk disimpan.", "info");
+    return;
+  }
+
+  // Kumpulkan rows
+  const rowsToUpsert = [];
+  const detailPerMapel = [];
+  
+  mapelBerubahArr.forEach(mk => {
+    const nc = getKomponenByMapel(mk);
+    const arrMapel = (appState.db.nl || []).filter(arr => arr[FIELD.NILAI.MAPEL_KODE] === mk);
+    arrMapel.forEach(arr => {
+      if (!arr[FIELD.NILAI.UPDATED_AT]) arr[FIELD.NILAI.UPDATED_AT] = Date.now();
+      const o = nilaiToObj(arr, nc);
+      rowsToUpsert.push({
+        id: String(o.id),
+        siswa_id: String(o.siswaId),
+        mapel_kode: o.mapelKode,
+        scores: o.scores,
+        updated_at: new Date().toISOString()
+      });
+    });
+    const mapel = (appState.db.mp || []).map(mapelToObj).find(m => m.kode === mk);
+    detailPerMapel.push({
+      mapel: mapel ? mapel.nama : mk,
+      jumlah: arrMapel.length
+    });
+  });
+
+  saveLocal();
+  showLoading(true, `Menyimpan ${rowsToUpsert.length} nilai...`);
+
+  let sukses = false;
+  let errorMsg = "";
+
+  // Coba Supabase
+  const sb = getSupabaseConfig();
+  if (sb) {
+    try {
+      const res = await fetch(`${sb.url}/rest/v1/nilai`, {
+        method: "POST",
+        headers: {
+          "apikey": sb.key,
+          "Authorization": `Bearer ${sb.key}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rowsToUpsert)
+      });
+      if (res.ok) {
+        sukses = true;
+      } else {
+        errorMsg = `HTTP ${res.status}: ${await res.text()}`;
+      }
+    } catch(e) { errorMsg = e.message; }
+  } else {
+    errorMsg = "Supabase belum dikonfigurasi.";
+  }
+
+  // Fallback JSONBin
+  if (!sukses) {
+    try {
+      const okJB = await updateJsonBinDB();
+      if (okJB) { sukses = true; errorMsg = ""; }
+      else if (!errorMsg) errorMsg = "JSONBin sync gagal.";
+    } catch(e) { if (!errorMsg) errorMsg = e.message; }
+  }
+
+  // Fallback lokal
+  if (!sukses) {
+    saveLocal();
+  }
+
+  showLoading(false);
+
+  // Tampilkan modal notifikasi besar
+  if (sukses) {
+    addActivity("input_nilai", `Simpan ${mapelBerubahArr.length} mapel (${rowsToUpsert.length} baris)`);
+    clearDirty();
+    window.__editModePenilaian = false;
+    window.__mapelBerubah = new Set();
+    window.__nilaiDraftBeforeLock = null;
+
+    showNotifSimpan({
+      sukses: true,
+      judul: "BERHASIL SIMPAN KE CLOUD",
+      pesan: `Data nilai sudah aman di cloud. Bisa dibuka di device lain.`,
+      detailMapel: detailPerMapel,
+      onTutup: "window.__penilaianSudahRefresh=false;renderMainContent()"
+    });
+  } else {
+    markDirty(`gagal simpan nilai`);
+    showNotifSimpan({
+      sukses: false,
+      judul: "GAGAL SIMPAN KE CLOUD",
+      pesan: `Data lokal tetap ada. Cek koneksi lalu klik "Coba Lagi". JANGAN buka di device lain sebelum berhasil!`,
+      detailMapel: detailPerMapel,
+      onRetry: "saveAllNilaiBaru()"
+    });
+  }
+}
+
+/* ⭐ Komponen */
 function showAddKomponen() {
   const mk=window.__penilaianMapel; 
   const mapel=(appState.db.mp||[]).map(mapelToObj).find(m=>m.kode===mk);
@@ -2800,7 +3326,7 @@ function showAddKomponen() {
   mb.innerHTML=`<div class="space-y-3 text-xs"><h3 class="font-bold text-base">Tambah Komponen Nilai</h3><div class="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-[11px] text-indigo-800"><i class="fa-solid fa-info-circle"></i> Komponen ini <b>hanya untuk mapel ${mapel?.nama||mk}</b>.</div><form onsubmit="handleAddKomponen(event)" class="space-y-3"><input id="kp-nama" required placeholder="Contoh: Tugas 1" class="w-full px-3 py-3 border rounded-xl uppercase text-sm"><div class="flex justify-end gap-2 pt-2 border-t"><button type="button" onclick="closeModal()" class="px-4 py-2.5 bg-slate-100 rounded-xl">Batal</button><button type="submit" class="px-4 py-2.5 bg-purple-600 text-white font-bold rounded-xl">Tambah</button></div></form></div>`;
   openModal();
 }
-function handleAddKomponen(e) {
+async function handleAddKomponen(e) {
   e.preventDefault(); 
   const mk=window.__penilaianMapel;
   const n=document.getElementById("kp-nama").value.trim().toUpperCase();
@@ -2809,12 +3335,28 @@ function handleAddKomponen(e) {
   nc.push(n); 
   setKomponenByMapel(mk,nc); 
   saveLocal(); 
-  setSyncBadge(true);
-  showToast(`Komponen ${n} ditambahkan.`,"success"); 
+  markDirty(`komponen ${mk}`);
   closeModal(); 
   renderMainContent();
+  showToast(`Komponen ${n} ditambahkan. Menyimpan ke cloud...`,"info"); 
+  // Simpan ke cloud
+  showLoading(true, "Menyimpan komponen...");
+  try {
+    const payload = { ...appState.db, mn: appState.menus };
+    const hasil = await saveMasterDB(payload, { 
+      alsoJsonBin: !!getJsonBinCredential(), 
+      binId: getAppConfig()?.binId || null 
+    });
+    showLoading(false);
+    if (hasil.supabase) { clearDirty(); showToast(`✓ Komponen ${n} tersimpan ke cloud.`, "success"); }
+    else if (hasil.jsonbin) { clearDirty(); showToast(`⚠️ Komponen tersimpan JSONBin.`, "info"); }
+    else { markDirty("komponen"); showToast(`❌ GAGAL cloud! Komponen hanya di LAPTOP.`, "error"); }
+  } catch(err) { 
+    showLoading(false); 
+    showToast("❌ Gagal simpan komponen: " + err.message, "error"); 
+  }
 }
-function removeKomponen(n) {
+async function removeKomponen(n) {
   const mk=window.__penilaianMapel; 
   if (!confirm(`Hapus komponen ${n} dari mapel ini?`)) return;
   const nc=getKomponenByMapel(mk); 
@@ -2825,9 +3367,25 @@ function removeKomponen(n) {
     if (arr[FIELD.NILAI.MAPEL_KODE]===mk && Array.isArray(arr[FIELD.NILAI.SCORES])) arr[FIELD.NILAI.SCORES].splice(idx,1); 
   });
   saveLocal(); 
-  setSyncBadge(true); 
+  markDirty(`hapus komponen ${mk}`);
   renderMainContent();
+  showLoading(true, "Menyimpan...");
+  try {
+    const payload = { ...appState.db, mn: appState.menus };
+    const hasil = await saveMasterDB(payload, { 
+      alsoJsonBin: !!getJsonBinCredential(), 
+      binId: getAppConfig()?.binId || null 
+    });
+    showLoading(false);
+    if (hasil.supabase || hasil.jsonbin) { clearDirty(); showToast(`✓ Komponen dihapus & tersimpan.`, "success"); }
+    else { showToast(`❌ GAGAL cloud! Hanya di LAPTOP.`, "error"); }
+  } catch(err) { 
+    showLoading(false); 
+    showToast("❌ Gagal simpan: " + err.message, "error"); 
+  }
 }
+
+/* ⭐ Template & Import Nilai */
 function downloadTemplateNilai(mapelKode) {
   const nc=getKomponenByMapel(mapelKode);
   const mapel=(appState.db.mp||[]).map(mapelToObj).find(m=>m.kode===mapelKode); 
@@ -2853,6 +3411,7 @@ function downloadTemplateNilai(mapelKode) {
   showToast(`✓ Template ${mapel.nama} diunduh.`,"success");
 }
 async function importNilaiExcel(e, mapelKode) {
+  if (!window.__editModePenilaian) { showToast("Buka Mode Edit dulu.", "error"); return; }
   const f=e.target.files[0]; 
   if (!f) return;
   const nc=getKomponenByMapel(mapelKode);
@@ -2877,8 +3436,8 @@ async function importNilaiExcel(e, mapelKode) {
         if (!sw) { skipped++; notFound.push(nama); return; }
         const sid=sw[FIELD.SISWA.ID];
         let nlArr=(appState.db.nl||[]).find(a=>Number(a[FIELD.NILAI.SISWA_ID])===Number(sid)&&a[FIELD.NILAI.MAPEL_KODE]===mapelKode);
-        if (!nlArr) { nlArr=[nextId(appState.db.nl),sid,mapelKode,new Array(nc.length).fill(0)]; appState.db.nl=appState.db.nl||[]; appState.db.nl.push(nlArr); added++; } 
-        else updated++;
+        if (!nlArr) { nlArr=[nextId(appState.db.nl),sid,mapelKode,new Array(nc.length).fill(0),Date.now()]; appState.db.nl=appState.db.nl||[]; appState.db.nl.push(nlArr); added++; } 
+        else { updated++; nlArr[FIELD.NILAI.UPDATED_AT]=Date.now(); }
         nc.forEach((cc,i)=>{ 
           if (Object.prototype.hasOwnProperty.call(row,cc)) { 
             let n=Number(row[cc]); 
@@ -2888,19 +3447,10 @@ async function importNilaiExcel(e, mapelKode) {
         });
       });
       saveLocal(); 
+      tandaiMapelBerubah(mapelKode);
+      markDirty(`import nilai ${mapelKode}`);
       addActivity("import_nilai",`Import nilai ${mapelKode}: ${updated+added}`);
-      const okJB=await updateJsonBinDB(); 
-      let okSB=false; 
-      const sb=getSupabaseConfig();
-      if (sb) {
-        try {
-          const rows=appState.db.nl.filter(arr=>arr[FIELD.NILAI.MAPEL_KODE]===mapelKode).map(arr=>{ const o=nilaiToObj(arr,nc); return { id:String(o.id), siswa_id:String(o.siswaId), mapel_kode:o.mapelKode, scores:o.scores, updated_at:new Date().toISOString() }; });
-          await sbUpsert("nilai",rows); 
-          okSB=true;
-        } catch(e) {}
-      }
       showLoading(false); 
-      setSyncBadge(!(okJB||okSB));
       let msg=`✓ Import: ${updated} diperbarui, ${added} baru`; 
       if (skipped) msg+=`, ${skipped} dilewati`;
       showToast(msg,"success");
@@ -2911,269 +3461,43 @@ async function importNilaiExcel(e, mapelKode) {
   };
   reader.readAsArrayBuffer(f);
 }
-/* =========================================================
+
+/* ═══════════════════════════════════════════════════════════
    HASIL BELAJAR
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__hbKelas="ALL"; 
 window.__hbSiswa="ALL";
 
-/* =========================================================
-   ⭐ HASIL BELAJAR v2 — Dashboard Siswa + Nilai Kurang
-   ========================================================= */
-
-/* ─── 2A. Dashboard Ringkas Nilai Siswa (Reuse dari Dashboard Siswa) ─── */
-function renderDashboardNilaiSiswa(sid) {
-  const mapelAll = (appState.db.mp || []).map(mapelToObj);
-  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
-  if (!sw) return `<div class="text-center text-xs text-slate-400 py-4">Siswa tidak ditemukan.</div>`;
-  
-  const fotoSiswa = sw.fotoUrl || "";
-  
-  // Hitung rata-rata total
-  let totalAll = 0, countAll = 0;
-  (appState.db.nl || []).filter(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid)).forEach(arr => {
-    const mk = arr[FIELD.NILAI.MAPEL_KODE];
-    const nc = getKomponenByMapel(mk);
-    const rec = nilaiToObj(arr, nc);
-    nc.forEach(cc => { 
-      const v = Number(rec.scores?.[cc] ?? 0); 
-      if (!isNaN(v)) { totalAll += v; countAll++; } 
-    });
-  });
-  const avg = countAll ? (totalAll / countAll).toFixed(1) : "0.0";
-  
-  // Statistik per mapel
-  const statMapel = mapelAll.map(m => {
-    const nc = getKomponenByMapel(m.kode);
-    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
-    if (!nlArr) return { nama: m.nama, kode: m.kode, kkm: m.kkm, rata: 0, kosong: nc.slice(), kurang: nc.slice() };
-    const rec = nilaiToObj(nlArr, nc);
-    const vals = nc.map(cc => Number(rec.scores?.[cc] ?? 0));
-    const rata = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-    const kosong = nc.filter(cc => !rec.scores[cc] || Number(rec.scores[cc]) === 0);
-    const kurang = nc.filter(cc => Number(rec.scores[cc] ?? 0) < (Number(m.kkm) || getMasterKKM()));
-    return { nama: m.nama, kode: m.kode, kkm: Number(m.kkm) || getMasterKKM(), rata: +rata.toFixed(1), kosong, kurang };
-  });
-  
-  const totalTuntas = statMapel.filter(m => m.rata >= m.kkm).length;
-  const totalKurang = statMapel.filter(m => m.rata < m.kkm && m.rata > 0).length;
-  const totalKosong = statMapel.reduce((acc, m) => acc + m.kosong.length, 0);
-  
-  return `
-    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-4">
-      <!-- Header siswa -->
-      <div class="flex items-center gap-3 pb-3 border-b">
-        ${fotoSiswa 
-          ? `<img src="${fotoSiswa}" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100" onerror="this.style.display='none'">` 
-          : `<div class="w-12 h-12 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg font-bold">${(sw.nama || "?").charAt(0).toUpperCase()}</div>`}
-        <div class="min-w-0">
-          <h3 class="font-bold text-base text-slate-800 truncate">📊 ${sw.nama || "-"}</h3>
-          <p class="text-[11px] text-slate-500">Kelas ${sw.kelas || "-"} · No. Absen ${sw.noAbsen || "-"} · NIS ${sw.nis || "-"}</p>
-        </div>
-      </div>
-      
-      <!-- 4 kartu ringkas -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div class="bg-white p-3 rounded-xl border shadow-sm">
-          <div class="text-[10px] text-slate-500 font-semibold">Rata Nilai</div>
-          <div class="text-xl font-bold mt-1 ${Number(avg) >= getMasterKKM() ? 'text-emerald-700' : 'text-amber-700'}">${avg}</div>
-        </div>
-        <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
-          <div class="text-[10px] text-emerald-700 font-semibold">Tuntas</div>
-          <div class="text-xl font-bold mt-1 text-emerald-700">${totalTuntas} mapel</div>
-        </div>
-        <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl">
-          <div class="text-[10px] text-amber-700 font-semibold">Kurang</div>
-          <div class="text-xl font-bold mt-1 text-amber-700">${totalKurang} mapel</div>
-        </div>
-        <div class="bg-red-50 border border-red-100 p-3 rounded-xl">
-          <div class="text-[10px] text-red-700 font-semibold">Komponen Kosong</div>
-          <div class="text-xl font-bold mt-1 text-red-700">${totalKosong} item</div>
-        </div>
-      </div>
-      
-      <!-- Statistik Nilai per Mapel -->
-      <div>
-        <h4 class="font-bold text-sm mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-chart-simple text-emerald-600"></i> Statistik Nilai per Mapel
-        </h4>
-        <div class="space-y-3">
-          ${statMapel.map(m => {
-            const kkm = m.kkm;
-            const lulus = m.rata >= kkm;
-            const persen = Math.min(m.rata, 100);
-            const warnaBar = lulus ? "bg-emerald-500" : (m.rata > 0 ? "bg-amber-400" : "bg-slate-300");
-            const warnaText = lulus ? "text-emerald-600" : (m.rata > 0 ? "text-amber-600" : "text-slate-400");
-            return `
-              <div>
-                <div class="flex justify-between items-center text-xs mb-1 flex-wrap gap-1">
-                  <span class="font-semibold text-slate-700">${m.nama} <span class="text-[9px] text-slate-400">(KKM ${kkm})</span></span>
-                  <span class="font-bold ${warnaText}">${m.rata.toFixed(1)}</span>
-                </div>
-                <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div class="h-full ${warnaBar}" style="width:${persen}%"></div>
-                </div>
-                ${m.kosong.length ? `<div class="text-[10px] text-red-600 mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Komponen kosong: <b>${m.kosong.join(", ")}</b></div>` : ""}
-              </div>
-            `;
-          }).join("") || `<div class="text-center text-xs text-slate-400 py-4">Belum ada mapel.</div>`}
-        </div>
-      </div>
-      
-      <!-- Ranking Card -->
-      <div id="ranking-hb-${sid}">
-        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat ranking...</div>
-      </div>
-    </div>
-  `;
-}
-
-/* ─── 2B. Section Nilai Kurang + Komponen Kosong ─── */
-function renderNilaiKurangSection(sid) {
-  const mapelAll = (appState.db.mp || []).map(mapelToObj);
-  
-  const listKurang = [];
-  const listKosong = [];
-  
-  mapelAll.forEach(m => {
-    const kkm = Number(m.kkm) || getMasterKKM();
-    const nc = getKomponenByMapel(m.kode);
-    const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
-    if (!nlArr) return;
-    
-    const rec = nilaiToObj(nlArr, nc);
-    const detailKurang = [];
-    const detailKosong = [];
-    
-    nc.forEach(cc => {
-      const v = Number(rec.scores?.[cc] ?? 0);
-      if (v === 0) {
-        detailKosong.push(cc);
-      } else if (v < kkm) {
-        detailKurang.push({ komponen: cc, nilai: v });
-      }
-    });
-    
-    if (detailKurang.length) {
-      listKurang.push({ mapel: m.nama, kkm, detail: detailKurang });
-    }
-    if (detailKosong.length) {
-      listKosong.push({ mapel: m.nama, detail: detailKosong });
-    }
-  });
-  
-  if (!listKurang.length && !listKosong.length) {
-    return `
-      <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 text-center">
-        <i class="fa-solid fa-circle-check text-emerald-500 text-4xl mb-2"></i>
-        <div class="font-bold text-emerald-800">🎉 Luar Biasa!</div>
-        <div class="text-xs text-emerald-700 mt-1">Semua nilai sudah tuntas KKM dan tidak ada komponen kosong.</div>
-      </div>
-    `;
-  }
-  
-  return `
-    <div class="space-y-4">
-      ${listKurang.length ? `
-        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-5">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-            </div>
-            <div>
-              <h3 class="font-bold text-sm text-red-900">🚨 Nilai Kurang dari KKM</h3>
-              <p class="text-[10px] text-red-700">${listKurang.length} mapel perlu perhatian</p>
-            </div>
-          </div>
-          <div class="space-y-3">
-            ${listKurang.map(item => `
-              <div class="bg-white rounded-xl p-3 border border-red-100">
-                <div class="font-bold text-sm text-slate-800 mb-2">
-                  📕 ${item.mapel} 
-                  <span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-full ml-1">KKM ${item.kkm}</span>
-                </div>
-                <div class="flex flex-wrap gap-1.5">
-                  ${item.detail.map(d => `
-                    <span class="text-[11px] bg-red-100 text-red-700 font-bold px-2 py-1 rounded-lg">
-                      ${d.komponen}: <span class="text-red-900">${d.nilai}</span> ❌
-                    </span>
-                  `).join("")}
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      ` : ""}
-      
-      ${listKosong.length ? `
-        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 sm:p-5">
-          <div class="flex items-center gap-2 mb-3">
-            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center">
-              <i class="fa-solid fa-inbox"></i>
-            </div>
-            <div>
-              <h3 class="font-bold text-sm text-amber-900">⚠️ Komponen Belum Diisi</h3>
-              <p class="text-[10px] text-amber-700">${listKosong.length} mapel punya komponen kosong</p>
-            </div>
-          </div>
-          <div class="space-y-2">
-            ${listKosong.map(item => `
-              <div class="bg-white rounded-xl p-3 border border-amber-100 flex items-center justify-between gap-2 flex-wrap">
-                <div class="font-bold text-sm text-slate-800">📘 ${item.mapel}</div>
-                <div class="flex flex-wrap gap-1.5">
-                  ${item.detail.map(k => `
-                    <span class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-lg">${k}</span>
-                  `).join("")}
-                </div>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-      ` : ""}
-    </div>
-  `;
-}
-
-/* ─── 2C. Fungsi Utama: Hasil Belajar v2 ─── */
 function renderHasilBelajar(c) {
-  const siswaAll = (appState.db.sw || []).map(siswaToObj);
-  const mapelAll = (appState.db.mp || []).map(mapelToObj);
-  const kelasList = [...new Set(siswaAll.map(s => s.kelas).filter(Boolean))].sort();
-  const filterKelas = window.__hbKelas || "ALL";
-  const filterSiswa = window.__hbSiswa || "ALL";
-  const filterBermasalah = window.__hbBermasalah === true; // ⭐ BARU
-
-  // Filter
-  let filtered = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
-  
-  // ⭐ Filter siswa bermasalah (punya nilai kurang atau komponen kosong)
+  const siswaAll=(appState.db.sw||[]).map(siswaToObj);
+  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
+  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))].sort();
+  const filterKelas=window.__hbKelas||"ALL";
+  const filterSiswa=window.__hbSiswa||"ALL";
+  const filterBermasalah=window.__hbBermasalah===true;
+  let filtered=filterKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===filterKelas);
   if (filterBermasalah) {
     filtered = filtered.filter(s => {
-      const mapelAll2 = mapelAll;
-      for (const m of mapelAll2) {
-        const kkm = Number(m.kkm) || getMasterKKM();
+      for (const m of mapelAll) {
+        const kkm = Number(m.kkm)||getMasterKKM();
         const nc = getKomponenByMapel(m.kode);
-        const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
+        const nlArr = (appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(s.id)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
         if (!nlArr) continue;
         const rec = nilaiToObj(nlArr, nc);
         for (const cc of nc) {
-          const v = Number(rec.scores?.[cc] ?? 0);
+          const v = Number(rec.scores?.[cc]??0);
           if (v === 0 || v < kkm) return true;
         }
       }
       return false;
     });
   }
-  
-  if (filterSiswa !== "ALL") filtered = filtered.filter(s => String(s.id) === String(filterSiswa));
-  
-  const siswaDropdownList = filterKelas === "ALL" ? siswaAll : siswaAll.filter(s => s.kelas === filterKelas);
-  const siswaTerpilih = filterSiswa !== "ALL" ? siswaAll.find(s => String(s.id) === String(filterSiswa)) : null;
+  if (filterSiswa!=="ALL") filtered=filtered.filter(s=>String(s.id)===String(filterSiswa));
+  const siswaDropdownList=filterKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===filterKelas);
+  const siswaTerpilih = filterSiswa!=="ALL" ? siswaAll.find(s=>String(s.id)===String(filterSiswa)) : null;
   
   c.innerHTML = `
     <div class="space-y-4 fade-in">
-      
-      <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold flex items-center gap-2">
@@ -3181,38 +3505,30 @@ function renderHasilBelajar(c) {
           </h2>
           <p class="text-xs text-slate-500 mt-1">Filter per siswa untuk lihat dashboard nilai & kekurangan.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
-            <i class="fa-solid fa-file-pdf"></i> Cetak PDF
-          </button>
-        </div>
+        <button onclick="cetakRaporPDF()" class="bg-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
+          <i class="fa-solid fa-file-pdf"></i> Cetak PDF
+        </button>
       </div>
-      
-      <!-- Filter Bar -->
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-2">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <select onchange="window.__hbKelas=this.value; window.__hbSiswa='ALL'; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
-            <option value="ALL" ${filterKelas === "ALL" ? "selected" : ""}>Semua Kelas</option>
-            ${kelasList.map(k => `<option value="${k}" ${filterKelas === k ? "selected" : ""}>Kelas ${k}</option>`).join("")}
+            <option value="ALL" ${filterKelas==="ALL"?"selected":""}>Semua Kelas</option>
+            ${kelasList.map(k=>`<option value="${k}" ${filterKelas===k?"selected":""}>Kelas ${k}</option>`).join("")}
           </select>
           <select onchange="window.__hbSiswa=this.value; renderMainContent()" class="text-xs px-3 py-2 border rounded-xl bg-white">
-            <option value="ALL" ${filterSiswa === "ALL" ? "selected" : ""}>Semua Siswa</option>
-            ${siswaDropdownList.map(s => `<option value="${s.id}" ${String(filterSiswa) === String(s.id) ? "selected" : ""}>${s.nama} (${s.noAbsen || "-"})</option>`).join("")}
+            <option value="ALL" ${filterSiswa==="ALL"?"selected":""}>Semua Siswa</option>
+            ${siswaDropdownList.map(s=>`<option value="${s.id}" ${String(filterSiswa)===String(s.id)?"selected":""}>${s.nama} (${s.noAbsen||"-"})</option>`).join("")}
           </select>
           <label class="flex items-center gap-2 px-3 py-2 border rounded-xl bg-white cursor-pointer text-xs">
-            <input type="checkbox" ${filterBermasalah ? "checked" : ""} onchange="window.__hbBermasalah=this.checked; renderMainContent()" class="w-4 h-4">
+            <input type="checkbox" ${filterBermasalah?"checked":""} onchange="window.__hbBermasalah=this.checked; renderMainContent()" class="w-4 h-4">
             <span class="font-semibold text-slate-700">Hanya siswa bermasalah</span>
           </label>
         </div>
       </div>
-      
-      <!-- ⭐ KARTU DASHBOARD SISWA (muncul kalau filter 1 siswa) -->
-      ${siswaTerpilih ? `
+      ${siswaTerpilih?`
         <div class="space-y-4">
           ${renderDashboardNilaiSiswa(filterSiswa)}
           ${renderNilaiKurangSection(filterSiswa)}
-          
-          <!-- Tombol Aksi -->
           <div class="bg-white p-4 rounded-2xl border shadow-sm">
             <h3 class="font-bold text-sm mb-3">⚡ Aksi Cepat</h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -3228,11 +3544,9 @@ function renderHasilBelajar(c) {
             </div>
           </div>
         </div>
-      ` : ""}
-      
-      <!-- Tabel nilai lengkap -->
+      `:""}
       <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
-        ${filtered.length ? `
+        ${filtered.length?`
           <div class="overflow-x-auto">
             <table class="w-full text-xs border-collapse">
               <thead class="bg-slate-50 border-b">
@@ -3249,31 +3563,29 @@ function renderHasilBelajar(c) {
               <tbody class="divide-y">
                 ${filtered.flatMap(s => mapelAll.map(m => {
                   const nc = getKomponenByMapel(m.kode);
-                  const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
-                  const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
-                  let total = 0;
-                  nc.forEach(cc => { total += Number(rec.scores?.[cc] ?? 0); });
-                  const avg = nc.length ? total / nc.length : 0;
-                  const lulus = avg >= (m.kkm || 70);
-                  const detail = nc.map(cc => `${cc}: ${rec.scores?.[cc] ?? 0}`).join(", ");
-                  return `
-                    <tr class="${!lulus ? 'bg-red-50/30' : ''}">
-                      <td class="p-2 text-slate-400">${s.noAbsen}</td>
-                      <td class="p-2 font-semibold">${s.nama}</td>
-                      <td class="p-2">${s.kelas}</td>
-                      <td class="p-2 font-bold text-indigo-700">${m.nama}</td>
-                      <td class="p-2 text-center font-bold ${lulus ? 'text-emerald-700' : 'text-red-600'} bg-emerald-50/50">${avg.toFixed(1)}</td>
-                      <td class="p-2 text-[10px] text-slate-500 max-w-xs">${detail || "-"}</td>
-                      <td class="p-2 text-center">
-                        <span class="${lulus ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'} font-bold px-2 py-0.5 rounded-full text-[10px]">${lulus ? 'LULUS' : 'REMEDIAL'}</span>
-                      </td>
-                    </tr>
-                  `;
-                })).join("") || '<tr><td colspan="7" class="text-center py-4 text-slate-400">Tidak ada data.</td></tr>'}
+                  const nlArr = (appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(s.id)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
+                  const rec = nlArr?nilaiToObj(nlArr,nc):{scores:{}};
+                  let total=0;
+                  nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); });
+                  const avg = nc.length?total/nc.length:0;
+                  const lulus = avg >= (m.kkm||70);
+                  const detail = nc.map(cc=>`${cc}: ${rec.scores?.[cc]??0}`).join(", ");
+                  return `<tr class="${!lulus?'bg-red-50/30':''}">
+                    <td class="p-2 text-slate-400">${s.noAbsen}</td>
+                    <td class="p-2 font-semibold">${s.nama}</td>
+                    <td class="p-2">${s.kelas}</td>
+                    <td class="p-2 font-bold text-indigo-700">${m.nama}</td>
+                    <td class="p-2 text-center font-bold ${lulus?'text-emerald-700':'text-red-600'} bg-emerald-50/50">${avg.toFixed(1)}</td>
+                    <td class="p-2 text-[10px] text-slate-500 max-w-xs">${detail||"-"}</td>
+                    <td class="p-2 text-center">
+                      <span class="${lulus?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'} font-bold px-2 py-0.5 rounded-full text-[10px]">${lulus?'LULUS':'REMEDIAL'}</span>
+                    </td>
+                  </tr>`;
+                })).join("")||'<tr><td colspan="7" class="text-center py-4 text-slate-400">Tidak ada data.</td></tr>'}
               </tbody>
             </table>
           </div>
-        ` : `
+        `:`
           <div class="p-12 text-center">
             <i class="fa-solid fa-inbox text-5xl text-slate-300 mb-4"></i>
             <p class="text-slate-400 text-sm">Tidak ada data untuk filter ini.</p>
@@ -3282,167 +3594,245 @@ function renderHasilBelajar(c) {
       </div>
     </div>
   `;
-  
-  // Render ranking card di dalam dashboard siswa
   if (siswaTerpilih) {
-    setTimeout(() => {
-      refreshRankingCard(`ranking-hb-${filterSiswa}`, siswaTerpilih.kelas, filterSiswa);
-    }, 100);
+    setTimeout(()=>refreshRankingCard(`ranking-hb-${filterSiswa}`, siswaTerpilih.kelas, filterSiswa), 100);
   }
 }
 
-/* ─── 2D. Cetak Kartu Nilai Kurang (PDF) ─── */
-function cetakKartuNilaiKurang(sid) {
-  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
-  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
-  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
-  
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  
-  // Header sekolah
-  doc.setFontSize(14);
-  doc.setFont(undefined, "bold");
-  doc.text(appState.db.a?.ns || "Sekolah", 14, 15);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  doc.text("LAPORAN NILAI KURANG DARI KKM", 14, 22);
-  doc.line(14, 24, 196, 24);
-  
-  // Info siswa
-  let y = 32;
-  doc.setFontSize(10);
-  doc.text(`Nama       : ${sw.nama || "-"}`, 14, y); y += 6;
-  doc.text(`Kelas      : ${sw.kelas || "-"}`, 14, y); y += 6;
-  doc.text(`No. Absen  : ${sw.noAbsen || "-"}`, 14, y); y += 6;
-  doc.text(`NIS        : ${sw.nis || "-"}`, 14, y); y += 6;
-  doc.text(`Tanggal    : ${new Date().toLocaleDateString("id-ID")}`, 14, y); y += 10;
-  
-  // Kumpulkan nilai kurang
+function renderDashboardNilaiSiswa(sid) {
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
-  const rowsKurang = [];
-  const rowsKosong = [];
-  
-  mapelAll.forEach(m => {
-    const kkm = Number(m.kkm) || getMasterKKM();
+  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
+  if (!sw) return `<div class="text-center text-xs text-slate-400 py-4">Siswa tidak ditemukan.</div>`;
+  const fotoSiswa = sw.fotoUrl || "";
+  let totalAll = 0, countAll = 0;
+  (appState.db.nl || []).filter(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid)).forEach(arr => {
+    const mk = arr[FIELD.NILAI.MAPEL_KODE];
+    const nc = getKomponenByMapel(mk);
+    const rec = nilaiToObj(arr, nc);
+    nc.forEach(cc => { const v = Number(rec.scores?.[cc] ?? 0); if (!isNaN(v)) { totalAll += v; countAll++; } });
+  });
+  const avg = countAll ? (totalAll / countAll).toFixed(1) : "0.0";
+  const statMapel = mapelAll.map(m => {
     const nc = getKomponenByMapel(m.kode);
     const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
-    if (!nlArr) return;
+    if (!nlArr) return { nama: m.nama, kode: m.kode, kkm: m.kkm, rata: 0, kosong: nc.slice(), kurang: nc.slice() };
     const rec = nilaiToObj(nlArr, nc);
-    
-    const dKurang = [];
-    const dKosong = [];
-    nc.forEach(cc => {
-      const v = Number(rec.scores?.[cc] ?? 0);
-      if (v === 0) dKosong.push(cc);
-      else if (v < kkm) dKurang.push(`${cc}:${v}`);
-    });
-    
-    if (dKurang.length) rowsKurang.push([m.nama, kkm, dKurang.join(", ")]);
-    if (dKosong.length) rowsKosong.push([m.nama, dKosong.join(", ")]);
+    const vals = nc.map(cc => Number(rec.scores?.[cc] ?? 0));
+    const rata = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    const kosong = nc.filter(cc => !rec.scores[cc] || Number(rec.scores[cc]) === 0);
+    const kurang = nc.filter(cc => Number(rec.scores[cc] ?? 0) < (Number(m.kkm) || getMasterKKM()));
+    return { nama: m.nama, kode: m.kode, kkm: Number(m.kkm) || getMasterKKM(), rata: +rata.toFixed(1), kosong, kurang };
   });
-  
-  // Tabel nilai kurang
-  if (rowsKurang.length) {
-    doc.setFontSize(11);
-    doc.setFont(undefined, "bold");
-    doc.text("A. NILAI KURANG DARI KKM", 14, y);
-    y += 5;
-    doc.autoTable({
-      startY: y,
-      head: [["Mapel", "KKM", "Komponen Kurang"]],
-      body: rowsKurang,
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: "bold" },
-      theme: "grid"
-    });
-    y = doc.lastAutoTable.finalY + 8;
-  }
-  
-  // Tabel komponen kosong
-  if (rowsKosong.length) {
-    doc.setFontSize(11);
-    doc.setFont(undefined, "bold");
-    doc.text("B. KOMPONEN BELUM DIISI", 14, y);
-    y += 5;
-    doc.autoTable({
-      startY: y,
-      head: [["Mapel", "Komponen Kosong"]],
-      body: rowsKosong,
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [245, 158, 11], textColor: 255, fontStyle: "bold" },
-      theme: "grid"
-    });
-  }
-  
-  if (!rowsKurang.length && !rowsKosong.length) {
-    doc.setFontSize(12);
-    doc.setTextColor(22, 163, 74);
-    doc.text("✓ Semua nilai sudah tuntas KKM", 14, y);
-  }
-  
-  // Footer
-  doc.setFontSize(9);
-  doc.setTextColor(100);
-  doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 285);
-  
-  doc.save(`Kartu_Nilai_Kurang_${(sw.nama || "siswa").replace(/\s+/g, "_")}_${Date.now()}.pdf`);
-  showToast("✓ Kartu nilai kurang diunduh.", "success");
+  const totalTuntas = statMapel.filter(m => m.rata >= m.kkm).length;
+  const totalKurang = statMapel.filter(m => m.rata < m.kkm && m.rata > 0).length;
+  const totalKosong = statMapel.reduce((acc, m) => acc + m.kosong.length, 0);
+  return `
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-4">
+      <div class="flex items-center gap-3 pb-3 border-b">
+        ${fotoSiswa?`<img src="${fotoSiswa}" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-100" onerror="this.style.display='none'">`:`<div class="w-12 h-12 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg font-bold">${(sw.nama||"?").charAt(0).toUpperCase()}</div>`}
+        <div class="min-w-0">
+          <h3 class="font-bold text-base text-slate-800 truncate">📊 ${sw.nama||"-"}</h3>
+          <p class="text-[11px] text-slate-500">Kelas ${sw.kelas||"-"} · No. Absen ${sw.noAbsen||"-"} · NIS ${sw.nis||"-"}</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white p-3 rounded-xl border shadow-sm"><div class="text-[10px] text-slate-500 font-semibold">Rata Nilai</div><div class="text-xl font-bold mt-1 ${Number(avg)>=getMasterKKM()?'text-emerald-700':'text-amber-700'}">${avg}</div></div>
+        <div class="bg-emerald-50 border border-emerald-100 p-3 rounded-xl"><div class="text-[10px] text-emerald-700 font-semibold">Tuntas</div><div class="text-xl font-bold mt-1 text-emerald-700">${totalTuntas} mapel</div></div>
+        <div class="bg-amber-50 border border-amber-100 p-3 rounded-xl"><div class="text-[10px] text-amber-700 font-semibold">Kurang</div><div class="text-xl font-bold mt-1 text-amber-700">${totalKurang} mapel</div></div>
+        <div class="bg-red-50 border border-red-100 p-3 rounded-xl"><div class="text-[10px] text-red-700 font-semibold">Komponen Kosong</div><div class="text-xl font-bold mt-1 text-red-700">${totalKosong} item</div></div>
+      </div>
+      <div>
+        <h4 class="font-bold text-sm mb-3 flex items-center gap-2"><i class="fa-solid fa-chart-simple text-emerald-600"></i> Statistik Nilai per Mapel</h4>
+        <div class="space-y-3">
+          ${statMapel.map(m=>{
+            const kkm=m.kkm;
+            const lulus=m.rata>=kkm;
+            const persen=Math.min(m.rata,100);
+            const warnaBar=lulus?"bg-emerald-500":(m.rata>0?"bg-amber-400":"bg-slate-300");
+            const warnaText=lulus?"text-emerald-600":(m.rata>0?"text-amber-600":"text-slate-400");
+            return `<div>
+              <div class="flex justify-between items-center text-xs mb-1 flex-wrap gap-1">
+                <span class="font-semibold text-slate-700">${m.nama} <span class="text-[9px] text-slate-400">(KKM ${kkm})</span></span>
+                <span class="font-bold ${warnaText}">${m.rata.toFixed(1)}</span>
+              </div>
+              <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${warnaBar}" style="width:${persen}%"></div></div>
+              ${m.kosong.length?`<div class="text-[10px] text-red-600 mt-1"><i class="fa-solid fa-triangle-exclamation"></i> Komponen kosong: <b>${m.kosong.join(", ")}</b></div>`:""}
+            </div>`;
+          }).join("")||`<div class="text-center text-xs text-slate-400 py-4">Belum ada mapel.</div>`}
+        </div>
+      </div>
+      <div id="ranking-hb-${sid}">
+        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat ranking...</div>
+      </div>
+    </div>
+  `;
 }
 
-/* ─── 2E. Kirim WA Ortu (WhatsApp) ─── */
-function kirimWANilaiKurang(sid) {
-  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
-  const sw = (appState.db.sw || []).map(siswaToObj).find(s => String(s.id) === String(sid));
-  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
-  
+function renderNilaiKurangSection(sid) {
   const mapelAll = (appState.db.mp || []).map(mapelToObj);
   const listKurang = [];
   const listKosong = [];
-  
   mapelAll.forEach(m => {
     const kkm = Number(m.kkm) || getMasterKKM();
     const nc = getKomponenByMapel(m.kode);
     const nlArr = (appState.db.nl || []).find(n => Number(n[FIELD.NILAI.SISWA_ID]) === Number(sid) && n[FIELD.NILAI.MAPEL_KODE] === m.kode);
     if (!nlArr) return;
     const rec = nilaiToObj(nlArr, nc);
-    const dKurang = [];
-    const dKosong = [];
+    const detailKurang = [];
+    const detailKosong = [];
     nc.forEach(cc => {
       const v = Number(rec.scores?.[cc] ?? 0);
+      if (v === 0) detailKosong.push(cc);
+      else if (v < kkm) detailKurang.push({ komponen: cc, nilai: v });
+    });
+    if (detailKurang.length) listKurang.push({ mapel: m.nama, kkm, detail: detailKurang });
+    if (detailKosong.length) listKosong.push({ mapel: m.nama, detail: detailKosong });
+  });
+  if (!listKurang.length && !listKosong.length) {
+    return `
+      <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 text-center">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-4xl mb-2"></i>
+        <div class="font-bold text-emerald-800">🎉 Luar Biasa!</div>
+        <div class="text-xs text-emerald-700 mt-1">Semua nilai sudah tuntas KKM dan tidak ada komponen kosong.</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="space-y-4">
+      ${listKurang.length?`
+        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-4 sm:p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+              <h3 class="font-bold text-sm text-red-900">🚨 Nilai Kurang dari KKM</h3>
+              <p class="text-[10px] text-red-700">${listKurang.length} mapel perlu perhatian</p>
+            </div>
+          </div>
+          <div class="space-y-3">
+            ${listKurang.map(item=>`
+              <div class="bg-white rounded-xl p-3 border border-red-100">
+                <div class="font-bold text-sm text-slate-800 mb-2">📕 ${item.mapel} <span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded-full ml-1">KKM ${item.kkm}</span></div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${item.detail.map(d=>`<span class="text-[11px] bg-red-100 text-red-700 font-bold px-2 py-1 rounded-lg">${d.komponen}: <span class="text-red-900">${d.nilai}</span> ❌</span>`).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `:""}
+      ${listKosong.length?`
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 sm:p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center"><i class="fa-solid fa-inbox"></i></div>
+            <div>
+              <h3 class="font-bold text-sm text-amber-900">⚠️ Komponen Belum Diisi</h3>
+              <p class="text-[10px] text-amber-700">${listKosong.length} mapel punya komponen kosong</p>
+            </div>
+          </div>
+          <div class="space-y-2">
+            ${listKosong.map(item=>`
+              <div class="bg-white rounded-xl p-3 border border-amber-100 flex items-center justify-between gap-2 flex-wrap">
+                <div class="font-bold text-sm text-slate-800">📘 ${item.mapel}</div>
+                <div class="flex flex-wrap gap-1.5">
+                  ${item.detail.map(k=>`<span class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-lg">${k}</span>`).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `:""}
+    </div>
+  `;
+}
+
+function cetakKartuNilaiKurang(sid) {
+  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
+  const sw = (appState.db.sw||[]).map(siswaToObj).find(s=>String(s.id)===String(sid));
+  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFontSize(14); doc.setFont(undefined, "bold");
+  doc.text(appState.db.a?.ns || "Sekolah", 14, 15);
+  doc.setFontSize(10); doc.setFont(undefined, "normal");
+  doc.text("LAPORAN NILAI KURANG DARI KKM", 14, 22);
+  doc.line(14, 24, 196, 24);
+  let y = 32;
+  doc.setFontSize(10);
+  doc.text(`Nama       : ${sw.nama||"-"}`, 14, y); y+=6;
+  doc.text(`Kelas      : ${sw.kelas||"-"}`, 14, y); y+=6;
+  doc.text(`No. Absen  : ${sw.noAbsen||"-"}`, 14, y); y+=6;
+  doc.text(`NIS        : ${sw.nis||"-"}`, 14, y); y+=6;
+  doc.text(`Tanggal    : ${new Date().toLocaleDateString("id-ID")}`, 14, y); y+=10;
+  const mapelAll = (appState.db.mp||[]).map(mapelToObj);
+  const rowsKurang = [];
+  const rowsKosong = [];
+  mapelAll.forEach(m => {
+    const kkm = Number(m.kkm)||getMasterKKM();
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
+    if (!nlArr) return;
+    const rec = nilaiToObj(nlArr, nc);
+    const dKurang = []; const dKosong = [];
+    nc.forEach(cc => {
+      const v = Number(rec.scores?.[cc]??0);
+      if (v === 0) dKosong.push(cc);
+      else if (v < kkm) dKurang.push(`${cc}:${v}`);
+    });
+    if (dKurang.length) rowsKurang.push([m.nama, kkm, dKurang.join(", ")]);
+    if (dKosong.length) rowsKosong.push([m.nama, dKosong.join(", ")]);
+  });
+  if (rowsKurang.length) {
+    doc.setFontSize(11); doc.setFont(undefined,"bold");
+    doc.text("A. NILAI KURANG DARI KKM", 14, y); y+=5;
+    doc.autoTable({ startY: y, head: [["Mapel","KKM","Komponen Kurang"]], body: rowsKurang, styles:{fontSize:9,cellPadding:2}, headStyles:{fillColor:[220,38,38],textColor:255,fontStyle:"bold"}, theme:"grid" });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+  if (rowsKosong.length) {
+    doc.setFontSize(11); doc.setFont(undefined,"bold");
+    doc.text("B. KOMPONEN BELUM DIISI", 14, y); y+=5;
+    doc.autoTable({ startY: y, head: [["Mapel","Komponen Kosong"]], body: rowsKosong, styles:{fontSize:9,cellPadding:2}, headStyles:{fillColor:[245,158,11],textColor:255,fontStyle:"bold"}, theme:"grid" });
+  }
+  if (!rowsKurang.length && !rowsKosong.length) {
+    doc.setFontSize(12); doc.setTextColor(22,163,74);
+    doc.text("✓ Semua nilai sudah tuntas KKM", 14, y);
+  }
+  doc.setFontSize(9); doc.setTextColor(100);
+  doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")}`, 14, 285);
+  doc.save(`Kartu_Nilai_Kurang_${(sw.nama||"siswa").replace(/\s+/g,"_")}_${Date.now()}.pdf`);
+  showToast("✓ Kartu nilai kurang diunduh.", "success");
+}
+
+function kirimWANilaiKurang(sid) {
+  if (!sid) { showToast("Pilih siswa dulu.", "error"); return; }
+  const sw = (appState.db.sw||[]).map(siswaToObj).find(s=>String(s.id)===String(sid));
+  if (!sw) { showToast("Siswa tidak ditemukan.", "error"); return; }
+  const mapelAll = (appState.db.mp||[]).map(mapelToObj);
+  const listKurang = []; const listKosong = [];
+  mapelAll.forEach(m => {
+    const kkm = Number(m.kkm)||getMasterKKM();
+    const nc = getKomponenByMapel(m.kode);
+    const nlArr = (appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
+    if (!nlArr) return;
+    const rec = nilaiToObj(nlArr, nc);
+    const dKurang = []; const dKosong = [];
+    nc.forEach(cc => {
+      const v = Number(rec.scores?.[cc]??0);
       if (v === 0) dKosong.push(cc);
       else if (v < kkm) dKurang.push(`${cc} (${v})`);
     });
     if (dKurang.length) listKurang.push(`• ${m.nama}: ${dKurang.join(", ")}`);
     if (dKosong.length) listKosong.push(`• ${m.nama}: ${dKosong.join(", ")}`);
   });
-  
-  const sekolah = appState.db.a?.ns || "Sekolah";
-  const guru = appState.db.a?.ng || "Guru";
-  
+  const sekolah = appState.db.a?.ns||"Sekolah";
+  const guru = appState.db.a?.ng||"Guru";
   let pesan = `Assalamualaikum, Bapak/Ibu Wali dari *${sw.nama}* (Kelas ${sw.kelas}).\n\n`;
   pesan += `Berikut adalah laporan nilai ananda di *${sekolah}*:\n\n`;
-  
-  if (listKurang.length) {
-    pesan += `🚨 *NILAI KURANG DARI KKM:*\n${listKurang.join("\n")}\n\n`;
-  }
-  if (listKosong.length) {
-    pesan += `⚠️ *KOMPONEN BELUM DIISI:*\n${listKosong.join("\n")}\n\n`;
-  }
-  if (!listKurang.length && !listKosong.length) {
-    pesan += `🎉 *Alhamdulillah, semua nilai ananda sudah tuntas KKM.*\n\n`;
-  }
-  
-  pesan += `Mohon bimbingan di rumah untuk perbaikan. Terima kasih. 🙏\n\n`;
-  pesan += `— ${guru}`;
-  
-  // Copy ke clipboard
+  if (listKurang.length) pesan += `🚨 *NILAI KURANG DARI KKM:*\n${listKurang.join("\n")}\n\n`;
+  if (listKosong.length) pesan += `⚠️ *KOMPONEN BELUM DIISI:*\n${listKosong.join("\n")}\n\n`;
+  if (!listKurang.length && !listKosong.length) pesan += `🎉 *Alhamdulillah, semua nilai ananda sudah tuntas KKM.*\n\n`;
+  pesan += `Mohon bimbingan di rumah untuk perbaikan. Terima kasih. 🙏\n\n— ${guru}`;
   copyToClipboard(pesan, "✓ Pesan disalin. Paste di WhatsApp.");
-  
-  // Buka WhatsApp
-  const url = `https://wa.me/?text=${encodeURIComponent(pesan)}`;
-  window.open(url, "_blank");
-  
+  window.open(`https://wa.me/?text=${encodeURIComponent(pesan)}`, "_blank");
   showToast("✓ Pesan WA dibuka. Pilih kontak ortu.", "success");
 }
 
@@ -3455,10 +3845,8 @@ function cetakRaporPDF() {
   const filterSiswa=window.__hbSiswa||"ALL";
   let filtered=filterKelas==="ALL"?siswaAll:siswaAll.filter(s=>s.kelas===filterKelas);
   if (filterSiswa!=="ALL") filtered=filtered.filter(s=>String(s.id)===String(filterSiswa));
-  doc.setFontSize(16); 
-  doc.text("LAPORAN HASIL BELAJAR",14,20);
-  doc.setFontSize(10); 
-  doc.text(`Sekolah: ${appState.db.a?.ns||"-"}`,14,28);
+  doc.setFontSize(16); doc.text("LAPORAN HASIL BELAJAR",14,20);
+  doc.setFontSize(10); doc.text(`Sekolah: ${appState.db.a?.ns||"-"}`,14,28);
   doc.text(`Kelas: ${filterKelas==="ALL"?"Semua":filterKelas}`,14,34);
   if (filterSiswa!=="ALL"&&filtered.length) doc.text(`Siswa: ${filtered[0]?.nama||"-"}`,14,40);
   const rows=[];
@@ -3488,9 +3876,8 @@ function cetakRaporSiswa(sid) {
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
   const siswa=(appState.db.sw||[]).map(siswaToObj).find(s=>String(s.id)===String(sid));
   if (!siswa) { showToast("Siswa tidak ditemukan.","error"); return; }
-  doc.setFontSize(16); 
-  doc.text("RAPOR HASIL BELAJAR SISWA",105,20,{ align:"center" });
-  doc.setFontSize(10); 
+  doc.setFontSize(16); doc.text("RAPOR HASIL BELAJAR SISWA",105,20,{align:"center"});
+  doc.setFontSize(10);
   let y=30;
   doc.text(`Sekolah   : ${appState.db.a?.ns||"-"}`,14,y); y+=6;
   doc.text(`Kelas     : ${siswa.kelas||"-"}`,14,y); y+=6;
@@ -3516,9 +3903,9 @@ function cetakRaporSiswa(sid) {
   showToast("✓ Rapor siswa diunduh.","success");
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    JURNAL
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__jurnalDraft=[];
 function renderJurnal(c) {
   window.__jurnalDraft=[]; 
@@ -3563,7 +3950,7 @@ function addJurnal() {
 async function saveJurnal() {
   if (!window.__jurnalDraft.length) { showToast("Draft kosong.", "error"); return; }
   appState.db.jr = appState.db.jr || [];
-  window.__jurnalDraft.forEach(j => { j.id = nextId(appState.db.jr); appState.db.jr.push(jurnalArr(j)); });
+  window.__jurnalDraft.forEach(j => { j.id = nextId(appState.db.jr); j.updatedAt = Date.now(); appState.db.jr.push(jurnalArr(j)); });
   const total = window.__jurnalDraft.length;
   window.__jurnalDraft = [];
   saveLocal();
@@ -3591,9 +3978,9 @@ async function saveJurnal() {
   renderMainContent();
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    PENGUMUMAN
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 function renderPengumuman(c) {
   const isGuru=appState.currentUser?.role==="guru"; 
   const pgAll=(appState.db.pg||[]).map(pengumumanToObj);
@@ -3631,9 +4018,9 @@ function deletePengumuman(id) {
   renderMainContent(); 
 }
 
-/* =========================================================
-   ASISTEN AI (GEMINI)
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   ASISTEN AI
+   ═══════════════════════════════════════════════════════════ */
 function renderAIGuru(c) {
   const hasKey=!!getGeminiKey();
   c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
@@ -3689,9 +4076,9 @@ async function generateAI() {
   finally { loader.classList.add("hidden"); if (btn) btn.disabled=false; }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    PROFIL GURU
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 function renderProfilGuru(c) {
   const foto=appState.db.a?.fg||""; 
   const logoSek=appState.db.a?.ls||""; 
@@ -3783,7 +4170,6 @@ async function uploadBgLogin(e) {
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
   e.target.value="";
 }
-
 async function hapusBgLogin() {
   if (!confirm("Hapus background login? Akan kembali ke tampilan default.")) return;
   appState.db.a.bgLogin="";
@@ -3795,7 +4181,6 @@ async function hapusBgLogin() {
   if (ok) { showToast("Background dihapus.","info"); setSyncBadge(false); } else showToast("Tersimpan lokal.","error");
   renderMainContent();
 }
-
 async function uploadFotoProfil(tipe, e) {
   const f=e.target.files[0]; 
   if (!f) return; 
@@ -3808,7 +4193,10 @@ async function uploadFotoProfil(tipe, e) {
       saveLocal();
       await saveMasterDB({ ...appState.db, mn: appState.menus });
     } else if (tipe==="siswa") {
-      await simpanFotoSiswaKeCloud(appState.currentUser.siswaId, r.url);
+      const sw = appState.db.sw.find(s => Number(s[FIELD.SISWA.ID]) === Number(appState.currentUser.siswaId));
+      if (sw) sw[FIELD.SISWA.FOTO] = r.url;
+      saveLocal();
+      await saveMasterDB({ ...appState.db, mn: appState.menus });
     }
     showLoading(false); 
     updateHeaderUI(); 
@@ -3817,7 +4205,6 @@ async function uploadFotoProfil(tipe, e) {
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
   e.target.value = "";
 }
-
 async function uploadLogo(tipe, e) {
   const f=e.target.files[0]; 
   if (!f) return; 
@@ -3835,9 +4222,9 @@ async function uploadLogo(tipe, e) {
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    TARIK DATA
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 function renderTarikData(c) {
   const cred=getJsonBinCredential(); 
   const cfg=getAppConfig(); 
@@ -3859,7 +4246,6 @@ function renderTarikData(c) {
     </div>`:''}
   </div>`;
 }
-
 async function executeTarikJSONBin() {
   const cred=getJsonBinCredential(); 
   if (!cred) { showToast("API Key belum diset.","error"); return; }
@@ -3882,7 +4268,6 @@ async function executeTarikJSONBin() {
     renderApp();
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
 }
-
 async function tarikDariSupabase(tabel) {
   const sb=getSupabaseConfig(); 
   if (!sb) { showToast("Supabase belum diset.","error"); return; }
@@ -3895,7 +4280,7 @@ async function tarikDariSupabase(tabel) {
       rows.forEach(r=>{ 
         const mk=r.mapel_kode; 
         const nc=getKomponenByMapel(mk); 
-        map[String(r.id)]=[r.id,r.siswa_id,mk,nc.map(k=>Number(r.scores?.[k]??0))]; 
+        map[String(r.id)]=[r.id,r.siswa_id,mk,nc.map(k=>Number(r.scores?.[k]??0)), Date.now()]; 
       });
       appState.db.nl=Object.values(map);
     } else if (tabel==="absensi") {
@@ -3908,7 +4293,7 @@ async function tarikDariSupabase(tabel) {
       const rows=await sbFetch("jurnal","?limit=2000"); 
       const map={};
       (appState.db.jr||[]).forEach(a=>{ map[String(a[FIELD.JURNAL.ID])]=a; });
-      rows.forEach(r=>{ map[String(r.id)]=jurnalArr({ id:r.id, tanggal:r.tanggal, kelas:r.kelas, mapel:r.mapel, topik:r.topik, catatan:r.catatan }); });
+      rows.forEach(r=>{ map[String(r.id)]=jurnalArr({ id:r.id, tanggal:r.tanggal, kelas:r.kelas, mapel:r.mapel, topik:r.topik, catatan:r.catatan, updatedAt: Date.now() }); });
       appState.db.jr=Object.values(map);
     }
     saveLocal(); 
@@ -3918,9 +4303,9 @@ async function tarikDariSupabase(tabel) {
   } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    SAVE TO CLOUD
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 async function saveToCloud() {
   const cfg = getAppConfig();
   const cred = getJsonBinCredential();
@@ -3969,14 +4354,14 @@ async function saveToCloud() {
     }, cfg.kodeAplikasi);
   } catch(e) {}
   showLoading(false);
-  if (hasilMaster.supabase) { setSyncBadge(false, "SUPABASE"); showToast("✓ Tersimpan ke Supabase (primary).", "success"); }
-  else if (hasilMaster.jsonbin) { setSyncBadge(false, "JSONBIN"); showToast("⚠️ Supabase gagal, tersimpan ke JSONBin (backup).", "info"); }
-  else { setSyncBadge(true, "LOKAL"); showToast("⚠️ Cloud gagal, tersimpan lokal saja.", "error"); }
+  if (hasilMaster.supabase) { clearDirty(); showToast("✓ Tersimpan ke Supabase (primary).", "success"); }
+  else if (hasilMaster.jsonbin) { clearDirty(); showToast("⚠️ Supabase gagal, tersimpan ke JSONBin (backup).", "info"); }
+  else { markDirty("saveToCloud"); showToast("⚠️ Cloud gagal, tersimpan lokal saja.", "error"); }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    RANKING
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 async function fetchRankingData() {
   let nilaiArr=(appState.db.nl||[]).map(a=>{ 
     const mk=a[FIELD.NILAI.MAPEL_KODE]; 
@@ -4064,9 +4449,9 @@ async function refreshRankingCard(containerId, kelasFilter, highlightSiswaId) {
   } catch(err) { el.innerHTML=`<div class="text-center text-xs text-red-500 py-4">${err.message}</div>`; }
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    GAME EDUKASI
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__gameState={ soal:[], idx:0, benar:0, salah:0, mulai:null, selesai:null, detail:[] };
 
 function generateSoalHitung() {
@@ -4164,7 +4549,7 @@ function renderSoalGame() {
     <div class="flex justify-between items-center text-xs"><span class="bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded-full">Soal ${st.idx+1}/${st.soal.length}</span><span class="font-bold text-emerald-600">✓ ${st.benar}</span><span class="font-bold text-red-600">✗ ${st.salah}</span></div>
     <div class="text-base sm:text-lg font-bold text-slate-800 text-center py-4 bg-slate-50 rounded-xl">${soal.soal}</div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      ${soal.opsi.map((o, i) => `<button onclick="jawabGame(${i})" class="py-3 border-2 rounded-xl hover:bg-indigo-600 hover:text-white font-bold transition text-sm">${o}</button>`).join("")}
+      ${soal.opsi.map((o,i)=>`<button onclick="jawabGame(${i})" class="py-3 border-2 rounded-xl hover:bg-indigo-600 hover:text-white font-bold transition text-sm">${o}</button>`).join("")}
     </div>
   </div>`;
 }
@@ -4237,26 +4622,19 @@ async function refreshLeaderboardGame(kelas) {
   } catch(err) { el.innerHTML=`<div class="text-center text-xs text-red-500 py-4">${err.message}</div>`; }
 }
 
-/* =========================================================
-   ⭐ FUNGSI BARU: ABSENSI HARI INI (GURU)
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD GURU (dengan kartu absen hari ini)
+   ═══════════════════════════════════════════════════════════ */
 async function getAbsensiHariIniDariSupabase(kelasFilter) {
   const today = new Date().toISOString().split("T")[0];
   const siswaAll = (appState.db.sw || []).map(siswaToObj);
-  const siswaList = (!kelasFilter || kelasFilter === "ALL")
-    ? siswaAll
-    : siswaAll.filter(s => s.kelas === kelasFilter);
-  
+  const siswaList = (!kelasFilter || kelasFilter === "ALL") ? siswaAll : siswaAll.filter(s => s.kelas === kelasFilter);
   const map = { H: 0, I: 0, S: 0, A: 0 };
   let sudahDiabsen = 0;
-  
   const sb = getSupabaseConfig();
   if (sb) {
     try {
-      const res = await fetch(
-        `${sb.url}/rest/v1/absensi?tanggal=eq.${today}&select=siswa_id,status`,
-        { headers: sbHeaders() }
-      );
+      const res = await fetch(`${sb.url}/rest/v1/absensi?tanggal=eq.${today}&select=siswa_id,status`, { headers: sbHeaders() });
       if (res.ok) {
         const rows = await res.json();
         rows.forEach(r => {
@@ -4264,25 +4642,13 @@ async function getAbsensiHariIniDariSupabase(kelasFilter) {
             const sw = siswaAll.find(s => String(s.id) === String(r.siswa_id));
             if (!sw || sw.kelas !== kelasFilter) return;
           }
-          const st = r.status;
-          if (map[st] !== undefined) {
-            map[st]++;
-            sudahDiabsen++;
-          }
+          if (map[r.status] !== undefined) { map[r.status]++; sudahDiabsen++; }
         });
       }
     } catch(e) { console.warn("[Absen Hari Ini] Supabase gagal:", e); }
   }
-  
-  return {
-    ...map,
-    total: siswaList.length,
-    sudahDiabsen,
-    belumDiabsen: Math.max(0, siswaList.length - sudahDiabsen),
-    tanggal: today
-  };
+  return { ...map, total: siswaList.length, sudahDiabsen, belumDiabsen: Math.max(0, siswaList.length - sudahDiabsen), tanggal: today };
 }
-
 async function renderKartuAbsensiHariIniGuru() {
   const a = await getAbsensiHariIniDariSupabase("ALL");
   const statusColor = {
@@ -4293,54 +4659,26 @@ async function renderKartuAbsensiHariIniGuru() {
   };
   return `<div id="kartu-absen-hari-ini" class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
     <div class="flex items-center justify-between flex-wrap gap-2">
-      <h3 class="font-bold text-sm flex items-center gap-2">
-        <i class="fa-solid fa-calendar-check text-emerald-600"></i> Absensi Hari Ini
-      </h3>
+      <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-check text-emerald-600"></i> Absensi Hari Ini</h3>
       <div class="flex items-center gap-2">
         <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">${a.tanggal}</span>
-        <button onclick="refreshKartuAbsenHariIni()" class="text-slate-400 p-1" title="Refresh">
-          <i class="fa-solid fa-rotate text-xs"></i>
-        </button>
+        <button onclick="refreshKartuAbsenHariIni()" class="text-slate-400 p-1" title="Refresh"><i class="fa-solid fa-rotate text-xs"></i></button>
       </div>
     </div>
     ${a.sudahDiabsen === 0 
-      ? `<div class="text-center py-6">
-           <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
-           <div class="text-slate-500 text-xs">Belum ada absensi hari ini.</div>
-           <button onclick="appState.activeView='absensi';renderSidebarNav();renderMainContent()" class="mt-3 bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg">
-             <i class="fa-solid fa-plus"></i> Input Absensi
-           </button>
-         </div>`
+      ? `<div class="text-center py-6"><i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i><div class="text-slate-500 text-xs">Belum ada absensi hari ini.</div><button onclick="appState.activeView='absensi';renderSidebarNav();renderMainContent()" class="mt-3 bg-emerald-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg"><i class="fa-solid fa-plus"></i> Input Absensi</button></div>`
       : `<div class="grid grid-cols-4 gap-2 text-center">
-           <div class="p-3 ${statusColor.H.bg} border ${statusColor.H.border} rounded-xl">
-             <div class="text-[10px] ${statusColor.H.text} font-bold uppercase">Hadir</div>
-             <div class="text-2xl font-black ${statusColor.H.value}">${a.H}</div>
-           </div>
-           <div class="p-3 ${statusColor.I.bg} border ${statusColor.I.border} rounded-xl">
-             <div class="text-[10px] ${statusColor.I.text} font-bold uppercase">Izin</div>
-             <div class="text-2xl font-black ${statusColor.I.value}">${a.I}</div>
-           </div>
-           <div class="p-3 ${statusColor.S.bg} border ${statusColor.S.border} rounded-xl">
-             <div class="text-[10px] ${statusColor.S.text} font-bold uppercase">Sakit</div>
-             <div class="text-2xl font-black ${statusColor.S.value}">${a.S}</div>
-           </div>
-           <div class="p-3 ${statusColor.A.bg} border ${statusColor.A.border} rounded-xl">
-             <div class="text-[10px] ${statusColor.A.text} font-bold uppercase">Alpa</div>
-             <div class="text-2xl font-black ${statusColor.A.value}">${a.A}</div>
-           </div>
+           <div class="p-3 ${statusColor.H.bg} border ${statusColor.H.border} rounded-xl"><div class="text-[10px] ${statusColor.H.text} font-bold uppercase">Hadir</div><div class="text-2xl font-black ${statusColor.H.value}">${a.H}</div></div>
+           <div class="p-3 ${statusColor.I.bg} border ${statusColor.I.border} rounded-xl"><div class="text-[10px] ${statusColor.I.text} font-bold uppercase">Izin</div><div class="text-2xl font-black ${statusColor.I.value}">${a.I}</div></div>
+           <div class="p-3 ${statusColor.S.bg} border ${statusColor.S.border} rounded-xl"><div class="text-[10px] ${statusColor.S.text} font-bold uppercase">Sakit</div><div class="text-2xl font-black ${statusColor.S.value}">${a.S}</div></div>
+           <div class="p-3 ${statusColor.A.bg} border ${statusColor.A.border} rounded-xl"><div class="text-[10px] ${statusColor.A.text} font-bold uppercase">Alpa</div><div class="text-2xl font-black ${statusColor.A.value}">${a.A}</div></div>
          </div>
          ${a.belumDiabsen > 0 
-           ? `<div class="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 text-center">
-                <i class="fa-solid fa-triangle-exclamation"></i> 
-                ${a.belumDiabsen} dari ${a.total} siswa belum diabsen.
-              </div>`
-           : `<div class="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-800 text-center">
-                <i class="fa-solid fa-circle-check"></i> Semua ${a.total} siswa sudah diabsen.
-              </div>`}
+           ? `<div class="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 text-center"><i class="fa-solid fa-triangle-exclamation"></i> ${a.belumDiabsen} dari ${a.total} siswa belum diabsen.</div>`
+           : `<div class="mt-3 p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-800 text-center"><i class="fa-solid fa-circle-check"></i> Semua ${a.total} siswa sudah diabsen.</div>`}
         `}
   </div>`;
 }
-
 async function refreshKartuAbsenHariIni() {
   const el = document.getElementById("kartu-absen-hari-ini");
   if (!el) return;
@@ -4348,9 +4686,141 @@ async function refreshKartuAbsenHariIni() {
   showToast("✓ Kartu absensi diperbarui", "success");
 }
 
-/* =========================================================
-   ⭐ FUNGSI BARU: STATUS ABSENSI SISWA HARI INI
-   ========================================================= */
+async function renderGuruDashboard(c) {
+  const siswaAll=(appState.db.sw||[]).map(siswaToObj); 
+  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
+  const totalSiswa=siswaAll.length; 
+  const totalMapel=mapelAll.length;
+  const totalJurnal=(appState.db.jr||[]).length; 
+  const totalPengumuman=(appState.db.pg||[]).length;
+  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))];
+  const fotoGuru=appState.db.a?.fg||"";
+  const fotoGuruHtml=fotoGuru?`<img src="${fotoGuru}" referrerpolicy="no-referrer" class="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-white/30 shadow-lg" onerror="this.style.display='none'">`:`<div class="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/20 border-4 border-white/30 flex items-center justify-center text-2xl shadow-lg"><i class="fa-solid fa-user-tie"></i></div>`;
+  const mapelAverages=mapelAll.map(m=>{
+    const nc=getKomponenByMapel(m.kode); 
+    const nls=(appState.db.nl||[]).filter(a=>a[FIELD.NILAI.MAPEL_KODE]===m.kode);
+    if (!nls.length) return { nama: m.nama, avg: 0 };
+    let total=0, count=0;
+    nls.forEach(arr=>{ 
+      const rec=nilaiToObj(arr,nc); 
+      nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); count++; }); 
+    });
+    return { nama: m.nama, avg: count?+(total/count).toFixed(1):0 };
+  });
+  const kartuAbsen = await renderKartuAbsensiHariIniGuru();
+  c.innerHTML=`<div class="space-y-4 sm:space-y-6 fade-in">
+    <div class="bg-gradient-to-r from-indigo-700 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div class="flex items-center gap-3 sm:gap-4">${fotoGuruHtml}<div class="min-w-0"><h2 class="text-base sm:text-2xl font-bold truncate">Selamat Datang, ${appState.currentUser.name}! 👋</h2><p class="text-[11px] sm:text-xs text-indigo-200 mt-1 truncate">${appState.db.a?.ns||""} | Kelas ${kelasList.join(", ")||"-"}</p></div></div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="saveToCloud()" class="bg-amber-500 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan</button>
+          <button onclick="showSetupModal()" class="bg-indigo-600 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-gear"></i> Pengaturan</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Siswa</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalSiswa}</div></div>
+      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Mapel</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalMapel}</div></div>
+      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Jurnal</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalJurnal}</div></div>
+      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Pengumuman</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalPengumuman}</div></div>
+    </div>
+    ${kartuAbsen}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div class="lg:col-span-2 bg-white p-4 sm:p-5 rounded-2xl border shadow-sm"><h3 class="font-bold text-sm mb-3">Statistik Rata-Rata Nilai Per Mapel</h3><div class="h-60"><canvas id="chartGuru"></canvas></div></div>
+      ${renderRankingCard({ title:"Top 5 Ranking Sementara", kelasFilter:"ALL", highlightSiswaId: null, showKelasDropdown: true, containerId:"ranking-guru-content" })}
+    </div>
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-gamepad text-purple-600"></i> Hasil Game Terbaru</h3>
+        <div class="flex gap-2 items-center"><span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">5 terakhir</span><button onclick="refreshHasilGame()" class="text-slate-400 p-1"><i class="fa-solid fa-rotate text-xs"></i></button></div>
+      </div>
+      <div id="hasil-game-panel" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar"><div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div></div>
+    </div>
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 class="font-bold text-sm"><i class="fa-solid fa-cloud text-emerald-600"></i> Aktivitas Online (Supabase)</h3>
+        <div class="flex gap-2"><span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Real-time</span><button onclick="refreshAktivitasSupabase()" class="text-slate-400 p-1"><i class="fa-solid fa-rotate text-xs"></i></button></div>
+      </div>
+      <div id="aktivitas-supabase" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar"><div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div></div>
+    </div>
+  </div>`;
+  setTimeout(()=>{
+    const ctx=document.getElementById('chartGuru');
+    if (ctx) new Chart(ctx, { type:'bar', data:{ labels: mapelAverages.map(m=>m.nama), datasets:[{ label:'Rata-rata', data: mapelAverages.map(m=>m.avg), backgroundColor:'rgba(79,70,229,.85)', borderRadius: 8 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100 } } } });
+    refreshRankingCard("ranking-guru-content","ALL",null);
+    refreshHasilGame();
+    refreshAktivitasSupabase();
+  },100);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROFIL SISWA, NILAI SISWA, ABSENSI SISWA, DASHBOARD SISWA
+   ═══════════════════════════════════════════════════════════ */
+function renderProfilSiswa(c) {
+  const s = getCurrentSiswa() || {};
+  const fotoUrl = s.fotoUrl || "";
+  c.innerHTML=`<div class="max-w-md mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 text-center fade-in">
+    <div>${fotoUrl?`<img src="${fotoUrl}" referrerpolicy="no-referrer" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-emerald-100" onerror="this.style.display='none'">`:`<div class="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl mx-auto"><i class="fa-solid fa-user-graduate"></i></div>`}</div>
+    <label class="inline-block text-[10px] text-slate-500 cursor-pointer"><i class="fa-solid fa-camera"></i> Ganti Foto<input type="file" accept="image/*" class="hidden" onchange="uploadFotoProfil('siswa',event)"></label>
+    <div><h2 class="font-bold text-base">${s.nama||appState.currentUser.name}</h2><p class="text-xs text-slate-500">No. Absen: ${s.noAbsen||"-"} | NIS: ${s.nis||"-"} | Kelas: ${s.kelas||"-"}</p></div>
+    <div class="p-3 bg-slate-50 rounded-xl border text-left text-xs space-y-1"><div><b>TTL:</b> ${s.tempatLahir||"-"}, ${s.tglLahir||"-"}</div><div><b>JK:</b> ${s.jk||"-"}</div><div><b>Alamat:</b> ${s.alamat||"-"}</div></div>
+    <div class="border-t pt-4 space-y-3">
+      <h3 class="font-bold text-sm text-left">Ganti Password</h3>
+      <input id="old-pwd" type="password" placeholder="Password lama" class="w-full px-3 py-3 border rounded-xl text-sm">
+      <input id="new-pwd" type="password" placeholder="Password baru" class="w-full px-3 py-3 border rounded-xl text-sm">
+      <input id="new-pwd2" type="password" placeholder="Konfirmasi" class="w-full px-3 py-3 border rounded-xl text-sm">
+      <button onclick="gantiPasswordSiswa()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs">Simpan Password</button>
+    </div>
+    <div class="border-t pt-4">
+      <button onclick="forceRefreshData()" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs"><i class="fa-solid fa-rotate"></i> Refresh Data Saya</button>
+    </div>
+  </div>`;
+}
+async function gantiPasswordSiswa() {
+  const sid=appState.currentUser.siswaId; 
+  const sw=appState.db.sw.find(x=>Number(x[FIELD.SISWA.ID])===Number(sid)); 
+  if (!sw) return;
+  const old=document.getElementById("old-pwd").value; 
+  const nw=document.getElementById("new-pwd").value; 
+  const nw2=document.getElementById("new-pwd2").value;
+  if (old!==sw[FIELD.SISWA.PASS]) { showToast("Password lama salah.","error"); return; }
+  if (nw.length<4) { showToast("Min 4 karakter.","error"); return; }
+  if (nw!==nw2) { showToast("Konfirmasi tidak cocok.","error"); return; }
+  sw[FIELD.SISWA.PASS]=nw; 
+  saveLocal(); 
+  addActivity("ganti_password",`${sw[FIELD.SISWA.NAMA]} ganti password`);
+  showLoading(true,"Menyimpan..."); 
+  const ok=await updateJsonBinDB(); 
+  showLoading(false);
+  if (ok) showToast("Password diubah.","success"); 
+  else showToast("Tersimpan lokal.","error"); 
+  renderMainContent();
+}
+
+function renderNilaiSiswa(c) {
+  const sid=appState.currentUser.siswaId; 
+  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
+  const rows=mapelAll.map(m=>{
+    const nc=getKomponenByMapel(m.kode);
+    const nlArr=(appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
+    const rec=nlArr?nilaiToObj(nlArr,nc):{ scores:{} };
+    let total=0; 
+    const cells=nc.map(cc=>{ const v=Number(rec.scores?.[cc]??0); total+=v; return { komponen: cc, nilai: v }; });
+    return { m, cells, avg: nc.length?(total/nc.length).toFixed(1):"0.0" };
+  });
+  c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
+    <h2 class="text-base sm:text-lg font-bold">Nilai Saya</h2>
+    <div class="space-y-3">
+      ${rows.map(r=>`<div class="border rounded-xl p-3 bg-slate-50">
+        <div class="flex justify-between items-center flex-wrap gap-2 mb-2"><div class="font-bold text-sm text-indigo-700">${r.m.nama}</div><div class="text-sm font-bold ${Number(r.avg)>=(r.m.kkm||70)?'text-emerald-600':'text-red-600'}">Rata²: ${r.avg}</div></div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+          ${r.cells.map(cc=>`<div class="bg-white border rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500 truncate">${cc.komponen}</div><div class="font-bold text-base">${cc.nilai}</div></div>`).join("")||'<div class="text-slate-400 italic text-xs">Belum ada komponen.</div>'}
+        </div>
+      </div>`).join("")||'<div class="text-center text-xs text-slate-400 py-4">Belum ada mapel.</div>'}
+    </div>
+  </div>`;
+}
+
 function getStatusAbsenSiswaHariIni(sid) {
   const today = new Date().toISOString().split('T')[0];
   const arr = (appState.db.ab || []).find(a => {
@@ -4359,7 +4829,6 @@ function getStatusAbsenSiswaHariIni(sid) {
   });
   return arr ? arr[FIELD.ABSEN.STATUS] : null;
 }
-
 function getStatusAbsenInfo(status) {
   if (status === "H") return { label: "Hadir", warna: "text-emerald-700", icon: "fa-solid fa-circle-check", bg: "bg-emerald-50 border-emerald-100" };
   if (status === "I") return { label: "Izin", warna: "text-amber-700", icon: "fa-solid fa-envelope-circle-check", bg: "bg-amber-50 border-amber-100" };
@@ -4368,9 +4837,66 @@ function getStatusAbsenInfo(status) {
   return { label: "Belum", warna: "text-slate-400", icon: "fa-solid fa-clock", bg: "bg-slate-50 border-slate-200" };
 }
 
-/* =========================================================
-   DASHBOARD SISWA
-   ========================================================= */
+function renderAbsensiSiswa(c) {
+  const sid=appState.currentUser.siswaId;
+  const list=(appState.db.ab||[]).filter(a=>Number(a[FIELD.ABSEN.SISWA_ID])===Number(sid)).map(absenToObj).reverse();
+  const hadir=list.filter(a=>a.status==="H").length; 
+  const persen=list.length?((hadir/list.length)*100).toFixed(0):100;
+  const statusHariIni = getStatusAbsenSiswaHariIni(sid);
+  const statusInfo = getStatusAbsenInfo(statusHariIni);
+  c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
+    <h2 class="text-base sm:text-lg font-bold">Absensi Saya</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="p-4 ${statusInfo.bg} border rounded-xl text-xs">
+        <div class="font-bold ${statusInfo.warna} flex items-center gap-2"><i class="${statusInfo.icon}"></i> Status Hari Ini</div>
+        <div class="text-2xl font-black mt-1 ${statusInfo.warna}">${statusInfo.label}</div>
+        <div class="text-[10px] text-slate-500 mt-1">${new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
+      </div>
+      <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs">
+        <div class="font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> Kehadiran Total</div>
+        <div class="text-2xl font-black mt-1 text-emerald-700">${persen}%</div>
+        <div class="text-[10px] text-emerald-700 mt-1">Hadir ${hadir} dari ${list.length} hari</div>
+      </div>
+    </div>
+    <div class="table-scroll"><table class="w-full text-xs border-collapse">
+      <thead><tr class="bg-slate-100 font-bold"><th class="p-2 text-left">Tanggal</th><th class="p-2 text-left">Status</th></tr></thead>
+      <tbody class="divide-y">${list.map(a=>`<tr><td class="p-2">${a.tanggal}</td><td class="p-2"><span class="font-bold ${a.status==='H'?'text-emerald-700':a.status==='A'?'text-red-700':'text-amber-700'}">${a.status}</span></td></tr>`).join("")||'<tr><td colspan="2" class="text-center py-3 text-slate-400">Belum ada absensi.</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderKuisSiswa(c) {
+  c.innerHTML=`<div class="max-w-lg mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
+    <div class="flex justify-between items-center border-b pb-2"><h2 class="text-base font-bold">Kuis</h2></div>
+    <div class="text-xs space-y-3">
+      <div class="font-semibold">Manakah pecahan yang setara dengan 1/2?</div>
+      <div class="space-y-1.5">
+        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="A"> A. 2/4</label>
+        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="B"> B. 3/5</label>
+        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="C"> C. 1/3</label>
+      </div>
+      <button onclick="submitKuis()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">Kirim</button>
+      <a href="kuis.html" target="_blank" class="block text-center w-full py-3 bg-emerald-600 text-white font-bold rounded-xl">Buka Kuis Lengkap</a>
+    </div>
+  </div>`;
+}
+async function submitKuis() {
+  const p=document.querySelector('input[name="q1"]:checked'); 
+  if (!p) { showToast("Pilih dulu.","error"); return; }
+  const nilai=p.value==="A"?100:0; 
+  const sid=appState.currentUser.siswaId; 
+  if (!sid) return;
+  appState.db.hk=appState.db.hk||[];
+  appState.db.hk.push(hasilKuisArr({ id: nextId(appState.db.hk), siswaId: sid, kuisId:"kuis_mat_1", judul:"Kuis", nilai, waktu: new Date().toISOString() }));
+  saveLocal(); 
+  addActivity("selesai_kuis",`Selesai kuis: ${nilai}`); 
+  showLoading(true,"Menyimpan...");
+  const ok=await updateJsonBinDB(); 
+  showLoading(false);
+  if (ok) { showToast(`Nilai: ${nilai}`,"success"); renderMainContent(); } 
+  else showToast("Lokal.","error");
+}
+
 function renderSiswaDashboard(c) {
   const sid=appState.currentUser.siswaId; 
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
@@ -4407,7 +4933,6 @@ function renderSiswaDashboard(c) {
     const kosong=nc.filter(cc=>!rec.scores[cc]||Number(rec.scores[cc])===0);
     return { nama: m.nama, rata: +rata.toFixed(1), kosong };
   });
-  const totalKosong=statMapel.reduce((acc,m)=>acc+m.kosong.length,0);
   c.innerHTML=`<div class="space-y-4 sm:space-y-6 fade-in">
     <div class="bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-4 sm:p-6 text-white shadow-lg">
       <div class="flex items-center gap-3 sm:gap-4">
@@ -4417,7 +4942,7 @@ function renderSiswaDashboard(c) {
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Rata Nilai</div><div class="text-xl sm:text-2xl font-bold mt-1">${avg}</div></div>
-      <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm ${statusInfo.bg}"><div class="text-[10px] sm:text-xs font-semibold flex items-center gap-1 ${statusInfo.warna.replace('text-','text-')}"><i class="${statusInfo.icon}"></i> Absen Hari Ini</div><div class="text-xl sm:text-2xl font-bold mt-1 ${statusInfo.warna}">${statusInfo.label}</div><div class="text-[10px] text-slate-400 mt-0.5">Total: ${persen}%</div></div>
+      <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm ${statusInfo.bg}"><div class="text-[10px] sm:text-xs font-semibold flex items-center gap-1 ${statusInfo.warna}"><i class="${statusInfo.icon}"></i> Absen Hari Ini</div><div class="text-xl sm:text-2xl font-bold mt-1 ${statusInfo.warna}">${statusInfo.label}</div><div class="text-[10px] text-slate-400 mt-0.5">Total: ${persen}%</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Mapel</div><div class="text-xl sm:text-2xl font-bold mt-1 text-purple-700">${mapelAll.length}</div></div>
       <div class="bg-white p-3 sm:p-4 rounded-xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">No. Absen</div><div class="text-xl sm:text-2xl font-bold mt-1 text-pink-700">${appState.currentUser.noAbsen||"-"}</div></div>
     </div>
@@ -4439,9 +4964,7 @@ function renderSiswaDashboard(c) {
         <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-gamepad text-purple-600"></i> Hasil Game Terbaru</h3>
         <div class="flex gap-2 items-center"><span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">5 terakhir</span><button onclick="refreshHasilGameSiswa()" class="text-slate-400 p-1" title="Refresh"><i class="fa-solid fa-rotate text-xs"></i></button></div>
       </div>
-      <div id="hasil-game-siswa-panel" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar">
-        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div>
-      </div>
+      <div id="hasil-game-siswa-panel" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar"><div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div></div>
     </div>
   </div>`;
   setTimeout(()=>{
@@ -4450,225 +4973,13 @@ function renderSiswaDashboard(c) {
   },50);
 }
 
-/* =========================================================
-   DASHBOARD GURU
-   ========================================================= */
-async function renderGuruDashboard(c) {
-  const siswaAll=(appState.db.sw||[]).map(siswaToObj); 
-  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
-  const totalSiswa=siswaAll.length; 
-  const totalMapel=mapelAll.length;
-  const totalJurnal=(appState.db.jr||[]).length; 
-  const totalPengumuman=(appState.db.pg||[]).length;
-  const kelasList=[...new Set(siswaAll.map(s=>s.kelas).filter(Boolean))];
-  const fotoGuru=appState.db.a?.fg||"";
-  const fotoGuruHtml=fotoGuru?`<img src="${fotoGuru}" referrerpolicy="no-referrer" class="w-14 h-14 sm:w-20 sm:h-20 rounded-full object-cover border-4 border-white/30 shadow-lg" onerror="this.style.display='none'">`:`<div class="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-white/20 border-4 border-white/30 flex items-center justify-center text-2xl shadow-lg"><i class="fa-solid fa-user-tie"></i></div>`;
-  const mapelAverages=mapelAll.map(m=>{
-    const nc=getKomponenByMapel(m.kode); 
-    const nls=(appState.db.nl||[]).filter(a=>a[FIELD.NILAI.MAPEL_KODE]===m.kode);
-    if (!nls.length) return { nama: m.nama, avg: 0 };
-    let total=0, count=0;
-    nls.forEach(arr=>{ 
-      const rec=nilaiToObj(arr,nc); 
-      nc.forEach(cc=>{ total+=Number(rec.scores?.[cc]??0); count++; }); 
-    });
-    return { nama: m.nama, avg: count?+(total/count).toFixed(1):0 };
-  });
-  c.innerHTML=`<div class="space-y-4 sm:space-y-6 fade-in">
-    <div class="bg-gradient-to-r from-indigo-700 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div class="flex items-center gap-3 sm:gap-4">${fotoGuruHtml}<div class="min-w-0"><h2 class="text-base sm:text-2xl font-bold truncate">Selamat Datang, ${appState.currentUser.name}! 👋</h2><p class="text-[11px] sm:text-xs text-indigo-200 mt-1 truncate">${appState.db.a?.ns||""} | Kelas ${kelasList.join(", ")||"-"}</p></div></div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="saveToCloud()" class="bg-amber-500 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan</button>
-          <button onclick="showSetupModal()" class="bg-indigo-600 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-gear"></i> Pengaturan</button>
-        </div>
-      </div>
-    </div>
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Siswa</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalSiswa}</div></div>
-      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Mapel</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalMapel}</div></div>
-      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Jurnal</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalJurnal}</div></div>
-      <div class="bg-white p-3 sm:p-4 rounded-2xl border shadow-sm"><div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Pengumuman</div><div class="text-xl sm:text-2xl font-bold mt-1">${totalPengumuman}</div></div>
-    </div>
-    ${await renderKartuAbsensiHariIniGuru()}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-      <div class="lg:col-span-2 bg-white p-4 sm:p-5 rounded-2xl border shadow-sm"><h3 class="font-bold text-sm mb-3">Statistik Rata-Rata Nilai Per Mapel</h3><div class="h-60"><canvas id="chartGuru"></canvas></div></div>
-      ${renderRankingCard({ title:"Top 5 Ranking Sementara", kelasFilter:"ALL", highlightSiswaId: null, showKelasDropdown: true, containerId:"ranking-guru-content" })}
-    </div>
-    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
-      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h3 class="font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-gamepad text-purple-600"></i> Hasil Game Terbaru</h3>
-        <div class="flex gap-2 items-center"><span class="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">5 terakhir</span><button onclick="refreshHasilGame()" class="text-slate-400 p-1" title="Refresh"><i class="fa-solid fa-rotate text-xs"></i></button></div>
-      </div>
-      <div id="hasil-game-panel" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar">
-        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div>
-      </div>
-    </div>
-    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm">
-      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h3 class="font-bold text-sm"><i class="fa-solid fa-cloud text-emerald-600"></i> Aktivitas Online (Supabase)</h3>
-        <div class="flex gap-2"><span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Real-time</span><button onclick="refreshAktivitasSupabase()" class="text-slate-400 p-1"><i class="fa-solid fa-rotate text-xs"></i></button></div>
-      </div>
-      <div id="aktivitas-supabase" class="space-y-2 text-xs max-h-96 overflow-y-auto custom-scrollbar">
-        <div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat dari Supabase...</div>
-      </div>
-    </div>
-  </div>`;
-  setTimeout(()=>{
-    const ctx=document.getElementById('chartGuru');
-    if (ctx) new Chart(ctx, { type:'bar', data:{ labels: mapelAverages.map(m=>m.nama), datasets:[{ label:'Rata-rata', data: mapelAverages.map(m=>m.avg), backgroundColor:'rgba(79,70,229,.85)', borderRadius: 8 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100 } } } });
-    refreshRankingCard("ranking-guru-content","ALL",null);
-    refreshHasilGame();
-    refreshAktivitasSupabase();
-  },100);
-}
-
-/* =========================================================
-   PROFIL SISWA
-   ========================================================= */
-function renderProfilSiswa(c) {
-  const s = getCurrentSiswa() || {};
-  const fotoUrl = s.fotoUrl || "";
-  c.innerHTML=`<div class="max-w-md mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 text-center fade-in">
-    <div>${fotoUrl?`<img src="${fotoUrl}" referrerpolicy="no-referrer" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-emerald-100" onerror="this.style.display='none'">`:`<div class="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl mx-auto"><i class="fa-solid fa-user-graduate"></i></div>`}</div>
-    <label class="inline-block text-[10px] text-slate-500 cursor-pointer"><i class="fa-solid fa-camera"></i> Ganti Foto<input type="file" accept="image/*" class="hidden" onchange="uploadFotoProfil('siswa',event)"></label>
-    <div><h2 class="font-bold text-base">${s.nama||appState.currentUser.name}</h2><p class="text-xs text-slate-500">No. Absen: ${s.noAbsen||"-"} | NIS: ${s.nis||"-"} | Kelas: ${s.kelas||"-"}</p></div>
-    <div class="p-3 bg-slate-50 rounded-xl border text-left text-xs space-y-1"><div><b>TTL:</b> ${s.tempatLahir||"-"}, ${s.tglLahir||"-"}</div><div><b>JK:</b> ${s.jk||"-"}</div><div><b>Alamat:</b> ${s.alamat||"-"}</div></div>
-    <div class="border-t pt-4 space-y-3">
-      <h3 class="font-bold text-sm text-left">Ganti Password</h3>
-      <input id="old-pwd" type="password" placeholder="Password lama" class="w-full px-3 py-3 border rounded-xl text-sm">
-      <input id="new-pwd" type="password" placeholder="Password baru" class="w-full px-3 py-3 border rounded-xl text-sm">
-      <input id="new-pwd2" type="password" placeholder="Konfirmasi" class="w-full px-3 py-3 border rounded-xl text-sm">
-      <button onclick="gantiPasswordSiswa()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs">Simpan Password</button>
-    </div>
-    <div class="border-t pt-4">
-      <button onclick="forceRefreshData()" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs"><i class="fa-solid fa-rotate"></i> Refresh Data Saya</button>
-      <p class="text-[10px] text-slate-400 mt-2">Tekan jika ada data baru yang belum muncul.</p>
-    </div>
-  </div>`;
-}
-async function gantiPasswordSiswa() {
-  const sid=appState.currentUser.siswaId; 
-  const sw=appState.db.sw.find(x=>Number(x[FIELD.SISWA.ID])===Number(sid)); 
-  if (!sw) return;
-  const old=document.getElementById("old-pwd").value; 
-  const nw=document.getElementById("new-pwd").value; 
-  const nw2=document.getElementById("new-pwd2").value;
-  if (old!==sw[FIELD.SISWA.PASS]) { showToast("Password lama salah.","error"); return; }
-  if (nw.length<4) { showToast("Min 4 karakter.","error"); return; }
-  if (nw!==nw2) { showToast("Konfirmasi tidak cocok.","error"); return; }
-  sw[FIELD.SISWA.PASS]=nw; 
-  saveLocal(); 
-  addActivity("ganti_password",`${sw[FIELD.SISWA.NAMA]} ganti password`);
-  showLoading(true,"Menyimpan..."); 
-  const ok=await updateJsonBinDB(); 
-  showLoading(false);
-  if (ok) showToast("Password diubah.","success"); 
-  else showToast("Tersimpan lokal.","error"); 
-  renderMainContent();
-}
-
-/* =========================================================
-   NILAI SISWA
-   ========================================================= */
-function renderNilaiSiswa(c) {
-  const sid=appState.currentUser.siswaId; 
-  const mapelAll=(appState.db.mp||[]).map(mapelToObj);
-  const rows=mapelAll.map(m=>{
-    const nc=getKomponenByMapel(m.kode);
-    const nlArr=(appState.db.nl||[]).find(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)&&n[FIELD.NILAI.MAPEL_KODE]===m.kode);
-    const rec=nlArr?nilaiToObj(nlArr,nc):{ scores:{} };
-    let total=0; 
-    const cells=nc.map(cc=>{ const v=Number(rec.scores?.[cc]??0); total+=v; return { komponen: cc, nilai: v }; });
-    return { m, cells, avg: nc.length?(total/nc.length).toFixed(1):"0.0" };
-  });
-  c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
-    <h2 class="text-base sm:text-lg font-bold">Nilai Saya</h2>
-    <div class="space-y-3">
-      ${rows.map(r=>`<div class="border rounded-xl p-3 bg-slate-50">
-        <div class="flex justify-between items-center flex-wrap gap-2 mb-2"><div class="font-bold text-sm text-indigo-700">${r.m.nama}</div><div class="text-sm font-bold ${Number(r.avg)>=(r.m.kkm||70)?'text-emerald-600':'text-red-600'}">Rata²: ${r.avg}</div></div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
-          ${r.cells.map(cc=>`<div class="bg-white border rounded-lg p-2 text-center"><div class="text-[10px] text-slate-500 truncate">${cc.komponen}</div><div class="font-bold text-base">${cc.nilai}</div></div>`).join("")||'<div class="text-slate-400 italic text-xs">Belum ada komponen.</div>'}
-        </div>
-      </div>`).join("")||'<div class="text-center text-xs text-slate-400 py-4">Belum ada mapel.</div>'}
-    </div>
-  </div>`;
-}
-
-/* =========================================================
-   ABSENSI SISWA
-   ========================================================= */
-function renderAbsensiSiswa(c) {
-  const sid=appState.currentUser.siswaId;
-  const list=(appState.db.ab||[]).filter(a=>Number(a[FIELD.ABSEN.SISWA_ID])===Number(sid)).map(absenToObj).reverse();
-  const hadir=list.filter(a=>a.status==="H").length; 
-  const persen=list.length?((hadir/list.length)*100).toFixed(0):100;
-  const statusHariIni = getStatusAbsenSiswaHariIni(sid);
-  const statusInfo = getStatusAbsenInfo(statusHariIni);
-  c.innerHTML=`<div class="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
-    <h2 class="text-base sm:text-lg font-bold">Absensi Saya</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div class="p-4 ${statusInfo.bg} border rounded-xl text-xs">
-        <div class="font-bold ${statusInfo.warna} flex items-center gap-2"><i class="${statusInfo.icon}"></i> Status Hari Ini</div>
-        <div class="text-2xl font-black mt-1 ${statusInfo.warna}">${statusInfo.label}</div>
-        <div class="text-[10px] text-slate-500 mt-1">${new Date().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}</div>
-      </div>
-      <div class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-xs">
-        <div class="font-bold text-emerald-900 flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> Kehadiran Total</div>
-        <div class="text-2xl font-black mt-1 text-emerald-700">${persen}%</div>
-        <div class="text-[10px] text-emerald-700 mt-1">Hadir ${hadir} dari ${list.length} hari</div>
-      </div>
-    </div>
-    <div class="table-scroll"><table class="w-full text-xs border-collapse">
-      <thead><tr class="bg-slate-100 font-bold"><th class="p-2 text-left">Tanggal</th><th class="p-2 text-left">Status</th></tr></thead>
-      <tbody class="divide-y">${list.map(a=>`<tr><td class="p-2">${a.tanggal}</td><td class="p-2"><span class="font-bold ${a.status==='H'?'text-emerald-700':a.status==='A'?'text-red-700':'text-amber-700'}">${a.status}</span></td></tr>`).join("")||'<tr><td colspan="2" class="text-center py-3 text-slate-400">Belum ada absensi.</td></tr>'}</tbody>
-    </table></div>
-  </div>`;
-}
-
-/* =========================================================
-   KUIS SISWA (internal)
-   ========================================================= */
-function renderKuisSiswa(c) {
-  c.innerHTML=`<div class="max-w-lg mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 fade-in">
-    <div class="flex justify-between items-center border-b pb-2"><h2 class="text-base font-bold">Kuis</h2></div>
-    <div class="text-xs space-y-3">
-      <div class="font-semibold">Manakah pecahan yang setara dengan 1/2?</div>
-      <div class="space-y-1.5">
-        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="A"> A. 2/4</label>
-        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="B"> B. 3/5</label>
-        <label class="block p-2 border rounded-xl"><input type="radio" name="q1" value="C"> C. 1/3</label>
-      </div>
-      <button onclick="submitKuis()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">Kirim</button>
-      <a href="kuis.html" target="_blank" class="block text-center w-full py-3 bg-emerald-600 text-white font-bold rounded-xl">Buka Kuis Lengkap</a>
-    </div>
-  </div>`;
-}
-async function submitKuis() {
-  const p=document.querySelector('input[name="q1"]:checked'); 
-  if (!p) { showToast("Pilih dulu.","error"); return; }
-  const nilai=p.value==="A"?100:0; 
-  const sid=appState.currentUser.siswaId; 
-  if (!sid) return;
-  appState.db.hk=appState.db.hk||[];
-  appState.db.hk.push(hasilKuisArr({ id: nextId(appState.db.hk), siswaId: sid, kuisId:"kuis_mat_1", judul:"Kuis", nilai, waktu: new Date().toISOString() }));
-  saveLocal(); 
-  addActivity("selesai_kuis",`Selesai kuis: ${nilai}`); 
-  showLoading(true,"Menyimpan...");
-  const ok=await updateJsonBinDB(); 
-  showLoading(false);
-  if (ok) { showToast(`Nilai: ${nilai}`,"success"); renderMainContent(); } 
-  else showToast("Lokal.","error");
-}
-
-/* =========================================================
-   MENU TAMBAHAN + KELASKU + CUSTOM MENU
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   MENU TAMBAHAN, KELASKU, CUSTOM MENU
+   ═══════════════════════════════════════════════════════════ */
 window.__selectedIcon="fa-solid fa-book";
 
 async function showAddMenuFormGuru() { return showAddMenuFormInternal("guru"); }
 async function showAddMenuFormSiswa() { return showAddMenuFormInternal("siswa"); }
-
 async function showAddMenuFormInternal(defaultRole) {
   let tables=[]; 
   const sb=getSupabaseConfig(); 
@@ -4743,7 +5054,6 @@ async function handleAddMenu(e) {
   appState.menus.push(item);
   appState.db.mn = appState.menus;
   saveLocal();
-  showToast(`⏳ Menyimpan menu "${name}"...`, "info");
   closeModal();
   showLoading(true, "Menyimpan ke cloud...");
   try {
@@ -4872,9 +5182,9 @@ function renderCustomMenuView(c, viewId) {
   </div>`;
 }
 
-/* =========================================================
+/* ═══════════════════════════════════════════════════════════
    SUPABASE MANAGER
-   ========================================================= */
+   ═══════════════════════════════════════════════════════════ */
 window.__sbActiveTab=getLS(STORAGE.SB_TAB)||"setup";
 function sbSwitchTab(tab) { window.__sbActiveTab=tab; setLS(STORAGE.SB_TAB,tab); renderMainContent(); }
 function escapeHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -4905,7 +5215,6 @@ function renderSupabaseManager(c) {
   else if (active==="sql") renderSqlEditorTab(content);
   else if (active==="kelola") renderKelolaDataTab(content);
 }
-
 function renderSetupAwalTab(c) {
   const sb=getSupabaseConfig();
   c.innerHTML=`<div class="space-y-5">
@@ -4919,7 +5228,7 @@ function renderSetupAwalTab(c) {
       <div id="sql-preview" class="hidden"><pre class="code-block text-[10px] max-h-72 overflow-y-auto custom-scrollbar">${escapeHtml(SUPABASE_SETUP_SQL)}</pre></div>
     </div>
     <div class="bg-white p-4 sm:p-5 rounded-2xl border-2 border-rose-300 shadow-sm space-y-3">
-      <div class="flex items-center gap-2 border-b pb-2"><span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold">2</span><h3 class="font-bold text-sm">Migrasi Fase 1 — Master Config</h3><span class="text-[9px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full">BARU</span></div>
+      <div class="flex items-center gap-2 border-b pb-2"><span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold">2</span><h3 class="font-bold text-sm">Migrasi Fase 1 — Master Config</h3></div>
       <p class="text-[11px] text-slate-600">Copy SQL di bawah, paste ke <b>Supabase SQL Editor</b>, Run.</p>
       <div class="flex flex-wrap gap-2">
         <button onclick="copyToClipboard(SUPABASE_SQL_MIGRASI_FASE1,'✓ SQL Migrasi disalin!')" class="bg-rose-600 text-white font-bold text-xs px-4 py-3 rounded-xl flex items-center gap-2"><i class="fa-solid fa-copy"></i> Copy SQL Migrasi Fase 1</button>
@@ -4939,15 +5248,6 @@ function renderSetupAwalTab(c) {
       <div class="flex items-center gap-2 border-b pb-2"><span class="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">4</span><h3 class="font-bold text-sm">Verifikasi</h3></div>
       <button onclick="cekKoneksiSupabase()" class="bg-indigo-600 text-white font-bold text-xs px-4 py-3 rounded-xl">Cek Koneksi</button>
       <div id="cek-koneksi-result" class="hidden text-xs p-3 rounded-xl"></div>
-    </div>
-    <div class="bg-white p-4 sm:p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
-      <div class="flex items-center gap-2 border-b pb-2"><span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">5</span><h3 class="font-bold text-sm">Setup Keep-Alive di Cron-job.org</h3><span class="text-[9px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">Anti Pause</span></div>
-      <p class="text-[11px] text-slate-600">Agar Supabase tidak <b>pause</b> setelah 7 hari tanpa aktivitas, ping endpoint <code class="bg-slate-100 px-1 rounded">keepalive</code> secara berkala.</p>
-      <div class="space-y-2 text-[11px]">
-        <div class="p-2 bg-slate-50 rounded-lg border"><div class="font-semibold text-slate-700 mb-1">📋 Format URL:</div><div class="font-mono text-[10px] break-all text-amber-700 bg-white p-1.5 rounded border">https://[PROJECT-URL].supabase.co/rest/v1/keepalive?select=id&limit=1</div></div>
-        <div class="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900"><div class="font-bold mb-1">🔑 Header Wajib (tab ADVANCED):</div><div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[10px] font-mono"><span class="font-bold">apikey</span><span class="break-all">= [Anon Key]</span><span class="font-bold">Authorization</span><span class="break-all">= Bearer [Anon Key]</span></div></div>
-        <div class="text-center pt-1"><a href="https://console.cron-job.org/jobs/create" target="_blank" class="inline-block text-amber-700 font-bold underline text-[11px]"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Cron-job.org</a></div>
-      </div>
     </div>
   </div>`;
 }
@@ -5105,9 +5405,9 @@ async function switchKelolaTable(name) {
   } catch(err) { content.innerHTML=`<div class="text-red-500 text-xs p-4">Error: ${err.message}</div>`; }
 }
 
-/* =========================================================
-   AKTIVITAS SUPABASE
-   ========================================================= */
+/* ═══════════════════════════════════════════════════════════
+   AKTIVITAS, HASIL GAME PANEL
+   ═══════════════════════════════════════════════════════════ */
 async function refreshAktivitasSupabase() {
   const el = document.getElementById("aktivitas-supabase");
   if (!el) return;
@@ -5129,9 +5429,6 @@ async function refreshAktivitasSupabase() {
   } catch(err) { el.innerHTML = '<div class="text-red-500 text-center py-4 text-xs">Gagal memuat: ' + err.message + '</div>'; }
 }
 
-/* =========================================================
-   UTILITY
-   ========================================================= */
 function formatRelative(iso) {
   try { 
     const d=new Date(iso); 
@@ -5143,9 +5440,6 @@ function formatRelative(iso) {
   } catch(e) { return "-"; }
 }
 
-/* =========================================================
-   HASIL GAME TERBARU (Guru)
-   ========================================================= */
 async function refreshHasilGame() {
   const el = document.getElementById("hasil-game-panel");
   if (!el) return;
@@ -5180,9 +5474,6 @@ async function refreshHasilGame() {
   }
 }
 
-/* =========================================================
-   HASIL GAME SISWA
-   ========================================================= */
 async function refreshHasilGameSiswa() {
   const el = document.getElementById("hasil-game-siswa-panel");
   if (!el) return;
@@ -5217,6 +5508,71 @@ async function refreshHasilGameSiswa() {
     console.error("[Hasil Game Siswa] Error:", err);
     el.innerHTML = `<div class="text-center py-4"><i class="fa-solid fa-triangle-exclamation text-red-500 text-xl mb-2"></i><div class="text-red-600 text-xs">Gagal memuat: ${err.message}</div><button onclick="refreshHasilGameSiswa()" class="mt-2 text-[10px] bg-slate-100 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-rotate"></i> Coba Lagi</button></div>`;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MIGRASI KE SUPABASE
+   ═══════════════════════════════════════════════════════════ */
+async function mulaiMigrasiKeSupabase() {
+  const cfg = getAppConfig();
+  const sb = getSupabaseConfig();
+  const cred = getJsonBinCredential();
+  if (!sb) { showToast("Supabase belum di-setup.", "error"); return; }
+  if (!cfg?.binId) { showToast("Bin ID JSONBin tidak ditemukan.", "error"); return; }
+  if (!confirm("⚠️ MIGRASI DATA ⚠️\n\nData dari JSONBin akan disalin ke Supabase.\nData JSONBin TIDAK akan dihapus.\n\nLanjutkan?")) return;
+  showLoading(true, "Membaca JSONBin...");
+  try {
+    const jsonbinData = await loadJsonBinDB(cfg.binId, cred);
+    if (!jsonbinData || typeof jsonbinData !== "object") throw new Error("Data JSONBin kosong atau tidak valid.");
+    const jumlahField = Object.keys(jsonbinData).length;
+    showLoading(true, `Menyalin ${jumlahField} field ke Supabase...`);
+    const payload = { ...jsonbinData };
+    if (appState.menus && appState.menus.length) payload.mn = appState.menus;
+    await sbSaveMasterConfig("app_master", payload, jsonbinData?.a?.k || cfg.kodeAplikasi || null);
+    const stats = { nilai: 0, absensi: 0, jurnal: 0 };
+    if ((jsonbinData.nl || []).length) {
+      try {
+        const nilaiRows = jsonbinData.nl.map(arr => {
+          const mk = arr[FIELD.NILAI.MAPEL_KODE];
+          const nc = getKomponenByMapel(mk);
+          const o = nilaiToObj(arr, nc);
+          return { id: String(o.id), siswa_id: String(o.siswaId), mapel_kode: o.mapelKode, scores: o.scores, updated_at: new Date().toISOString() };
+        });
+        await sbUpsert("nilai", nilaiRows);
+        stats.nilai = nilaiRows.length;
+      } catch(e) { console.warn("[Migrasi] Nilai gagal:", e.message); }
+    }
+    if ((jsonbinData.ab || []).length) {
+      try {
+        const absenRows = jsonbinData.ab.map(arr => {
+          const o = absenToObj(arr);
+          return { id: String(o.id), tanggal: o.tanggal, siswa_id: String(o.siswaId), status: o.status, updated_at: new Date().toISOString() };
+        });
+        await sbUpsert("absensi", absenRows);
+        stats.absensi = absenRows.length;
+      } catch(e) { console.warn("[Migrasi] Absensi gagal:", e.message); }
+    }
+    if ((jsonbinData.jr || []).length) {
+      try {
+        const jurnalRows = jsonbinData.jr.map(arr => {
+          const o = jurnalToObj(arr);
+          return { id: String(o.id), tanggal: o.tanggal, kelas: o.kelas, mapel: o.mapel, topik: o.topik, catatan: o.catatan, updated_at: new Date().toISOString() };
+        });
+        await sbUpsert("jurnal", jurnalRows);
+        stats.jurnal = jurnalRows.length;
+      } catch(e) { console.warn("[Migrasi] Jurnal gagal:", e.message); }
+    }
+    setPrimarySource("supabase");
+    setMasterCache(payload);
+    setLS(STORAGE.LAST_AUTO_REFRESH, String(Date.now()));
+    saveLocal();
+    showLoading(false);
+    showToast("✓ Migrasi selesai!", "success");
+    const mb = document.getElementById("modal-body");
+    mb.innerHTML = `<div class="text-center space-y-4 p-4"><div class="w-20 h-20 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-4xl"><i class="fa-solid fa-circle-check"></i></div><h3 class="text-xl font-extrabold text-emerald-700">Migrasi Berhasil!</h3><div class="grid grid-cols-2 gap-2 text-xs text-left bg-slate-50 rounded-xl p-4"><div class="font-semibold text-slate-600">Field:</div><div class="font-bold text-indigo-600">${jumlahField}</div><div class="font-semibold text-slate-600">Nilai:</div><div class="font-bold text-indigo-600">${stats.nilai}</div><div class="font-semibold text-slate-600">Absensi:</div><div class="font-bold text-indigo-600">${stats.absensi}</div><div class="font-semibold text-slate-600">Jurnal:</div><div class="font-bold text-indigo-600">${stats.jurnal}</div></div><button onclick="closeModal();renderMainContent()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">Selesai</button></div>`;
+    openModal();
+    addActivity("migrasi_ke_supabase", `Migrasi ${jumlahField} field dari JSONBin ke Supabase`);
+  } catch(err) { showLoading(false); showToast("Migrasi gagal: " + err.message, "error"); console.error("[Migrasi] Error:", err); }
 }
 </script>
 </body>
