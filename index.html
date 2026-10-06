@@ -1570,19 +1570,135 @@ function npPress(v) {
   updateNumpadDisplay();
 }
 function npBack() { window.__numpad.value=window.__numpad.value.slice(0,-1); updateNumpadDisplay(); }
+/* ⭐ FUNGSI BARU: Navigasi keyboard untuk input nilai */
+function handleNilaiKeydown(event, inputEl) {
+  // ⭐ Enter → pindah ke BAWAH (seperti Excel)
+  if (event.key === "Enter") {
+    event.preventDefault();
+    inputEl.blur();
+    const next = nextNumpadTarget();
+    if (next) {
+      setTimeout(() => {
+        try { next.scrollIntoView({ behavior: "smooth", block: "center" }); }
+        catch(e) { next.scrollIntoView(); }
+        next.focus();
+        next.select();
+      }, 50);
+    }
+    return;
+  }
+  
+  // ⭐ Arrow Down → ke bawah (baris berikutnya, kolom sama)
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    const currentTr = inputEl.closest('tr');
+    if (!currentTr) return;
+    const tbody = currentTr.parentElement;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const currentRowIdx = allRows.indexOf(currentTr);
+    const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
+    const currentColIdx = tdsInRow.findIndex(td => td.contains(inputEl));
+    for (let r = currentRowIdx + 1; r < allRows.length; r++) {
+      const tds = Array.from(allRows[r].querySelectorAll('td'));
+      if (currentColIdx < tds.length) {
+        const inp = tds[currentColIdx].querySelector('input[data-numpad="nilai"]');
+        if (inp) { inp.focus(); inp.select(); return; }
+      }
+    }
+    return;
+  }
+  
+  // ⭐ Arrow Up → ke atas
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    const currentTr = inputEl.closest('tr');
+    if (!currentTr) return;
+    const tbody = currentTr.parentElement;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    const currentRowIdx = allRows.indexOf(currentTr);
+    const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
+    const currentColIdx = tdsInRow.findIndex(td => td.contains(inputEl));
+    for (let r = currentRowIdx - 1; r >= 0; r--) {
+      const tds = Array.from(allRows[r].querySelectorAll('td'));
+      if (currentColIdx < tds.length) {
+        const inp = tds[currentColIdx].querySelector('input[data-numpad="nilai"]');
+        if (inp) { inp.focus(); inp.select(); return; }
+      }
+    }
+    return;
+  }
+  
+  // ⭐ Arrow Right → kolom berikutnya (baris sama)
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    const currentTr = inputEl.closest('tr');
+    if (!currentTr) return;
+    const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
+    const currentColIdx = tdsInRow.findIndex(td => td.contains(inputEl));
+    for (let c = currentColIdx + 1; c < tdsInRow.length; c++) {
+      const inp = tdsInRow[c].querySelector('input[data-numpad="nilai"]');
+      if (inp) { inp.focus(); inp.select(); return; }
+    }
+    return;
+  }
+  
+  // ⭐ Arrow Left → kolom sebelumnya
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    const currentTr = inputEl.closest('tr');
+    if (!currentTr) return;
+    const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
+    const currentColIdx = tdsInRow.findIndex(td => td.contains(inputEl));
+    for (let c = currentColIdx - 1; c >= 0; c--) {
+      const inp = tdsInRow[c].querySelector('input[data-numpad="nilai"]');
+      if (inp) { inp.focus(); inp.select(); return; }
+    }
+    return;
+  }
+  
+  // ⭐ Filter: hanya izinkan angka + tombol navigasi
+  if (!/^[0-9]$/.test(event.key) && 
+      !["Backspace", "Delete", "Tab", "Home", "End"].includes(event.key) && 
+      !event.ctrlKey && !event.metaKey) {
+    event.preventDefault();
+  }
+}
 function nextNumpadTarget() {
-  const cells=window.__numpad.cells; 
-  const t=window.__numpad.target; 
-  if (!cells.length||!t) return null;
-  const idx=cells.indexOf(t); 
-  if (idx<0) return null;
-  const rows=window.__numpad.totalRows||1; 
-  const cols=window.__numpad.totalCols||1;
-  const totalCells=cells.length; 
-  const currentRow=idx%rows; 
-  const currentCol=Math.floor(idx/rows);
-  if (currentRow<rows-1) { const ni=idx+1; if (ni<totalCells) return cells[ni]; }
-  if (currentCol<cols-1) { const ni=(currentCol+1)*rows; if (ni<totalCells) return cells[ni]; }
+  const t = window.__numpad.target;
+  if (!t) return null;
+  
+  const currentTr = t.closest('tr');
+  if (!currentTr) return null;
+  
+  const tbody = currentTr.parentElement;
+  const allRows = Array.from(tbody.querySelectorAll('tr'));
+  const currentRowIdx = allRows.indexOf(currentTr);
+  
+  const tdsInRow = Array.from(currentTr.querySelectorAll('td'));
+  const currentColIdx = tdsInRow.findIndex(td => td.contains(t));
+  
+  if (currentColIdx < 0) return null;
+  
+  // ⭐ 1. Cari baris BERIKUTNYA (ke bawah) di kolom yang sama
+  for (let r = currentRowIdx + 1; r < allRows.length; r++) {
+    const tds = Array.from(allRows[r].querySelectorAll('td'));
+    if (currentColIdx < tds.length) {
+      const input = tds[currentColIdx].querySelector('input[data-numpad="nilai"]');
+      if (input) return input;
+    }
+  }
+  
+  // ⭐ 2. Kalau baris terakhir, pindah ke kolom berikutnya dari baris pertama
+  for (let c = currentColIdx + 1; c < tdsInRow.length; c++) {
+    for (let r = 0; r < allRows.length; r++) {
+      const tds = Array.from(allRows[r].querySelectorAll('td'));
+      if (c < tds.length) {
+        const input = tds[c].querySelector('input[data-numpad="nilai"]');
+        if (input) return input;
+      }
+    }
+  }
+  
   return null;
 }
 function npOk() {
@@ -2603,7 +2719,23 @@ function renderPenilaian(c) {
         const avg=nc.length?(total/nc.length).toFixed(1):"0.0";
         return `<tr class="hover:bg-slate-50"><td class="p-3 text-slate-400">${s.noAbsen||idx+1}</td><td class="p-3 font-semibold">${s.nama}</td><td class="p-3 text-slate-500">${s.kelas}</td>${nc.map(cc=>{ 
           const v=rec.scores?.[cc]??0; 
-          return `<td class="p-2 text-center"><input type="text" inputmode="none" readonly value="${v}" data-numpad="nilai" data-nama-siswa="${s.nama}" data-konteks="${mapel.nama} • ${cc}" onfocus="openNumpad(this)" onchange="updateNilai(${s.id},'${mapel.kode}','${cc}',this.value)" class="w-16 text-center py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono font-semibold cursor-pointer text-sm"></td>`; 
+          return `<td class="p-2 text-center">
+  <div class="relative inline-flex items-center gap-0.5">
+    <input type="text" inputmode="numeric" value="${v}" 
+      data-numpad="nilai" 
+      data-nama-siswa="${s.nama}" 
+      data-konteks="${mapel.nama} • ${cc}"
+      onfocus="openNumpad(this)"
+      onchange="updateNilai(${s.id},'${mapel.kode}','${cc}',this.value)"
+      onkeydown="handleNilaiKeydown(event, this)"
+      class="w-16 text-center py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono font-semibold text-sm"
+    >
+    <button type="button" tabindex="-1" onclick="event.preventDefault(); openNumpad(this.previousElementSibling)" 
+      class="text-slate-400 hover:text-indigo-600 p-1" title="Buka kalkulator">
+      <i class="fa-solid fa-calculator text-xs"></i>
+    </button>
+  </div>
+</td>`; 
         }).join("")}<td class="p-3 text-center font-bold ${Number(avg)>=mapel.kkm?'text-emerald-700':'text-red-600'} bg-indigo-50/50">${avg}</td></tr>`;
       }).join("")||`<tr><td colspan="${nc.length+4}" class="text-center py-4 text-slate-400">Belum ada siswa.</td></tr>`}</tbody>
     </table></div>
