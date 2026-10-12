@@ -22,10 +22,8 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
 </head>
 <body class="text-slate-800 antialiased min-h-screen bg-slate-50">
 
-<!-- Toast -->
 <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 max-w-sm pointer-events-none"></div>
 
-<!-- Loading -->
 <div id="loading-overlay" class="fixed inset-0 z-[90] bg-slate-900/30 backdrop-blur-sm items-center justify-center hidden">
   <div class="bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3">
     <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>
@@ -33,7 +31,6 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
   </div>
 </div>
 
-<!-- Header -->
 <header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
   <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
     <div class="flex items-center gap-3 min-w-0">
@@ -56,7 +53,6 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; }
   </div>
 </header>
 
-<!-- Main -->
 <main class="max-w-7xl mx-auto p-3 sm:p-6 space-y-4">
   <div id="main-content"></div>
 </main>
@@ -71,24 +67,18 @@ const STORAGE = {
   RAPOR_MAPPING: "edusmart_rapor_mapping"
 };
 
-/* =========================================================
-   FIELD (sama dengan index.html)
-   ========================================================= */
 const FIELD = {
   SISWA: { ID: 0, NOABSEN: 1, NIS: 2, NAMA: 3, KELAS: 4, JK: 5, USER: 6, PASS: 7, TTL: 8, TGL: 9, ALAMAT: 10, FOTO: 11 },
   MAPEL: { ID: 0, KODE: 1, NAMA: 2, KKM: 3, PENGAMPU: 4 },
   NILAI: { ID: 0, SISWA_ID: 1, MAPEL_KODE: 2, SCORES: 3 }
 };
 
-/* =========================================================
-   STATE
-   ========================================================= */
 let state = {
   db: null,
   user: null,
   mapping: {},
   selectedMapel: "",
-  parsedData: null  // { jumlahKomponen, kodeKomponen, siswa: {idEdu: {idRapor, nama}} }
+  fuzzyThreshold: 0.80
 };
 
 /* =========================================================
@@ -116,7 +106,6 @@ function nilaiToObj(a, nc) {
   (nc || []).forEach((k, i) => { scores[k] = a[F.SCORES]?.[i] ?? 0; });
   return { id: a[F.ID], siswaId: a[F.SISWA_ID], mapelKode: a[F.MAPEL_KODE], scores };
 }
-
 function getKomponenByMapel(mapelKode) {
   if (!mapelKode) return [...(state.db?.nc || ["UH1","UH2","UTS","UAS"])];
   if (!state.db.ncPerMapel) state.db.ncPerMapel = {};
@@ -125,7 +114,6 @@ function getKomponenByMapel(mapelKode) {
   }
   return state.db.ncPerMapel[mapelKode];
 }
-
 function showToast(msg, type="info") {
   const c = document.getElementById("toast-container");
   const t = document.createElement("div");
@@ -135,45 +123,58 @@ function showToast(msg, type="info") {
   c.appendChild(t);
   setTimeout(() => t.remove(), 5000);
 }
-
 function showLoading(on, text="Memuat...") {
   const el = document.getElementById("loading-overlay");
   const txt = document.getElementById("loading-text");
   if (txt) txt.textContent = text;
-  if (el) {
-    el.classList.toggle("hidden", !on);
-    el.classList.toggle("flex", !!on);
+  if (el) { el.classList.toggle("hidden", !on); el.classList.toggle("flex", !!on); }
+}
+
+/* =========================================================
+   FUZZY MATCH — Dice Coefficient
+   ========================================================= */
+function diceCoefficient(a, b) {
+  a = String(a || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  b = String(b || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!a.length || !b.length) return 0;
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+
+  const bigrams = (s) => {
+    const map = new Map();
+    for (let i = 0; i < s.length - 1; i++) {
+      const bg = s.substring(i, i + 2);
+      map.set(bg, (map.get(bg) || 0) + 1);
+    }
+    return map;
+  };
+
+  const mapA = bigrams(a);
+  const mapB = bigrams(b);
+  let intersection = 0;
+  for (const [bg, count] of mapA) {
+    if (mapB.has(bg)) intersection += Math.min(count, mapB.get(bg));
   }
+  const totalA = a.length - 1;
+  const totalB = b.length - 1;
+  return (2 * intersection) / (totalA + totalB);
 }
 
 /* =========================================================
    INIT
    ========================================================= */
 document.addEventListener("DOMContentLoaded", () => {
-  // Cek login
   const user = safeParse(getLS(STORAGE.USER));
-  if (!user) {
-    renderError("Anda belum login. Silakan login dulu di EduSmart.", true);
-    return;
-  }
-  if (user.role !== "guru") {
-    renderError("Halaman ini khusus untuk Guru.", true);
-    return;
-  }
+  if (!user) { renderError("Anda belum login. Silakan login dulu di EduSmart.", true); return; }
+  if (user.role !== "guru") { renderError("Halaman ini khusus untuk Guru.", true); return; }
   state.user = user;
 
-  // Baca DB dari localStorage
   const db = safeParse(getLS(STORAGE.DB));
-  if (!db) {
-    renderError("Data EduSmart tidak ditemukan. Buka EduSmart dulu, lalu refresh halaman ini.", true);
-    return;
-  }
+  if (!db) { renderError("Data EduSmart tidak ditemukan. Buka EduSmart dulu, lalu refresh halaman ini.", true); return; }
   state.db = db;
 
-  // Baca mapping
   state.mapping = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
 
-  // Pilih mapel pertama sebagai default
   const mapelAll = (state.db.mp || []).map(mapelToObj);
   if (mapelAll.length) state.selectedMapel = mapelAll[0].kode;
 
@@ -193,9 +194,6 @@ function renderError(msg, showBack) {
   `;
 }
 
-/* =========================================================
-   REFRESH DATA
-   ========================================================= */
 function refreshData() {
   const db = safeParse(getLS(STORAGE.DB));
   if (db) state.db = db;
@@ -226,7 +224,6 @@ function renderMain() {
   const mappingMapel = state.mapping[mapel.kode];
   const siswaAll = (state.db.sw || []).map(siswaToObj);
 
-  // Hitung status
   let cocokCount = 0, belumCount = 0;
   if (mappingMapel?.siswa) {
     siswaAll.forEach(s => {
@@ -238,7 +235,6 @@ function renderMain() {
   document.getElementById("main-content").innerHTML = `
     <div class="space-y-4 fade-in">
 
-      <!-- Pilih Mapel -->
       <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
         <label class="block text-xs font-bold text-slate-700">📘 Pilih Mata Pelajaran</label>
         <select onchange="state.selectedMapel=this.value;renderMain()"
@@ -255,14 +251,14 @@ function renderMain() {
         </div>
       </div>
 
-      <!-- Step 1: Upload -->
       <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
         <div class="flex items-center gap-2 border-b pb-2">
           <span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">1</span>
           <h3 class="font-bold text-sm">Upload Template Rapor</h3>
         </div>
         <p class="text-[11px] text-slate-600">
-          Upload file template <b>dari aplikasi rapor</b>. EduSmart akan membaca <b>ID Siswa</b>, <b>Nama</b>, dan <b>jumlah komponen</b>, lalu mencocokkan dengan siswa di EduSmart berdasarkan nama.
+          Upload file template <b>dari aplikasi rapor</b>. EduSmart akan membaca <b>ID Siswa</b>, <b>Nama</b>, dan <b>jumlah komponen</b>, lalu mencocokkan dengan siswa di EduSmart.
+          <br><span class="text-emerald-700">✓ Pencocokan otomatis (fuzzy 80%). Kalau gagal, guru bisa pilih manual.</span>
         </p>
         ${mappingMapel ? `
           <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 space-y-1">
@@ -279,7 +275,8 @@ function renderMain() {
         <div id="upload-result"></div>
       </div>
 
-      <!-- Step 2: Preview -->
+      ${mappingMapel ? renderManualMappingSection(mapel) : ""}
+
       ${mappingMapel ? renderPreviewSection(mapel, nc, mappingMapel) : `
         <div class="bg-white p-6 rounded-2xl border text-center text-slate-400 text-xs">
           <i class="fa-solid fa-arrow-up text-3xl mb-2"></i>
@@ -287,7 +284,6 @@ function renderMain() {
         </div>
       `}
 
-      <!-- Step 3: Download -->
       ${mappingMapel ? `
         <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
           <div class="flex items-center gap-2 border-b pb-2">
@@ -303,12 +299,12 @@ function renderMain() {
         </div>
       ` : ""}
 
-      <!-- Info -->
       <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-[11px] text-blue-800 space-y-1">
         <div class="font-bold"><i class="fa-solid fa-circle-info"></i> Cara Pakai</div>
         <ol class="list-decimal list-inside space-y-0.5 pl-1">
           <li>Download template dari aplikasi rapor (sudah ada ID Siswa & Nama).</li>
           <li>Upload file itu di sini → klik Upload Template Rapor.</li>
+          <li>Kalau ada nama yang tidak cocok, pilih manual di panel kuning.</li>
           <li>Isi nilai di EduSmart seperti biasa (menu Penilaian).</li>
           <li>Kembali ke halaman ini → klik Download Hasil Rapor.</li>
           <li>Import file Excel hasil ke aplikasi rapor.</li>
@@ -317,6 +313,97 @@ function renderMain() {
 
     </div>
   `;
+}
+
+/* =========================================================
+   MANUAL MAPPING SECTION
+   ========================================================= */
+function renderManualMappingSection(mapel) {
+  const mappingMapel = state.mapping[mapel.kode];
+  const manualPending = mappingMapel?.manualPending || [];
+  if (!manualPending.length) return "";
+
+  const siswaAll = (state.db.sw || []).map(siswaToObj);
+
+  return `
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border-2 border-amber-300 shadow-sm space-y-3">
+      <div class="flex items-center gap-2 border-b pb-2">
+        <span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">
+          <i class="fa-solid fa-hand-pointer"></i>
+        </span>
+        <h3 class="font-bold text-sm text-amber-800">Pilih Manual (${manualPending.length} siswa)</h3>
+      </div>
+      <p class="text-[11px] text-amber-700">
+        Nama di file rapor <b>tidak persis sama</b> dengan di EduSmart. Pilih siswa yang sesuai dari dropdown.
+      </p>
+      <div class="space-y-3">
+        ${manualPending.map((mp, idx) => `
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+            <div class="text-[11px]">
+              <div class="font-bold text-amber-900">📄 ${mp.namaRapor}</div>
+              <div class="text-amber-700 font-mono">ID Rapor: ${mp.idRapor}</div>
+              ${mp.kandidat?.length ? `<div class="text-[10px] text-slate-600 mt-1">Kandidat mirip: ${mp.kandidat.map(k => `<b>${k.nama}</b> (${k.skor}%)`).join(", ")}</div>` : `<div class="text-[10px] text-red-600 mt-1">Tidak ada kandidat mirip. Pilih manual dari semua siswa.</div>`}
+            </div>
+            <select id="manual-select-${idx}" class="w-full px-3 py-2.5 border-2 border-amber-300 rounded-lg bg-white text-xs font-semibold">
+              <option value="">-- Pilih siswa EduSmart --</option>
+              ${siswaAll.map(s => `<option value="${s.id}">[ID ${s.id}] ${s.nama} (Kelas ${s.kelas})</option>`).join("")}
+            </select>
+          </div>
+        `).join("")}
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="skipManualMapping('${mapel.kode}')" class="px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl">Lewati Semua</button>
+        <button onclick="saveManualMapping('${mapel.kode}')" class="px-4 py-2.5 bg-amber-600 text-white font-bold text-xs rounded-xl">
+          <i class="fa-solid fa-check"></i> Simpan Mapping Manual
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function saveManualMapping(mapelKode) {
+  const mappingMapel = state.mapping[mapelKode];
+  const manualPending = mappingMapel?.manualPending || [];
+  if (!manualPending.length) return;
+
+  const siswaAll = (state.db.sw || []).map(siswaToObj);
+  let saved = 0;
+  const errors = [];
+
+  manualPending.forEach((mp, idx) => {
+    const select = document.getElementById(`manual-select-${idx}`);
+    if (!select || !select.value) { errors.push(mp.namaRapor); return; }
+    const idEdu = String(select.value);
+    const s = siswaAll.find(x => String(x.id) === idEdu);
+    if (!s) { errors.push(mp.namaRapor); return; }
+    mappingMapel.siswa[idEdu] = { idRapor: mp.idRapor, nama: mp.namaRapor, manual: true };
+    saved++;
+  });
+
+  mappingMapel.manualPending = [];
+  const m = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+  m[mapelKode] = mappingMapel;
+  setLS(STORAGE.RAPOR_MAPPING, JSON.stringify(m));
+  state.mapping = m;
+
+  if (errors.length) {
+    showToast(`⚠️ ${saved} tersimpan, ${errors.length} belum dipilih`, "error");
+  } else {
+    showToast(`✓ ${saved} mapping manual tersimpan`, "success");
+  }
+  renderMain();
+}
+
+function skipManualMapping(mapelKode) {
+  if (!confirm("Lewati semua mapping manual? Siswa yang belum dipilih tidak akan muncul di hasil rapor.")) return;
+  const mappingMapel = state.mapping[mapelKode];
+  mappingMapel.manualPending = [];
+  const m = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+  m[mapelKode] = mappingMapel;
+  setLS(STORAGE.RAPOR_MAPPING, JSON.stringify(m));
+  state.mapping = m;
+  showToast("Mapping manual dilewati.", "info");
+  renderMain();
 }
 
 /* =========================================================
@@ -329,14 +416,10 @@ function renderPreviewSection(mapel, nc, mappingMapel) {
 
   siswaAll.forEach(s => {
     const info = mappingMapel.siswa[String(s.id)];
-    if (info?.idRapor) {
-      listFinal.push({ s, idRapor: info.idRapor });
-    } else {
-      tanpaId.push(s.nama);
-    }
+    if (info?.idRapor) listFinal.push({ s, idRapor: info.idRapor, manual: info.manual });
+    else tanpaId.push(s.nama);
   });
 
-  // Sort abjad
   listFinal.sort((a, b) => (a.s.nama || "").localeCompare(b.s.nama || "", "id", { sensitivity: "base" }));
 
   if (!listFinal.length) {
@@ -382,7 +465,7 @@ function renderPreviewSection(mapel, nc, mappingMapel) {
         </div>
       ` : ""}
 
-      <div class="table-scroll border rounded-xl">
+      <div class="table-scroll border rounded-xl max-h-96 overflow-y-auto custom-scrollbar">
         <table class="w-full text-xs">
           <thead class="bg-slate-100 sticky top-0">
             <tr class="font-bold text-slate-700">
@@ -392,7 +475,7 @@ function renderPreviewSection(mapel, nc, mappingMapel) {
             </tr>
           </thead>
           <tbody class="divide-y">
-            ${listFinal.map(({ s, idRapor }) => {
+            ${listFinal.map(({ s, idRapor, manual }) => {
               const nlArr = (state.db.nl || []).find(n =>
                 Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) &&
                 n[FIELD.NILAI.MAPEL_KODE] === mapel.kode
@@ -400,7 +483,7 @@ function renderPreviewSection(mapel, nc, mappingMapel) {
               const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
               return `
                 <tr class="hover:bg-slate-50">
-                  <td class="p-2 font-mono font-bold text-indigo-600">${idRapor}</td>
+                  <td class="p-2 font-mono font-bold text-indigo-600">${idRapor}${manual ? `<span class="ml-1 text-[8px] bg-amber-200 text-amber-800 font-bold px-1 rounded">M</span>` : ""}</td>
                   <td class="p-2 font-semibold">${s.nama}</td>
                   ${nc.map(c => {
                     const v = Number(rec.scores?.[c] ?? 0);
@@ -417,7 +500,7 @@ function renderPreviewSection(mapel, nc, mappingMapel) {
 }
 
 /* =========================================================
-   HANDLE UPLOAD
+   HANDLE UPLOAD (dengan Fuzzy Match)
    ========================================================= */
 function handleUploadRapor(e) {
   const f = e.target.files[0];
@@ -434,14 +517,12 @@ function handleUploadRapor(e) {
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
       if (rows.length < 2) throw new Error("File kosong / tidak valid.");
 
-      // Header baris 1
       const header = rows[0].map(h => String(h || "").trim());
       let colId = header.findIndex(h => /^id\s*siswa$/i.test(h));
       let colNama = header.findIndex(h => /nama/i.test(h));
       if (colId < 0) colId = 0;
       if (colNama < 0) colNama = 1;
 
-      // Metadata baris 2 (kode komponen)
       const row2 = rows[1] || [];
       const kodeKomponen = [];
       const jumlahKomponen = header.length - 2;
@@ -449,19 +530,22 @@ function handleUploadRapor(e) {
         kodeKomponen.push(row2[i] !== undefined && row2[i] !== "" ? String(row2[i]) : "");
       }
 
-      // Cocokkan siswa by Nama
       const siswaEdu = (state.db.sw || []).map(siswaToObj);
       const mapSiswa = {};
-      const cocok = [];
+      const cocokExact = [];
+      const cocokFuzzy = [];
+      const manualPending = [];
       const tidakCocok = [];
-      const duplikatNama = {};
 
+      // Deteksi nama duplikat di EduSmart
+      const duplikatNama = {};
       siswaEdu.forEach(s => {
         const key = String(s.nama || "").trim().toLowerCase();
         if (!duplikatNama[key]) duplikatNama[key] = [];
         duplikatNama[key].push(s);
       });
 
+      // Proses setiap baris rapor
       for (let i = 2; i < rows.length; i++) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
@@ -470,16 +554,57 @@ function handleUploadRapor(e) {
         if (!namaRapor) continue;
 
         const key = namaRapor.toLowerCase();
-        const kandidat = duplikatNama[key] || [];
+        const exactMatches = duplikatNama[key] || [];
 
-        if (kandidat.length === 1) {
-          const s = kandidat[0];
+        // 1. Exact match (1 kandidat)
+        if (exactMatches.length === 1) {
+          const s = exactMatches[0];
           mapSiswa[String(s.id)] = { idRapor, nama: namaRapor };
-          cocok.push(namaRapor);
-        } else if (kandidat.length > 1) {
-          tidakCocok.push(`${namaRapor} (duplikat ${kandidat.length}× di EduSmart)`);
+          cocokExact.push(namaRapor);
+          continue;
+        }
+
+        // 2. Exact match tapi duplikat
+        if (exactMatches.length > 1) {
+          manualPending.push({
+            idRapor, namaRapor,
+            kandidat: exactMatches.map(s => ({ id: s.id, nama: s.nama, skor: 100 })),
+            alasan: "duplikat"
+          });
+          continue;
+        }
+
+        // 3. Fuzzy match (semua siswa, cari skor tertinggi)
+        const skorList = siswaEdu.map(s => ({
+          id: s.id,
+          nama: s.nama,
+          skor: Math.round(diceCoefficient(namaRapor, s.nama) * 100)
+        })).sort((a, b) => b.skor - a.skor);
+
+        const top = skorList[0];
+        const second = skorList[1];
+        const threshold = state.fuzzyThreshold * 100; // 80
+
+        if (top && top.skor >= threshold) {
+          // Kalau kandidat kedua juga >= threshold → ragu → manual
+          if (second && second.skor >= threshold) {
+            manualPending.push({
+              idRapor, namaRapor,
+              kandidat: skorList.filter(x => x.skor >= threshold - 10).slice(0, 5),
+              alasan: "ragu"
+            });
+          } else {
+            // 1 kandidat jelas → cocok otomatis
+            mapSiswa[String(top.id)] = { idRapor, nama: namaRapor, fuzzy: true, skor: top.skor };
+            cocokFuzzy.push(`${namaRapor} → ${top.nama} (${top.skor}%)`);
+          }
         } else {
-          tidakCocok.push(`${namaRapor} (tidak ditemukan)`);
+          // Tidak ada yang >= threshold → manual
+          manualPending.push({
+            idRapor, namaRapor,
+            kandidat: skorList.slice(0, 5),
+            alasan: "tidak_cocok"
+          });
         }
       }
 
@@ -489,6 +614,7 @@ function handleUploadRapor(e) {
         jumlahKomponen,
         kodeKomponen,
         siswa: mapSiswa,
+        manualPending: manualPending,
         uploadedAt: new Date().toISOString(),
         namaFile: f.name
       };
@@ -500,26 +626,24 @@ function handleUploadRapor(e) {
         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs space-y-1">
           <div class="font-bold">✓ Berhasil diproses!</div>
           <div class="text-[11px] space-y-0.5">
-            <div>• Cocok: <b>${cocok.length} siswa</b></div>
-            <div>• Tidak cocok: <b class="${tidakCocok.length ? "text-amber-700" : ""}">${tidakCocok.length}</b></div>
-            <div>• Jumlah komponen rapor: <b>${jumlahKomponen}</b></div>
-            <div>• Jumlah komponen EduSmart: <b>${getKomponenByMapel(state.selectedMapel).length}</b></div>
+            <div>• Cocok otomatis: <b>${cocokExact.length} siswa</b></div>
+            <div>• Cocok fuzzy: <b>${cocokFuzzy.length} siswa</b></div>
+            <div>• Perlu manual: <b class="${manualPending.length ? "text-amber-700" : ""}">${manualPending.length} siswa</b></div>
+            <div>• Jumlah komponen rapor: <b>${jumlahKomponen}</b> · EduSmart: <b>${getKomponenByMapel(state.selectedMapel).length}</b></div>
           </div>
-          ${tidakCocok.length ? `
+          ${cocokFuzzy.length ? `
             <details class="mt-2">
-              <summary class="cursor-pointer font-bold text-amber-700">⚠️ Lihat daftar tidak cocok (${tidakCocok.length})</summary>
+              <summary class="cursor-pointer font-bold text-emerald-700">✓ Lihat fuzzy match (${cocokFuzzy.length})</summary>
               <div class="mt-1 max-h-32 overflow-y-auto custom-scrollbar text-[10px] space-y-0.5">
-                ${tidakCocok.map(x => `<div>• ${x}</div>`).join("")}
+                ${cocokFuzzy.map(x => `<div>• ${x}</div>`).join("")}
               </div>
             </details>
           ` : ""}
         </div>
       `;
 
-      showToast(`✓ Mapping disimpan: ${cocok.length} siswa cocok`, "success");
-
-      // Refresh halaman setelah 1.5 detik
-      setTimeout(() => renderMain(), 1500);
+      showToast(`✓ Cocok: ${cocokExact.length + cocokFuzzy.length}, Manual: ${manualPending.length}`, "success");
+      setTimeout(() => renderMain(), 1200);
 
     } catch (err) {
       result.innerHTML = `<div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">❌ ${err.message}</div>`;
@@ -565,7 +689,6 @@ function downloadHasilRapor() {
 
   if (!listFinal.length) { showToast("Tidak ada siswa dengan ID Rapor.", "error"); return; }
 
-  // Susun Excel
   const header = ["ID Siswa", "Nama Siswa", ...nc];
   const metaRow = ["(ID Siswa - JANGAN DIUBAH)", "(Nama Siswa)"];
   for (let i = 0; i < nc.length; i++) metaRow.push(m.kodeKomponen?.[i] || "");
@@ -594,8 +717,7 @@ function downloadHasilRapor() {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Nilai");
-  const namaFile = `Hasil_Rapor_${mapel.kode}_${Date.now()}.xlsx`;
-  XLSX.writeFile(wb, namaFile);
+  XLSX.writeFile(wb, `Hasil_Rapor_${mapel.kode}_${Date.now()}.xlsx`);
 
   showToast(`✓ Hasil rapor diunduh (${listFinal.length} siswa).`, "success");
 
