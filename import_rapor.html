@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0">
+<meta name="theme-color" content="#4338ca">
+<title>Hasil Rapor · EduSmart LMS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.fade-in { animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+</style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen bg-slate-50">
+
+<!-- Toast -->
+<div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+<!-- Loading -->
+<div id="loading-overlay" class="fixed inset-0 z-[90] bg-slate-900/30 backdrop-blur-sm items-center justify-center hidden">
+  <div class="bg-white rounded-2xl shadow-xl px-5 py-4 flex items-center gap-3">
+    <i class="fa-solid fa-spinner fa-spin text-indigo-600"></i>
+    <span id="loading-text" class="text-sm font-semibold text-slate-700">Memuat...</span>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="bg-indigo-700 text-white sticky top-0 z-30 shadow-md">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+    <div class="flex items-center gap-3 min-w-0">
+      <a href="index.html" class="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition" title="Kembali">
+        <i class="fa-solid fa-arrow-left"></i>
+      </a>
+      <div class="bg-white text-indigo-700 rounded-full flex items-center justify-center w-9 h-9 shrink-0">
+        <i class="fa-solid fa-file-excel text-lg"></i>
+      </div>
+      <div class="min-w-0">
+        <h1 class="font-bold text-sm sm:text-lg leading-tight truncate">Hasil Rapor</h1>
+        <p class="text-[10px] sm:text-xs text-indigo-200 truncate">EduSmart LMS v5</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="refreshData()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate"></i><span class="hidden sm:inline">Refresh</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="max-w-7xl mx-auto p-3 sm:p-6 space-y-4">
+  <div id="main-content"></div>
+</main>
+
+<script>
+/* =========================================================
+   STORAGE
+   ========================================================= */
+const STORAGE = {
+  USER: "edusmart_user",
+  DB: "edusmart_db",
+  RAPOR_MAPPING: "edusmart_rapor_mapping"
+};
+
+/* =========================================================
+   FIELD (sama dengan index.html)
+   ========================================================= */
+const FIELD = {
+  SISWA: { ID: 0, NOABSEN: 1, NIS: 2, NAMA: 3, KELAS: 4, JK: 5, USER: 6, PASS: 7, TTL: 8, TGL: 9, ALAMAT: 10, FOTO: 11 },
+  MAPEL: { ID: 0, KODE: 1, NAMA: 2, KKM: 3, PENGAMPU: 4 },
+  NILAI: { ID: 0, SISWA_ID: 1, MAPEL_KODE: 2, SCORES: 3 }
+};
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let state = {
+  db: null,
+  user: null,
+  mapping: {},
+  selectedMapel: "",
+  parsedData: null  // { jumlahKomponen, kodeKomponen, siswa: {idEdu: {idRapor, nama}} }
+};
+
+/* =========================================================
+   UTILITY
+   ========================================================= */
+function safeParse(s) { try { return JSON.parse(s); } catch(e) { return null; } }
+function getLS(k, d="") { return localStorage.getItem(k) || d; }
+function setLS(k, v) { localStorage.setItem(k, v); }
+
+function siswaToObj(a) {
+  const F = FIELD.SISWA;
+  return {
+    id: a[F.ID], noAbsen: a[F.NOABSEN], nis: a[F.NIS], nama: a[F.NAMA],
+    kelas: a[F.KELAS], jk: a[F.JK], username: a[F.USER], password: a[F.PASS],
+    tempatLahir: a[F.TTL], tglLahir: a[F.TGL], alamat: a[F.ALAMAT], fotoUrl: a[F.FOTO]
+  };
+}
+function mapelToObj(a) {
+  const F = FIELD.MAPEL;
+  return { id: a[F.ID], kode: a[F.KODE], nama: a[F.NAMA], kkm: a[F.KKM], pengampu: a[F.PENGAMPU] };
+}
+function nilaiToObj(a, nc) {
+  const F = FIELD.NILAI;
+  const scores = {};
+  (nc || []).forEach((k, i) => { scores[k] = a[F.SCORES]?.[i] ?? 0; });
+  return { id: a[F.ID], siswaId: a[F.SISWA_ID], mapelKode: a[F.MAPEL_KODE], scores };
+}
+
+function getKomponenByMapel(mapelKode) {
+  if (!mapelKode) return [...(state.db?.nc || ["UH1","UH2","UTS","UAS"])];
+  if (!state.db.ncPerMapel) state.db.ncPerMapel = {};
+  if (!Array.isArray(state.db.ncPerMapel[mapelKode])) {
+    state.db.ncPerMapel[mapelKode] = [...(state.db.nc || ["UH1","UH2","UTS","UAS"])];
+  }
+  return state.db.ncPerMapel[mapelKode];
+}
+
+function showToast(msg, type="info") {
+  const c = document.getElementById("toast-container");
+  const t = document.createElement("div");
+  const bg = type === "success" ? "bg-emerald-600" : type === "error" ? "bg-red-600" : "bg-indigo-600";
+  t.className = `${bg} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center justify-between gap-3 pointer-events-auto`;
+  t.innerHTML = `<span>${msg}</span><button onclick="this.parentElement.remove()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark"></i></button>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+
+function showLoading(on, text="Memuat...") {
+  const el = document.getElementById("loading-overlay");
+  const txt = document.getElementById("loading-text");
+  if (txt) txt.textContent = text;
+  if (el) {
+    el.classList.toggle("hidden", !on);
+    el.classList.toggle("flex", !!on);
+  }
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+document.addEventListener("DOMContentLoaded", () => {
+  // Cek login
+  const user = safeParse(getLS(STORAGE.USER));
+  if (!user) {
+    renderError("Anda belum login. Silakan login dulu di EduSmart.", true);
+    return;
+  }
+  if (user.role !== "guru") {
+    renderError("Halaman ini khusus untuk Guru.", true);
+    return;
+  }
+  state.user = user;
+
+  // Baca DB dari localStorage
+  const db = safeParse(getLS(STORAGE.DB));
+  if (!db) {
+    renderError("Data EduSmart tidak ditemukan. Buka EduSmart dulu, lalu refresh halaman ini.", true);
+    return;
+  }
+  state.db = db;
+
+  // Baca mapping
+  state.mapping = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+
+  // Pilih mapel pertama sebagai default
+  const mapelAll = (state.db.mp || []).map(mapelToObj);
+  if (mapelAll.length) state.selectedMapel = mapelAll[0].kode;
+
+  renderMain();
+});
+
+function renderError(msg, showBack) {
+  document.getElementById("main-content").innerHTML = `
+    <div class="max-w-md mx-auto mt-10 bg-white p-6 rounded-2xl border shadow-sm text-center space-y-4">
+      <div class="w-16 h-16 mx-auto rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-3xl">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h2 class="font-bold text-lg">Akses Ditolak</h2>
+      <p class="text-xs text-slate-500">${msg}</p>
+      ${showBack ? `<a href="index.html" class="inline-block bg-indigo-600 text-white font-bold text-xs px-5 py-3 rounded-xl mt-2"><i class="fa-solid fa-arrow-left"></i> Kembali ke EduSmart</a>` : ""}
+    </div>
+  `;
+}
+
+/* =========================================================
+   REFRESH DATA
+   ========================================================= */
+function refreshData() {
+  const db = safeParse(getLS(STORAGE.DB));
+  if (db) state.db = db;
+  state.mapping = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+  showToast("✓ Data diperbarui", "success");
+  renderMain();
+}
+
+/* =========================================================
+   RENDER MAIN
+   ========================================================= */
+function renderMain() {
+  const mapelAll = (state.db.mp || []).map(mapelToObj);
+  if (!mapelAll.length) {
+    document.getElementById("main-content").innerHTML = `
+      <div class="bg-white p-8 rounded-2xl border text-center text-slate-400 text-sm">
+        <i class="fa-solid fa-book text-3xl mb-3"></i>
+        <div>Belum ada Mata Pelajaran.</div>
+        <a href="index.html" class="inline-block mt-4 bg-indigo-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl">Tambah Mapel di EduSmart</a>
+      </div>
+    `;
+    return;
+  }
+
+  const mapel = mapelAll.find(m => m.kode === state.selectedMapel) || mapelAll[0];
+  state.selectedMapel = mapel.kode;
+  const nc = getKomponenByMapel(mapel.kode);
+  const mappingMapel = state.mapping[mapel.kode];
+  const siswaAll = (state.db.sw || []).map(siswaToObj);
+
+  // Hitung status
+  let cocokCount = 0, belumCount = 0;
+  if (mappingMapel?.siswa) {
+    siswaAll.forEach(s => {
+      if (mappingMapel.siswa[String(s.id)]?.idRapor) cocokCount++;
+      else belumCount++;
+    });
+  }
+
+  document.getElementById("main-content").innerHTML = `
+    <div class="space-y-4 fade-in">
+
+      <!-- Pilih Mapel -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+        <label class="block text-xs font-bold text-slate-700">📘 Pilih Mata Pelajaran</label>
+        <select onchange="state.selectedMapel=this.value;renderMain()"
+          class="w-full px-3 py-2.5 border-2 border-indigo-200 rounded-xl bg-white text-sm font-semibold">
+          ${mapelAll.map(m => `<option value="${m.kode}" ${m.kode === mapel.kode ? "selected" : ""}>${m.nama} (${m.kode})</option>`).join("")}
+        </select>
+        <div class="flex flex-wrap gap-2 text-[11px]">
+          <span class="bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-full">
+            ${nc.length} komponen: ${nc.join(", ")}
+          </span>
+          <span class="bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-full">
+            ${siswaAll.length} siswa
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 1: Upload -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+        <div class="flex items-center gap-2 border-b pb-2">
+          <span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">1</span>
+          <h3 class="font-bold text-sm">Upload Template Rapor</h3>
+        </div>
+        <p class="text-[11px] text-slate-600">
+          Upload file template <b>dari aplikasi rapor</b>. EduSmart akan membaca <b>ID Siswa</b>, <b>Nama</b>, dan <b>jumlah komponen</b>, lalu mencocokkan dengan siswa di EduSmart berdasarkan nama.
+        </p>
+        ${mappingMapel ? `
+          <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 space-y-1">
+            <div class="font-bold">✓ Mapping tersimpan</div>
+            <div>File: <span class="font-mono">${mappingMapel.namaFile || "-"}</span></div>
+            <div>Upload: ${new Date(mappingMapel.uploadedAt || Date.now()).toLocaleString("id-ID")}</div>
+            <div>Cocok: <b>${cocokCount} siswa</b>${belumCount ? ` · Belum: <b class="text-amber-700">${belumCount} siswa</b>` : ""}</div>
+          </div>
+        ` : ""}
+        <label class="block bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-xl text-center cursor-pointer text-xs transition">
+          <i class="fa-solid fa-file-excel"></i> ${mappingMapel ? "Upload Ulang (Timpa)" : "Pilih File Template Rapor (.xlsx)"}
+          <input type="file" accept=".xlsx,.xls" class="hidden" onchange="handleUploadRapor(event)">
+        </label>
+        <div id="upload-result"></div>
+      </div>
+
+      <!-- Step 2: Preview -->
+      ${mappingMapel ? renderPreviewSection(mapel, nc, mappingMapel) : `
+        <div class="bg-white p-6 rounded-2xl border text-center text-slate-400 text-xs">
+          <i class="fa-solid fa-arrow-up text-3xl mb-2"></i>
+          <div>Upload template rapor dulu untuk melihat preview.</div>
+        </div>
+      `}
+
+      <!-- Step 3: Download -->
+      ${mappingMapel ? `
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+          <div class="flex items-center gap-2 border-b pb-2">
+            <span class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold">3</span>
+            <h3 class="font-bold text-sm">Download Hasil Rapor</h3>
+          </div>
+          <p class="text-[11px] text-slate-600">
+            File Excel akan di-<b>urut abjad</b> dan siap di-<b>import langsung</b> ke aplikasi rapor.
+          </p>
+          <button onclick="downloadHasilRapor()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-xs transition">
+            <i class="fa-solid fa-download"></i> Download Hasil Rapor (.xlsx)
+          </button>
+        </div>
+      ` : ""}
+
+      <!-- Info -->
+      <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-[11px] text-blue-800 space-y-1">
+        <div class="font-bold"><i class="fa-solid fa-circle-info"></i> Cara Pakai</div>
+        <ol class="list-decimal list-inside space-y-0.5 pl-1">
+          <li>Download template dari aplikasi rapor (sudah ada ID Siswa & Nama).</li>
+          <li>Upload file itu di sini → klik Upload Template Rapor.</li>
+          <li>Isi nilai di EduSmart seperti biasa (menu Penilaian).</li>
+          <li>Kembali ke halaman ini → klik Download Hasil Rapor.</li>
+          <li>Import file Excel hasil ke aplikasi rapor.</li>
+        </ol>
+      </div>
+
+    </div>
+  `;
+}
+
+/* =========================================================
+   RENDER PREVIEW
+   ========================================================= */
+function renderPreviewSection(mapel, nc, mappingMapel) {
+  const siswaAll = (state.db.sw || []).map(siswaToObj);
+  const listFinal = [];
+  const tanpaId = [];
+
+  siswaAll.forEach(s => {
+    const info = mappingMapel.siswa[String(s.id)];
+    if (info?.idRapor) {
+      listFinal.push({ s, idRapor: info.idRapor });
+    } else {
+      tanpaId.push(s.nama);
+    }
+  });
+
+  // Sort abjad
+  listFinal.sort((a, b) => (a.s.nama || "").localeCompare(b.s.nama || "", "id", { sensitivity: "base" }));
+
+  if (!listFinal.length) {
+    return `
+      <div class="bg-white p-6 rounded-2xl border text-center text-amber-600 text-xs">
+        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+        <div>Tidak ada siswa yang cocok. Periksa kembali file rapor.</div>
+      </div>
+    `;
+  }
+
+  const jmlRapor = mappingMapel.jumlahKomponen || 0;
+  const mismatch = jmlRapor !== nc.length;
+
+  return `
+    <div class="bg-white p-4 sm:p-5 rounded-2xl border shadow-sm space-y-3">
+      <div class="flex items-center justify-between border-b pb-2 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">2</span>
+          <h3 class="font-bold text-sm">Preview</h3>
+        </div>
+        <span class="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
+          ${listFinal.length} siswa · urut abjad
+        </span>
+      </div>
+
+      ${mismatch ? `
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+          ⚠️ <b>Jumlah komponen tidak sama!</b><br>
+          Rapor: <b>${jmlRapor}</b> komponen · EduSmart: <b>${nc.length}</b> komponen.<br>
+          Nilai akan dipetakan berdasarkan urutan.
+        </div>
+      ` : `
+        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800">
+          ✓ Jumlah komponen sama: <b>${nc.length}</b>. Aman.
+        </div>
+      `}
+
+      ${tanpaId.length ? `
+        <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] text-red-800">
+          ⚠️ <b>${tanpaId.length} siswa tidak disertakan</b> (belum punya ID Rapor):<br>
+          <span class="text-[10px]">${tanpaId.slice(0, 5).join(", ")}${tanpaId.length > 5 ? ` +${tanpaId.length - 5} lainnya` : ""}</span>
+        </div>
+      ` : ""}
+
+      <div class="table-scroll border rounded-xl">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-100 sticky top-0">
+            <tr class="font-bold text-slate-700">
+              <th class="p-2 text-left whitespace-nowrap">ID Rapor</th>
+              <th class="p-2 text-left min-w-[180px]">Nama</th>
+              ${nc.map(c => `<th class="p-2 text-center whitespace-nowrap">${c}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            ${listFinal.map(({ s, idRapor }) => {
+              const nlArr = (state.db.nl || []).find(n =>
+                Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) &&
+                n[FIELD.NILAI.MAPEL_KODE] === mapel.kode
+              );
+              const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
+              return `
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2 font-mono font-bold text-indigo-600">${idRapor}</td>
+                  <td class="p-2 font-semibold">${s.nama}</td>
+                  ${nc.map(c => {
+                    const v = Number(rec.scores?.[c] ?? 0);
+                    return `<td class="p-2 text-center font-mono ${v >= (mapel.kkm || 70) ? "text-emerald-700" : v > 0 ? "text-amber-700" : "text-slate-400"}">${v}</td>`;
+                  }).join("")}
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   HANDLE UPLOAD
+   ========================================================= */
+function handleUploadRapor(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const result = document.getElementById("upload-result");
+  result.innerHTML = `<div class="p-3 bg-slate-50 rounded-xl text-slate-600 text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Membaca file...</div>`;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      if (rows.length < 2) throw new Error("File kosong / tidak valid.");
+
+      // Header baris 1
+      const header = rows[0].map(h => String(h || "").trim());
+      let colId = header.findIndex(h => /^id\s*siswa$/i.test(h));
+      let colNama = header.findIndex(h => /nama/i.test(h));
+      if (colId < 0) colId = 0;
+      if (colNama < 0) colNama = 1;
+
+      // Metadata baris 2 (kode komponen)
+      const row2 = rows[1] || [];
+      const kodeKomponen = [];
+      const jumlahKomponen = header.length - 2;
+      for (let i = 2; i < header.length; i++) {
+        kodeKomponen.push(row2[i] !== undefined && row2[i] !== "" ? String(row2[i]) : "");
+      }
+
+      // Cocokkan siswa by Nama
+      const siswaEdu = (state.db.sw || []).map(siswaToObj);
+      const mapSiswa = {};
+      const cocok = [];
+      const tidakCocok = [];
+      const duplikatNama = {};
+
+      siswaEdu.forEach(s => {
+        const key = String(s.nama || "").trim().toLowerCase();
+        if (!duplikatNama[key]) duplikatNama[key] = [];
+        duplikatNama[key].push(s);
+      });
+
+      for (let i = 2; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        const idRapor = String(row[colId] || "").trim();
+        const namaRapor = String(row[colNama] || "").trim();
+        if (!namaRapor) continue;
+
+        const key = namaRapor.toLowerCase();
+        const kandidat = duplikatNama[key] || [];
+
+        if (kandidat.length === 1) {
+          const s = kandidat[0];
+          mapSiswa[String(s.id)] = { idRapor, nama: namaRapor };
+          cocok.push(namaRapor);
+        } else if (kandidat.length > 1) {
+          tidakCocok.push(`${namaRapor} (duplikat ${kandidat.length}× di EduSmart)`);
+        } else {
+          tidakCocok.push(`${namaRapor} (tidak ditemukan)`);
+        }
+      }
+
+      // Simpan mapping
+      const mapping = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+      mapping[state.selectedMapel] = {
+        jumlahKomponen,
+        kodeKomponen,
+        siswa: mapSiswa,
+        uploadedAt: new Date().toISOString(),
+        namaFile: f.name
+      };
+      setLS(STORAGE.RAPOR_MAPPING, JSON.stringify(mapping));
+      state.mapping = mapping;
+
+      // Tampilkan hasil
+      result.innerHTML = `
+        <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs space-y-1">
+          <div class="font-bold">✓ Berhasil diproses!</div>
+          <div class="text-[11px] space-y-0.5">
+            <div>• Cocok: <b>${cocok.length} siswa</b></div>
+            <div>• Tidak cocok: <b class="${tidakCocok.length ? "text-amber-700" : ""}">${tidakCocok.length}</b></div>
+            <div>• Jumlah komponen rapor: <b>${jumlahKomponen}</b></div>
+            <div>• Jumlah komponen EduSmart: <b>${getKomponenByMapel(state.selectedMapel).length}</b></div>
+          </div>
+          ${tidakCocok.length ? `
+            <details class="mt-2">
+              <summary class="cursor-pointer font-bold text-amber-700">⚠️ Lihat daftar tidak cocok (${tidakCocok.length})</summary>
+              <div class="mt-1 max-h-32 overflow-y-auto custom-scrollbar text-[10px] space-y-0.5">
+                ${tidakCocok.map(x => `<div>• ${x}</div>`).join("")}
+              </div>
+            </details>
+          ` : ""}
+        </div>
+      `;
+
+      showToast(`✓ Mapping disimpan: ${cocok.length} siswa cocok`, "success");
+
+      // Refresh halaman setelah 1.5 detik
+      setTimeout(() => renderMain(), 1500);
+
+    } catch (err) {
+      result.innerHTML = `<div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">❌ ${err.message}</div>`;
+      showToast("Gagal: " + err.message, "error");
+    }
+  };
+  reader.readAsArrayBuffer(f);
+  e.target.value = "";
+}
+
+/* =========================================================
+   DOWNLOAD HASIL RAPOR
+   ========================================================= */
+function downloadHasilRapor() {
+  const mapelAll = (state.db.mp || []).map(mapelToObj);
+  const mapel = mapelAll.find(m => m.kode === state.selectedMapel);
+  if (!mapel) { showToast("Mapel tidak ditemukan.", "error"); return; }
+
+  const mapping = safeParse(getLS(STORAGE.RAPOR_MAPPING)) || {};
+  const m = mapping[state.selectedMapel];
+  if (!m || !m.siswa || !Object.keys(m.siswa).length) {
+    showToast("Upload template rapor dulu.", "error");
+    return;
+  }
+
+  const nc = getKomponenByMapel(state.selectedMapel);
+  const jumlahRapor = m.jumlahKomponen || 0;
+  if (jumlahRapor !== nc.length) {
+    if (!confirm(`⚠️ Jumlah komponen tidak sama!\n\nRapor: ${jumlahRapor}\nEduSmart: ${nc.length}\n\nLanjutkan? Nilai dipetakan berdasarkan urutan.`)) return;
+  }
+
+  const siswaEdu = (state.db.sw || []).map(siswaToObj);
+  const listFinal = [];
+  const tanpaIdRapor = [];
+
+  siswaEdu.forEach(s => {
+    const info = m.siswa[String(s.id)];
+    if (info?.idRapor) listFinal.push({ s, idRapor: info.idRapor });
+    else tanpaIdRapor.push(s.nama);
+  });
+
+  listFinal.sort((a, b) => (a.s.nama || "").localeCompare(b.s.nama || "", "id", { sensitivity: "base" }));
+
+  if (!listFinal.length) { showToast("Tidak ada siswa dengan ID Rapor.", "error"); return; }
+
+  // Susun Excel
+  const header = ["ID Siswa", "Nama Siswa", ...nc];
+  const metaRow = ["(ID Siswa - JANGAN DIUBAH)", "(Nama Siswa)"];
+  for (let i = 0; i < nc.length; i++) metaRow.push(m.kodeKomponen?.[i] || "");
+
+  const dataRows = listFinal.map(({ s, idRapor }) => {
+    const nlArr = (state.db.nl || []).find(n =>
+      Number(n[FIELD.NILAI.SISWA_ID]) === Number(s.id) &&
+      n[FIELD.NILAI.MAPEL_KODE] === state.selectedMapel
+    );
+    const rec = nlArr ? nilaiToObj(nlArr, nc) : { scores: {} };
+    const row = [idRapor, s.nama];
+    nc.forEach(c => row.push(Number(rec.scores?.[c] ?? 0)));
+    return row;
+  });
+
+  const aoa = [header, metaRow, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = header.map((h, i) => {
+    let maxLen = String(h).length;
+    [header, metaRow, ...dataRows].forEach(r => {
+      const len = String(r[i] ?? "").length;
+      if (len > maxLen) maxLen = len;
+    });
+    return { wch: Math.min(Math.max(maxLen + 2, 8), 40) };
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Nilai");
+  const namaFile = `Hasil_Rapor_${mapel.kode}_${Date.now()}.xlsx`;
+  XLSX.writeFile(wb, namaFile);
+
+  showToast(`✓ Hasil rapor diunduh (${listFinal.length} siswa).`, "success");
+
+  if (tanpaIdRapor.length) {
+    setTimeout(() => {
+      showToast(`⚠️ ${tanpaIdRapor.length} siswa tidak disertakan: ${tanpaIdRapor.slice(0, 3).join(", ")}${tanpaIdRapor.length > 3 ? ` +${tanpaIdRapor.length - 3}` : ""}`, "error");
+    }, 700);
+  }
+}
+</script>
+</body>
+</html>
