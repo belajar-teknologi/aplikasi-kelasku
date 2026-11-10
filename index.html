@@ -1294,6 +1294,80 @@ async function sha256(text) {
   const hash=await crypto.subtle.digest("SHA-256", buf); 
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join(""); 
 }
+async function mulaiTahunAjaranBaru() {
+  const tahunLama = appState.db.md?.u?.ta || "-";
+  const semesterLama = appState.db.md?.u?.sm || "-";
+  
+  const tahunBaru = prompt(
+    `Tahun Ajaran Baru\n\n` +
+    `Tahun lama: ${tahunLama} (${semesterLama})\n\n` +
+    `Masukkan tahun ajaran baru (contoh: 2025/2026):`
+  );
+  if (!tahunBaru) return;
+  
+  const konfirmasi = confirm(
+    `⚠️ KONFIRMASI TAHUN AJARAN BARU ⚠️\n\n` +
+    `Tahun: ${tahunLama} → ${tahunBaru}\n\n` +
+    `Yang akan TERHAPUS dari aplikasi:\n` +
+    `• ${(appState.db.sw||[]).length} siswa\n` +
+    `• ${(appState.db.nl||[]).length} record nilai\n` +
+    `• ${(appState.db.ab||[]).length} record absensi\n` +
+    `• ${(appState.db.hk||[]).length} hasil kuis\n` +
+    `• ${(appState.db.ll||[]).length} log login\n\n` +
+    `Yang TETAP:\n` +
+    `• Mata pelajaran\n` +
+    `• Master data (sekolah, guru, KKM)\n` +
+    `• Jurnal mengajar\n` +
+    `• Pengumuman\n` +
+    `• Menu custom\n\n` +
+    `⚠️ PASTIKAN SUDAH BACKUP!\n\n` +
+    `Lanjutkan?`
+  );
+  if (!konfirmasi) return;
+  
+  // Backup otomatis dulu
+  showLoading(true, "Membuat backup otomatis...");
+  const backupData = {
+    menus: appState.menus,
+    database: JSON.parse(JSON.stringify(appState.db)),
+    backupAt: new Date().toISOString(),
+    keterangan: `Backup otomatis sebelum tahun ajaran ${tahunBaru}`
+  };
+  const a = document.createElement("a");
+  a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+  a.download = `EduSmart_Backup_${tahunLama.replace("/", "-")}_${Date.now()}.json`;
+  a.click();
+  
+  // Kosongkan transaksional
+  appState.db.sw = [];
+  appState.db.nl = [];
+  appState.db.ab = [];
+  appState.db.hk = [];
+  appState.db.ll = [];
+  
+  // Update tahun ajaran
+  appState.db.md.u.ta = tahunBaru;
+  appState.db.md.u.sm = "Ganjil";
+  
+  // Reset counter ID agar mulai dari 1 (AMAN karena nl/ab kosong)
+  localStorage.removeItem("edusmart_last_id");
+  
+  saveLocal();
+  addActivity("tahun_ajaran_baru", `Reset ke tahun ajaran ${tahunBaru}`);
+  
+  showLoading(true, "Menyimpan ke cloud...");
+  const ok = await updateJsonBinDB();
+  showLoading(false);
+  
+  if (ok) {
+    showToast(`✓ Tahun ajaran ${tahunBaru} siap! Backup tersimpan.`, "success");
+  } else {
+    showToast("⚠️ Tersimpan lokal. Backup tetap ada di file.", "error");
+  }
+  
+  appState.activeView = "dashboard";
+  renderApp();
+}
 /* =========================================================
    INIT & ROUTER
    ========================================================= */
@@ -2353,7 +2427,12 @@ function renderMasterData(c) {
     <h2 class="text-base sm:text-lg font-bold"><i class="fa-solid fa-list-check text-indigo-600"></i> Master Data</h2>
     <div class="flex flex-wrap gap-2 border-b pb-2">${tabs.map(t=>`<button onclick="window.__masterTab='${t.id}';renderMainContent()" class="px-3 py-2 rounded-xl text-xs font-bold ${tab===t.id?'bg-indigo-600 text-white':'bg-slate-100 text-slate-600'}">${t.name}</button>`).join("")}</div>
     <div>${renderMasterTabContent(tab,md)}</div>
-    <div class="pt-3 border-t flex justify-end"><button onclick="simpanMasterData()" class="bg-indigo-600 text-white font-bold text-xs px-5 py-3 rounded-xl">Simpan</button></div>
+    <div class="pt-3 border-t flex justify-between flex-wrap gap-2">
+  <button onclick="mulaiTahunAjaranBaru()" class="bg-rose-600 text-white font-bold text-xs px-4 py-3 rounded-xl">
+    <i class="fa-solid fa-calendar-plus"></i> Tahun Ajaran Baru
+  </button>
+  <button onclick="simpanMasterData()" class="bg-indigo-600 text-white font-bold text-xs px-5 py-3 rounded-xl">Simpan</button>
+</div>
   </div>`;
 }
 function renderMasterTabContent(tab, md) {
@@ -4478,10 +4557,11 @@ async function renderGuruDashboard(c) {
     <div class="bg-gradient-to-r from-indigo-700 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div class="flex items-center gap-3 sm:gap-4">${fotoGuruHtml}<div class="min-w-0"><h2 class="text-base sm:text-2xl font-bold truncate">Selamat Datang, ${appState.currentUser.name}! 👋</h2><p class="text-[11px] sm:text-xs text-indigo-200 mt-1 truncate">${appState.db.a?.ns||""} | Kelas ${kelasList.join(", ")||"-"}</p></div></div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="saveToCloud()" class="bg-amber-500 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan</button>
-          <button onclick="showSetupModal()" class="bg-indigo-600 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-gear"></i> Pengaturan</button>
-        </div>
+                      <div class="flex flex-wrap gap-2">
+                <button onclick="saveToCloud()" class="bg-amber-500 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-cloud-arrow-up"></i> Simpan</button>
+                <button onclick="showSetupModal()" class="bg-indigo-600 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-gear"></i> Pengaturan</button>
+                <button onclick="mulaiTahunAjaranBaru()" class="bg-rose-600 text-xs text-white px-3 py-2.5 rounded-xl font-bold shadow"><i class="fa-solid fa-calendar-plus"></i> Tahun Baru</button>
+              </div>
       </div>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
