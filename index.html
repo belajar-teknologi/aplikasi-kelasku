@@ -1483,47 +1483,46 @@ function updateHeaderUI() {
   if (bs) bs.classList.toggle("hidden", isSiswa);
   const info=document.getElementById("header-user-info"); 
   if (!info) return;
-  if (appState.currentUser) {
-  info.classList.remove("hidden");
-  info.classList.add("flex");
-  document.getElementById("header-user-name").textContent = appState.currentUser.name;
-  document.getElementById("header-user-role").textContent = appState.currentUser.role;
-  const ph = document.getElementById("header-user-photo");
-  const ic = document.getElementById("header-user-icon");
+    if (appState.currentUser) {
+    info.classList.remove("hidden");
+    info.classList.add("flex");
+    document.getElementById("header-user-name").textContent = appState.currentUser.name;
+    document.getElementById("header-user-role").textContent = appState.currentUser.role;
+    const ph = document.getElementById("header-user-photo");
+    const ic = document.getElementById("header-user-icon");
 
-  // ⭐ Tentukan sumber foto secara eksplisit per role
-  let fu = "";
-  if (appState.currentUser.role === "guru") {
-    fu = appState.db?.a?.fg || "";              // guru → hanya foto guru
-  } else if (appState.currentUser.role === "siswa") {
-    const sw = getCurrentSiswa();
-    fu = sw?.fotoUrl || "";                     // siswa → HANYA foto siswa (null kalau belum siap)
-  }                                          // ⛔ JANGAN fallback ke appState.db.a.fg
+    // ⭐ Tentukan sumber foto secara eksplisit per role
+    let fu = "";
+    if (appState.currentUser.role === "guru") {
+      fu = appState.db?.a?.fg || "";              // guru → hanya foto guru
+    } else if (appState.currentUser.role === "siswa") {
+      const sw = getCurrentSiswa();
+      fu = sw?.fotoUrl || "";                     // siswa → HANYA foto siswa (null kalau belum siap)
+    }                                          // ⛔ JANGAN fallback ke appState.db.a.fg
 
-  // ⭐ Guard: jika siswa belum sinkron, tampilkan ikon default, jangan foto apa pun
-  if (appState.currentUser.role === "siswa" && !getCurrentSiswa()) {
-    fu = "";
-  }
+    // ⭐ Guard: jika siswa belum sinkron, tampilkan ikon default, jangan foto apa pun
+    if (appState.currentUser.role === "siswa" && !getCurrentSiswa()) {
+      fu = "";
+    }
 
-  // ⭐ Bersihkan handler lama agar tidak dobel/race
-  ph.onload = null;
-  ph.onerror = null;
+    // ⭐ Bersihkan handler lama agar tidak dobel/race
+    ph.onload = null;
+    ph.onerror = null;
 
-  if (fu && (fu.startsWith("http") || fu.startsWith("data:"))) {
-    ph.referrerPolicy = "no-referrer";
-    ph.classList.add("hidden");
-    ph.removeAttribute("src");
-    void ph.offsetWidth;
-    ph.onload = () => { ph.classList.remove("hidden"); ic.classList.add("hidden"); };
-    ph.onerror = () => { ph.classList.add("hidden"); ic.classList.remove("hidden"); };
-    ph.src = fu;
+    if (fu && (fu.startsWith("http") || fu.startsWith("data:"))) {
+      ph.referrerPolicy = "no-referrer";
+      ph.classList.add("hidden");
+      ph.removeAttribute("src");
+      void ph.offsetWidth;
+      ph.onload = () => { ph.classList.remove("hidden"); ic.classList.add("hidden"); };
+      ph.onerror = () => { ph.classList.add("hidden"); ic.classList.remove("hidden"); };
+      ph.src = fu;
+    } else {
+      ph.classList.add("hidden");
+      ph.removeAttribute("src");
+      ic.classList.remove("hidden");
+    }
   } else {
-    ph.classList.add("hidden");
-    ph.removeAttribute("src");
-    ic.classList.remove("hidden");
-  }
-}
-  } else { 
     info.classList.add("hidden"); 
     info.classList.remove("flex"); 
   }
