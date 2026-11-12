@@ -727,12 +727,15 @@ function getCurrentSiswa() {
   const u = appState.currentUser;
   if (!u || u.role !== "siswa") return null;
   const list = (appState.db.sw || []).map(siswaToObj);
-  const sid = u.siswaId;
-  return list.find(s =>
-    String(s.id) === String(sid) ||
-    (u.nis && String(s.nis) === String(u.nis)) ||
-    (u.username && String(s.username) === String(u.username))
-  ) || null;
+  const sid      = String(u.siswaId ?? "").trim();
+  const nis      = String(u.nis ?? "").trim();
+  const username = String(u.username ?? "").trim().toLowerCase();
+  return list.find(s => {
+    if (sid && String(s.id) === sid) return true;
+    if (nis && String(s.nis) === nis) return true;
+    if (username && String(s.username).toLowerCase() === username) return true;
+    return false;
+  }) || null;
 }
 function mapelToObj(a) { const F=FIELD.MAPEL; return { id:a[F.ID], kode:a[F.KODE], nama:a[F.NAMA], kkm:a[F.KKM], pengampu:a[F.PENGAMPU] }; }
 function mapelArr(o) { const F=FIELD.MAPEL; return [o.id,o.kode,o.nama,o.kkm,o.pengampu]; }
@@ -1078,10 +1081,13 @@ async function saveMasterDB(payload, options) {
 async function simpanFotoSiswaKeCloud(siswaId, fotoUrl) {
   const sb = getSupabaseConfig();
   if (!sb) throw new Error("Supabase belum dikonfigurasi.");
-  const sw = appState.db.sw.find(s => Number(s[FIELD.SISWA.ID]) === Number(siswaId));
-  if (sw) sw[FIELD.SISWA.FOTO] = fotoUrl;
+  const sid = String(siswaId ?? "").trim();
+  if (!sid) throw new Error("ID siswa tidak valid, foto tidak disimpan.");
+  const sw = appState.db.sw.find(s => String(s[FIELD.SISWA.ID]) === sid);
+  if (!sw) throw new Error("Siswa tidak ditemukan, foto tidak disimpan.");
+  sw[FIELD.SISWA.FOTO] = fotoUrl;
   saveLocal();
-  const payload = { ...appState.db, mn: appState.menus, _lastPhotoUpdate: { siswaId, fotoUrl, at: new Date().toISOString() } };
+  const payload = { ...appState.db, mn: appState.menus, _lastPhotoUpdate: { siswaId: sid, fotoUrl, at: new Date().toISOString() } };
   await sbSaveMasterConfig("app_master", payload, appState.db?.a?.k || null);
   return true;
 }
@@ -1478,32 +1484,45 @@ function updateHeaderUI() {
   const info=document.getElementById("header-user-info"); 
   if (!info) return;
   if (appState.currentUser) {
-    info.classList.remove("hidden"); 
-    info.classList.add("flex");
-    document.getElementById("header-user-name").textContent=appState.currentUser.name;
-    document.getElementById("header-user-role").textContent=appState.currentUser.role;
-    const ph=document.getElementById("header-user-photo"); 
-    const ic=document.getElementById("header-user-icon");
-        let fu="";
-    if (appState.currentUser.role==="guru") {
-      fu = appState.db?.a?.fg || "";
-    } else {
-      const sw = getCurrentSiswa();
-      fu = sw?.fotoUrl || "";
-    }
-    if (fu && (fu.startsWith("http")||fu.startsWith("data:"))) { 
-      ph.referrerPolicy="no-referrer"; 
-      ph.classList.add("hidden"); 
-      ph.removeAttribute("src"); 
-      void ph.offsetWidth; 
-      ph.onload=()=>{ph.classList.remove("hidden");ic.classList.add("hidden");}; 
-      ph.onerror=()=>{ph.classList.add("hidden");ic.classList.remove("hidden");}; 
-      ph.src=fu; 
-    } else { 
-      ph.classList.add("hidden"); 
-      ph.removeAttribute("src"); 
-      ic.classList.remove("hidden"); 
-    }
+  info.classList.remove("hidden");
+  info.classList.add("flex");
+  document.getElementById("header-user-name").textContent = appState.currentUser.name;
+  document.getElementById("header-user-role").textContent = appState.currentUser.role;
+  const ph = document.getElementById("header-user-photo");
+  const ic = document.getElementById("header-user-icon");
+
+  // ⭐ Tentukan sumber foto secara eksplisit per role
+  let fu = "";
+  if (appState.currentUser.role === "guru") {
+    fu = appState.db?.a?.fg || "";              // guru → hanya foto guru
+  } else if (appState.currentUser.role === "siswa") {
+    const sw = getCurrentSiswa();
+    fu = sw?.fotoUrl || "";                     // siswa → HANYA foto siswa (null kalau belum siap)
+  }                                          // ⛔ JANGAN fallback ke appState.db.a.fg
+
+  // ⭐ Guard: jika siswa belum sinkron, tampilkan ikon default, jangan foto apa pun
+  if (appState.currentUser.role === "siswa" && !getCurrentSiswa()) {
+    fu = "";
+  }
+
+  // ⭐ Bersihkan handler lama agar tidak dobel/race
+  ph.onload = null;
+  ph.onerror = null;
+
+  if (fu && (fu.startsWith("http") || fu.startsWith("data:"))) {
+    ph.referrerPolicy = "no-referrer";
+    ph.classList.add("hidden");
+    ph.removeAttribute("src");
+    void ph.offsetWidth;
+    ph.onload = () => { ph.classList.remove("hidden"); ic.classList.add("hidden"); };
+    ph.onerror = () => { ph.classList.add("hidden"); ic.classList.remove("hidden"); };
+    ph.src = fu;
+  } else {
+    ph.classList.add("hidden");
+    ph.removeAttribute("src");
+    ic.classList.remove("hidden");
+  }
+}
   } else { 
     info.classList.add("hidden"); 
     info.classList.remove("flex"); 
@@ -3876,24 +3895,42 @@ async function hapusBgLogin() {
 }
 
 async function uploadFotoProfil(tipe, e) {
-  const f=e.target.files[0]; 
-  if (!f) return; 
-  showLoading(true,"Mengunggah...");
+  const f = e.target.files[0];
+  if (!f) return;
+
+  // ⭐ Guard role: pastikan konteks sesuai
+  if (tipe === "guru" && appState.currentUser?.role !== "guru") {
+    showToast("Hanya guru yang bisa mengubah foto guru.", "error");
+    e.target.value = "";
+    return;
+  }
+  if (tipe === "siswa" && appState.currentUser?.role !== "siswa") {
+    showToast("Hanya siswa yang bisa mengubah foto siswa.", "error");
+    e.target.value = "";
+    return;
+  }
+  if (tipe === "siswa" && !appState.currentUser?.siswaId) {
+    showToast("ID siswa tidak valid, silakan login ulang.", "error");
+    e.target.value = "";
+    return;
+  }
+
+  showLoading(true, "Mengunggah...");
   try {
-    const r=await uploadFile(f,`edusmart/profile/${tipe}`);
+    const r = await uploadFile(f, `edusmart/profile/${tipe}`);
     if (!r.url) throw new Error("Upload gagal.");
-    if (tipe==="guru") {
+    if (tipe === "guru") {
       appState.db.a.fg = r.url;
       saveLocal();
       await saveMasterDB({ ...appState.db, mn: appState.menus });
-    } else if (tipe==="siswa") {
+    } else if (tipe === "siswa") {
       await simpanFotoSiswaKeCloud(appState.currentUser.siswaId, r.url);
     }
-    showLoading(false); 
-    updateHeaderUI(); 
-    showToast("✓ Foto tersimpan ke cloud.","success"); 
+    showLoading(false);
+    updateHeaderUI();
+    showToast("✓ Foto tersimpan ke cloud.", "success");
     renderApp();
-  } catch(err) { showLoading(false); showToast("Gagal: "+err.message,"error"); }
+  } catch(err) { showLoading(false); showToast("Gagal: " + err.message, "error"); }
   e.target.value = "";
 }
 
@@ -4454,7 +4491,11 @@ function renderSiswaDashboard(c) {
   const sid=appState.currentUser.siswaId; 
   const mapelAll=(appState.db.mp||[]).map(mapelToObj);
   const swObj = getCurrentSiswa();
-  const fotoSiswa = swObj?.fotoUrl || "";
+// ⭐ Validasi: hanya pakai fotoUrl jika benar-benar milik siswa ini
+const fotoSiswa =
+  (swObj && swObj.fotoUrl && swObj.fotoUrl !== appState.db?.a?.fg)
+    ? swObj.fotoUrl
+    : "";
   let total=0, count=0;
   (appState.db.nl||[]).filter(n=>Number(n[FIELD.NILAI.SISWA_ID])===Number(sid)).forEach(arr=>{ 
     const mk=arr[FIELD.NILAI.MAPEL_KODE]; 
@@ -4608,7 +4649,10 @@ async function renderGuruDashboard(c) {
    ========================================================= */
 function renderProfilSiswa(c) {
   const s = getCurrentSiswa() || {};
-  const fotoUrl = s.fotoUrl || "";
+  const fotoUrl =
+    (s.fotoUrl && s.fotoUrl !== appState.db?.a?.fg)
+      ? s.fotoUrl
+      : "";
   c.innerHTML=`<div class="max-w-md mx-auto bg-white p-4 sm:p-6 rounded-2xl border shadow-sm space-y-4 text-center fade-in">
     <div>${fotoUrl?`<img src="${fotoUrl}" referrerpolicy="no-referrer" class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-emerald-100" onerror="this.style.display='none'">`:`<div class="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center text-3xl mx-auto"><i class="fa-solid fa-user-graduate"></i></div>`}</div>
     <label class="inline-block text-[10px] text-slate-500 cursor-pointer"><i class="fa-solid fa-camera"></i> Ganti Foto<input type="file" accept="image/*" class="hidden" onchange="uploadFotoProfil('siswa',event)"></label>
